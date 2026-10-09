@@ -1,0 +1,98 @@
+.interview-details-dialog .modal-content {
+    border: none;
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+}
+
+.interview-details-dialog .modal-header {
+    padding: 22px 24px 18px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #fcfdfc 0%, #f5f8f6 100%);
+}
+
+.interview-details-dialog .modal-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #173b2d;
+}
+
+.interview-details-body {
+    display: grid;
+    gap: 20px;
+    padding: 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #fafcfb 100%);
+}
+
+.interview-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.interview-detail-card {
+    display: grid;
+    gap: 8px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    border: 1px solid rgba(23, 59, 45, 0.08);
+    background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
+    box-shadow: 0 12px 24px rgba(23, 59, 45, 0.05);
+}
+
+.interview-detail-card-wide {
+    grid-column: 1 / -1;
+}
+
+.interview-detail-label {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #667085;
+}
+
+.interview-detail-value {
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: #101828;
+}
+
+.interview-note-panel {
+    padding: 18px 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(21, 90, 67, 0.12);
+    background: linear-gradient(180deg, #eef8f2 0%, #ffffff 100%);
+}
+
+.interview-note-copy {
+    margin: 10px 0 0;
+    color: #1f2937;
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+.interview-details-footer {
+    padding: 16px 24px 22px;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.interview-close-btn {
+    min-width: 110px;
+    border-radius: 999px;
+    font-weight: 700;
+}
+
+@media (max-width: 768px) {
+    .interview-details-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .interview-detail-card-wide {
+        grid-column: auto;
+    }
+
+    .interview-details-body {
+        padding: 18px;
+    }
+}

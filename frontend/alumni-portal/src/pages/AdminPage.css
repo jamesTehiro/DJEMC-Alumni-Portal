@@ -1,0 +1,18 @@
+.role-page {
+    padding: 24px;
+    background: #f4f7fb;
+    min-height: calc(100vh - 70px);
+}
+
+.role-card {
+    border: 0;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+.role-success {
+    color: #067647;
+}
+
+.role-error {
+    color: #b42318;
+}

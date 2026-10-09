@@ -1,0 +1,66 @@
+.profile-action-menu-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: transparent;
+}
+
+.profile-action-menu {
+    position: fixed;
+    z-index: 101;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+    min-width: 180px;
+    overflow: hidden;
+    animation: profile-action-menu-fade-in 0.15s ease-out;
+}
+
+@keyframes profile-action-menu-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.profile-action-menu-item {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.1s;
+}
+
+.profile-action-menu-item:hover {
+    background: #f8fafc;
+}
+
+.profile-action-menu-item:active {
+    background: #f1f5f9;
+}
+
+.profile-action-menu-item svg {
+    font-size: 16px;
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.profile-action-menu-divider {
+    height: 1px;
+    background: #e5e7eb;
+    margin: 0;
+}

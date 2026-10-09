@@ -1,0 +1,339 @@
+.registrar-dashboard-cards {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+    .registrar-dashboard-cards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.registrar-dashboard-card {
+    width: 100%;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: linear-gradient(120deg, rgba(7, 115, 59, 0.10), rgba(73, 204, 121, 0.08));
+    padding: 18px 16px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    box-shadow: 0 12px 26px rgba(5, 11, 29, 0.08);
+}
+
+.registrar-dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(5, 11, 29, 0.16);
+    background: linear-gradient(120deg, rgba(7, 115, 59, 0.14), rgba(73, 204, 121, 0.10));
+}
+
+.registrar-dashboard-card:focus-visible {
+    outline: 3px solid rgba(36, 158, 148, 0.35);
+    outline-offset: 2px;
+}
+
+.registrar-dashboard-card-label {
+    font-weight: 800;
+    color: rgba(5, 9, 29, 0.78);
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.registrar-dashboard-card-count {
+    font-size: 2rem;
+    font-weight: 900;
+    color: rgba(7, 115, 59, 0.96);
+    line-height: 1;
+}
+
+.registrar-card-pending {
+    background: linear-gradient(120deg, rgba(36, 158, 148, 0.14), rgba(73, 204, 121, 0.08));
+}
+
+.registrar-card-master {
+    background: linear-gradient(120deg, rgba(27, 111, 82, 0.14), rgba(73, 204, 121, 0.06));
+}
+
+.registrar-card-analytics {
+    background: linear-gradient(120deg, rgba(147, 51, 234, 0.10), rgba(73, 204, 121, 0.06));
+}
+
+/* ===== Employment Analytics Layout ===== */
+
+.employment-analytics-layout {
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 992px) {
+    .employment-analytics-layout {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.employment-status-panel {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.employment-status-title {
+    margin-bottom: 16px;
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: #1a1a2e;
+}
+
+/* ===== Doughnut Chart Panel ===== */
+
+.doughnut-panel-wrapper {
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #ffffff;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.doughnut-chart-panel {
+    width: 100%;
+}
+
+.doughnut-chart-wrapper {
+    display: flex;
+    justify-content: center;
+    padding: 8px 0;
+}
+
+.doughnut-chart-container {
+    position: relative;
+    width: 220px;
+    height: 220px;
+}
+
+.doughnut-center-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+}
+
+.doughnut-center-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0f7a43;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.doughnut-center-subtitle {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #0f7a43;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.doughnut-center-total-label {
+    font-size: 0.65rem;
+    color: #888;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.doughnut-center-total-count {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #1a1a2e;
+    line-height: 1.1;
+}
+
+/* ===== Legend ===== */
+
+.doughnut-legend {
+    display: grid;
+    gap: 8px;
+    padding: 12px 0 8px;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.doughnut-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: background 150ms ease;
+}
+
+.doughnut-legend-item:hover {
+    background: rgba(15, 122, 67, 0.05);
+}
+
+.doughnut-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.doughnut-legend-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #333;
+    flex: 1;
+}
+
+.doughnut-legend-value {
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #1a1a2e;
+    min-width: 24px;
+    text-align: right;
+}
+
+.doughnut-legend-pct {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #0f7a43;
+    min-width: 44px;
+    text-align: right;
+}
+
+/* ===== Quick Statistics ===== */
+
+.doughnut-stats-section {
+    padding-top: 8px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    margin-top: 4px;
+}
+
+.doughnut-stats-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    margin-bottom: 10px;
+}
+
+.doughnut-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.doughnut-stat-card {
+    text-align: center;
+    padding: 10px 6px;
+    border-radius: 10px;
+    background: rgba(15, 122, 67, 0.04);
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.doughnut-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.doughnut-stat-value {
+    font-size: 1.25rem;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.doughnut-stat-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+}
+
+/* ===== Employment Analytics Text Colors ===== */
+
+.employ-status-label {
+    color: #1a1a2e;
+    font-weight: 700;
+}
+
+.employ-count-value {
+    color: #0f7a43;
+}
+
+.employ-totals-heading {
+    color: #1a1a2e;
+    font-weight: 700;
+    opacity: 0.8;
+}
+
+.employ-totals-value {
+    color: #0f7a43;
+    font-size: 22px;
+    font-weight: 900;
+}
+
+.employ-summary-heading {
+    color: #1a1a2e;
+    font-weight: 700;
+    opacity: 0.8;
+}
+
+.employ-summary-text {
+    color: #475569;
+    font-size: 14px;
+    margin-top: 4px;
+}
+
+.employ-course-heading {
+    color: #1a1a2e;
+    font-weight: 700;
+    opacity: 0.8;
+    margin-bottom: 8px;
+}
+
+.employ-course-name {
+    color: #1a1a2e;
+    font-weight: 500;
+}
+
+.employ-course-count {
+    color: #0f7a43;
+    font-weight: 700;
+}
+
+/* ===== Empty State ===== */
+
+.doughnut-empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.doughnut-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    opacity: 0.6;
+}
+
+.doughnut-empty-text {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #666;
+    margin-bottom: 6px;
+}
+
+.doughnut-empty-sub {
+    font-size: 0.8rem;
+    color: #999;
+    max-width: 280px;
+    margin: 0 auto;
+    line-height: 1.4;
+}

@@ -1,0 +1,32 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "email-worker": "node workers/emailQueueWorker.js",
+    "sequelize": "sequelize"
+  },
+  "author": "james tehiro",
+  "license": "ISC",
+  "dependencies": {
+    "archiver": "^8.0.0",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.19.0",
+    "nodemailer": "^8.0.1",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "sequelize-cli": "^6.6.5"
+  }
+}

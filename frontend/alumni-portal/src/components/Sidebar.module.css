@@ -1,0 +1,255 @@
+/* ============================================================
+   Shared Sidebar Styles - Reference: Employer Sidebar Design
+   Uses CSS custom properties with defaults (fallbacks) so that
+   per‑portal overrides (e.g. Alumni) can redeclare the variables
+   on a wrapper element without affecting other portals.
+   ============================================================ */
+
+/* Layout container - 300px sidebar width matching Employer design */
+.sidebarLayout,
+.employerLayout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 28px;
+    align-items: start;
+}
+
+.adminShell {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+    min-height: calc(100vh - 70px);
+    min-width: 0;
+    padding: 32px;
+    box-sizing: border-box;
+    background:
+        radial-gradient(120% 120% at 15% 10%, rgba(182, 126, 125, .14), transparent 40%),
+        radial-gradient(120% 120% at 90% 20%, rgba(93, 168, 122, .18), transparent 45%),
+        #f6f8f5;
+    font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+    color: #17402a;
+}
+
+/* Mobile overlay - shared across all portals */
+.sidebarOverlay {
+    display: none;
+}
+
+.sidebarOverlay.visible {
+    display: block;
+    position: fixed;
+    inset: 70px 0 0 0;
+    background: var(--sidebar-overlay, rgba(15, 23, 42, 0.4));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 30;
+}
+
+.sidebarOverlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Mobile nav toggle - shared across all portals */
+.mobileNavToggle {
+    display: none;
+}
+
+/* Sidebar container - sticky on desktop */
+.sidebar {
+    position: sticky;
+    top: 104px;
+    align-self: start;
+}
+
+/* Employer sidebar variant - same positioning */
+.employerSidebar {
+    position: sticky;
+    top: 104px;
+    align-self: start;
+}
+
+/* Sidebar card - exact match from Employer design */
+.sidebarCard,
+.employerSidebarCard,
+.adminEmployerSidebarCard {
+    background: var(--sidebar-gradient);
+    border-radius: 24px;
+    padding: 26px;
+    box-shadow: 0 12px 30px rgba(23, 64, 42, 0.14);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Sidebar title - exact match from Employer design */
+.sidebarTitle,
+.employerSidebarTitle {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.82);
+    margin-bottom: 16px;
+}
+
+/* Navigation container - grid layout matching Employer design */
+.sidebarNav,
+.employerSidebarNav {
+    display: grid;
+    gap: 10px;
+}
+
+/* Navigation items - exact match from Employer design */
+.navItem,
+.employerNavItem {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    min-height: 44px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #ffffff;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background 120ms ease, transform 120ms ease;
+}
+
+/* Sidebar icon - visual parity with Alumni sidebar .dash-icon */
+.navIcon,
+.employerNavIcon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    min-width: 1rem;
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.navItem:hover,
+.employerNavItem:hover {
+    background: var(--sidebar-hover, rgba(255, 255, 255, 0.12));
+    color: #fff;
+}
+
+.navItem.active,
+.employerNavItem.active {
+    background: var(--sidebar-active, rgba(255, 255, 255, 0.18));
+    color: #fff;
+}
+
+.navItem:active,
+.employerNavItem:active {
+    transform: scale(0.99);
+}
+
+/* Logout button position */
+.sidebarLogoutBtn {
+    margin-top: 12px;
+}
+
+/* Main content area */
+.main,
+.employerMain {
+    min-width: 0;
+}
+
+.main {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 70px);
+}
+
+/* Mobile styles - exact match from Employer design */
+@media (max-width: 767.98px) {
+    .mobileNavToggle {
+        display: inline-flex;
+        position: fixed;
+        top: 84px;
+        left: 12px;
+        z-index: 45;
+        width: 44px;
+        height: 44px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--sidebar-toggle-border, rgba(255, 255, 255, 0.22));
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--sidebar-toggle-start, rgba(21, 90, 67, 0.96)), var(--sidebar-toggle-end, rgba(34, 197, 94, 0.92)));
+        color: #ffffff;
+        box-shadow: 0 12px 24px var(--sidebar-toggle-shadow, rgba(15, 23, 42, 0.18));
+    }
+
+    .sidebar,
+    .employerSidebar {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        bottom: 0;
+        width: min(84vw, 300px);
+        z-index: 40;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        padding: 12px;
+        overflow-y: auto;
+    }
+
+    .sidebar.open,
+    .employerSidebar.open {
+        transform: translateX(0);
+    }
+
+    .sidebarCard,
+    .employerSidebarCard {
+        min-height: calc(100vh - 94px);
+    }
+}
+
+/* Tablet/mobile breakpoint */
+@media (max-width: 1100px) {
+
+    .sidebarLayout,
+    .employerLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .adminShell {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .sidebar,
+    .employerSidebar {
+        position: relative;
+        top: 0;
+    }
+
+    .sidebarNav,
+    .employerSidebarNav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .adminShell {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .adminShell {
+        padding: 14px;
+    }
+}
+
+@media (max-width: 640px) {
+
+    .sidebarNav,
+    .employerSidebarNav {
+        grid-template-columns: 1fr;
+    }
+}

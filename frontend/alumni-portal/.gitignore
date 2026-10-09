@@ -1,0 +1,36 @@
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+**/dist/
+.vite/
+.vercel/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Private uploads
+backend/uploads/
+backend/private_uploads/
+
+# Database backups
+*.sql
+*.sql.gz
+*.dump
+
+# Editor files
+.vscode/
+.idea/
+.DS_Store

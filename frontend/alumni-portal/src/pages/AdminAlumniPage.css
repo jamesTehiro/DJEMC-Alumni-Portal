@@ -1,0 +1,608 @@
+/* ============================================================
+     AdminAlumniPage.css – System Overview Dashboard Styles
+     ============================================================ */
+
+/* Scoped to the Alumni System Overview page: with the "Total Alumni"
+   metric card removed, the three remaining cards (Active Alumni,
+   Announcements, Recent Activity) are distributed evenly across the
+   full width. This overrides the shared 4-column .metric-grid from
+   AdminEmployerPage.css without affecting the Employer dashboard.
+   The three cards stay evenly spread (3-up) down to small tablets and
+   only stack to a single column on phones, so there is never an empty
+   gap left by an orphaned card. */
+.alumni-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr))
+}
+
+@media(max-width:1100px) {
+    .alumni-metric-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+}
+
+@media(max-width:900px) {
+    .alumni-metric-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr))
+    }
+}
+
+@media(max-width:640px) {
+    .alumni-metric-grid {
+        grid-template-columns: 1fr
+    }
+}
+
+.metric-overview-card {
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background .12s ease;
+    border: 1px solid rgba(23, 64, 42, .08);
+    background: #fff;
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    width: 100%;
+    text-align: left;
+    font-family: inherit
+}
+
+.metric-overview-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px #17402a1f;
+    border-color: #2e6b4633
+}
+
+.metric-overview-card.active {
+    border-color: #1f8a61;
+    box-shadow: 0 0 0 2px #1f8a6126, 0 0 20px #1f8a611f, 0 12px 28px #17402a1a;
+    background: linear-gradient(135deg, #f0faf5, #fff)
+}
+
+.metric-overview-card.active .metric-icon {
+    box-shadow: 0 0 0 2px #1f8a6140, 0 0 16px #1f8a612e
+}
+
+.metric-overview-card.active h3 {
+    color: #1f8a61
+}
+
+.metric-card-verified .metric-icon {
+    background: linear-gradient(135deg, #4a9eff, #2b7be0)
+}
+
+.metric-card-pending .metric-icon {
+    background: linear-gradient(135deg, #d49466, #c07a4a)
+}
+
+.metric-card-posts .metric-icon {
+    background: linear-gradient(135deg, #2d5a3d, #17402a)
+}
+
+.overview-content-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr))
+}
+
+.overview-queue-panel {
+    width: 100%;
+    min-height: 420px;
+    grid-column: 1 / -1
+}
+
+.overview-data-card {
+    width: 100%
+}
+
+.overview-data-card .queue-row {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, .8fr)
+}
+
+.overview-data-card .queue-row.header {
+    font-size: .82rem;
+    text-transform: uppercase
+}
+
+.alumni-directory-table {
+    overflow-x: auto
+}
+
+.alumni-directory-table .queue-row {
+    grid-template-columns: minmax(190px, 2fr) minmax(120px, 1.2fr) minmax(110px, .9fr) minmax(150px, 1.2fr) minmax(160px, 1.5fr) minmax(150px, 1.4fr) 44px;
+    column-gap: 12px;
+    align-items: center;
+    min-width: 1080px
+}
+
+.alumni-directory-table .queue-row.header {
+    white-space: nowrap;
+    letter-spacing: .08em
+}
+
+.alumni-directory-table .queue-row > * {
+    min-width: 0
+}
+
+.alumni-directory-table .queue-row .actions {
+    justify-self: end
+}
+
+.alumni-directory-table .queue-row > :nth-child(2),
+.alumni-directory-table .queue-row > :nth-child(3),
+.alumni-directory-table .queue-row > :nth-child(4) {
+    text-align: left;
+}
+
+.alumni-directory-table .directory-location {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.alumni-directory-table .directory-job-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.directory-empty-value { color: #667085; }
+
+.employment-status-badge {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.employment-status-badge.employed { color: #176b45; background: #e4f4eb; }
+.employment-status-badge.unemployed { color: #8a5a10; background: #fff3d6; }
+.employment-status-badge.self-employed { color: #365f9d; background: #e8f0fc; }
+
+.directory-back-button,
+.directory-breadcrumb button {
+    border: 0;
+    background: transparent;
+    color: #176b45;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.directory-drilldown { margin-bottom: 16px; }
+.directory-breadcrumb { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; color: #667085; }
+.directory-breadcrumb button { padding: 2px 0; }
+.directory-breadcrumb strong { color: #173b2d; }
+.directory-back-button { padding: 6px 0 12px; }
+.directory-selection-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.directory-selection-card {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 7px;
+    min-height: 100px;
+    padding: 18px;
+    border: 1px solid #d9e5dc;
+    border-radius: 14px;
+    background: #fff;
+    color: #173b2d;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.directory-selection-card:hover,
+.directory-selection-card:focus-visible { border-color: #5c9c77; box-shadow: 0 5px 16px rgba(23, 59, 45, .1); transform: translateY(-1px); outline: none; }
+.directory-selection-card strong { font-size: 1.1rem; }
+.directory-selection-card span, .directory-empty-state { color: #667085; font-size: .9rem; }
+
+@media (max-width: 600px) {
+    .directory-selection-grid { grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 10px; }
+    .directory-selection-card { min-height: 86px; padding: 14px; }
+}
+
+@media(max-width:900px) {
+    .overview-content-grid {
+        grid-template-columns: minmax(0, 1fr)
+    }
+}
+
+.admin-feed-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(300px, 390px);
+    gap: 24px
+}
+
+.admin-feed-main {
+    display: grid;
+    gap: 18px
+}
+
+.admin-feed-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: #fff;
+    border: 1px solid rgba(23, 64, 42, .08);
+    border-radius: 18px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow-soft)
+}
+
+.admin-feed-eyebrow {
+    margin: 0 0 4px;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    font-size: .72rem;
+    color: var(--muted);
+    font-weight: 700
+}
+
+.admin-feed-toolbar h2 {
+    margin: 0;
+    color: var(--forest);
+    font-size: 1.55rem
+}
+
+.admin-feed-toolbar span {
+    color: var(--muted);
+    font-size: .9rem
+}
+
+.admin-feed-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end
+}
+
+.admin-feed-chip {
+    display: inline-flex;
+    align-items: center;
+    background: #edf8f1;
+    color: var(--evergreen);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: .85rem;
+    font-weight: 700
+}
+
+.alumni-record-profile-modal .modal-dialog {
+    max-width: 460px
+}
+
+.alumni-record-profile-body {
+    padding: 24px
+}
+
+.alumni-record-profile-card {
+    display: grid;
+    gap: 24px
+}
+
+.alumni-record-profile-top {
+    display: grid;
+    gap: 18px;
+    justify-items: center;
+    text-align: center
+}
+
+.alumni-record-profile-avatar {
+    width: 78px;
+    height: 78px;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(30, 41, 59, .12);
+    background: linear-gradient(135deg, #dfeee5, #f8fbfa);
+    color: var(--forest);
+    display: grid;
+    place-items: center;
+    font-size: 1.3rem;
+    font-weight: 800;
+    box-shadow: 0 14px 28px #37a86414
+}
+
+.alumni-record-profile-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+}
+
+.alumni-record-profile-copy {
+    display: grid;
+    gap: 6px
+}
+
+.alumni-record-profile-copy h3 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 2rem;
+    font-weight: 800
+}
+
+.alumni-record-profile-copy p {
+    margin: 0;
+    color: #64748b;
+    font-size: 1.05rem
+}
+
+.alumni-record-profile-course {
+    color: var(--forest) !important;
+    font-weight: 700
+}
+
+.alumni-record-profile-role {
+    justify-self: center;
+    margin-top: 4px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: #edf8f1;
+    color: var(--evergreen);
+    font-size: .78rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase
+}
+
+.alumni-record-profile-section {
+    display: grid;
+    gap: 14px
+}
+
+.alumni-record-profile-section h4 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.85rem;
+    font-weight: 800
+}
+
+.alumni-record-employment-card {
+    display: grid;
+    gap: 8px;
+    padding: 18px 20px;
+    border: 1px solid rgba(148, 163, 184, .3);
+    border-radius: 18px;
+    background: #fffffff0;
+    box-shadow: 0 10px 22px #94a3b81f
+}
+
+.alumni-record-employment-card strong {
+    color: #1f2937;
+    font-size: 1rem;
+    font-weight: 800;
+    text-transform: uppercase
+}
+
+.alumni-record-employment-card span,
+.alumni-record-profile-empty {
+    color: #64748b;
+    font-size: 1rem
+}
+
+.admin-feed-list {
+    display: grid;
+    gap: 16px
+}
+
+.admin-feed-card {
+    position: relative
+}
+
+.admin-feed-card .post-header {
+    align-items: flex-start
+}
+
+.admin-feed-rail {
+    display: grid;
+    gap: 16px;
+    align-content: start
+}
+
+.admin-feed-rail-card {
+    background: #fff;
+    border: 1px solid rgba(23, 64, 42, .08);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: var(--shadow-soft)
+}
+
+.admin-feed-rail-card h3 {
+    margin: 0 0 12px;
+    color: var(--forest);
+    font-size: 1.05rem
+}
+
+.admin-feed-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px
+}
+
+.admin-feed-stats div {
+    background: #f7faf8;
+    border: 1px solid rgba(23, 64, 42, .08);
+    border-radius: 14px;
+    padding: 12px
+}
+
+.admin-feed-stats span {
+    display: block;
+    color: var(--muted);
+    font-size: .82rem;
+    margin-bottom: 4px
+}
+
+.admin-feed-stats strong {
+    color: var(--evergreen);
+    font-size: 1.2rem
+}
+
+.admin-feed-note {
+    margin: 0 0 14px;
+    color: var(--muted);
+    line-height: 1.5;
+    font-size: .92rem
+}
+
+.admin-feed-form {
+    display: grid;
+    gap: 12px
+}
+
+.admin-feed-form label {
+    display: grid;
+    gap: 6px
+}
+
+.admin-feed-form span {
+    font-size: .84rem;
+    font-weight: 700;
+    color: var(--evergreen)
+}
+
+.admin-feed-form input,
+.admin-feed-form textarea {
+    width: 100%;
+    border: 1px solid #d8e1da;
+    border-radius: 12px;
+    padding: 11px 12px;
+    font: inherit;
+    color: #7c7d81;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+.admin-feed-form input:focus,
+.admin-feed-form textarea:focus {
+    outline: none;
+    border-color: var(--forest);
+    box-shadow: 0 0 0 3px #9da5a11f;
+}
+
+.admin-feed-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #1f8a61, #145c3f);
+    color: #fff;
+    padding: 11px 14px;
+    font-weight: 700;
+    cursor: pointer
+}
+
+.admin-feed-submit:hover {
+    filter: brightness(1.03)
+}
+
+.overview-queue-panel .queue-row-simple {
+    grid-template-columns: minmax(220px, 1.5fr) minmax(220px, 1.3fr) minmax(160px, .8fr) minmax(120px, .6fr)
+}
+
+/* ============================================================
+   Inline search inputs used in Total Alumni / Active Alumni panels
+   These are plain <input> elements NOT inside .admin-employer-shell
+   ============================================================ */
+.queue-panel input[type="text"],
+.queue-panel input:not([type]) {
+    background: #ffffff;
+    color: #222223;
+    border: 1px solid #dfe5ec;
+    border-radius: 12px;
+    padding: 10px 14px;
+    height: 42px;
+    font: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 320px;
+}
+
+.queue-panel input[type="text"]::placeholder,
+.queue-panel input:not([type])::placeholder {
+    color: #94a3b8;
+}
+
+.queue-panel input[type="text"]:focus,
+.queue-panel input:not([type]):focus {
+    outline: none;
+    border-color: #1f8a61;
+    box-shadow: 0 6px 18px rgba(31, 138, 97, 0.12);
+}
+
+/* Pagination buttons in Total Alumni / Active Alumni panels */
+.queue-panel button {
+    background: #ffffff;
+    color: #1F2937;
+    border: 1px solid #dfe5ec;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.queue-panel button:hover:not(:disabled) {
+    background: #f5faf7;
+    border-color: #1f8a61;
+}
+
+.queue-panel button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.queue-panel button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px #2e6b4640;
+}
+
+/* Pagination page indicator text */
+.queue-panel span {
+    color: #1F2937;
+    font-size: .9rem;
+}
+
+@media(max-width:1100px) {
+    .admin-feed-layout {
+        grid-template-columns: 1fr
+    }
+
+    .metric-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+    }
+}
+
+@media(max-width:640px) {
+    .admin-feed-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 16px
+    }
+
+    .admin-feed-toolbar h2 {
+        font-size: 1.35rem
+    }
+
+    .admin-feed-chips {
+        justify-content: flex-start;
+        width: 100%
+    }
+
+    .admin-feed-stats {
+        grid-template-columns: 1fr
+    }
+
+    .admin-feed-submit {
+        width: 100%
+    }
+
+    .metric-grid {
+        grid-template-columns: 1fr
+    }
+}

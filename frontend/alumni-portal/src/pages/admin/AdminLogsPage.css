@@ -1,0 +1,66 @@
+.system-logs-layout {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.system-logs-layout > .queue-panel {
+    width: 100%;
+    min-width: 0;
+}
+
+.system-logs-layout .audit-timeline {
+    max-height: min(70vh, 800px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    padding-right: 8px;
+}
+
+.system-logs-layout .logs-table {
+    min-width: 0;
+}
+
+.system-logs-layout .logs-table .queue-row {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, .65fr) minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1.2fr);
+    gap: 8px;
+}
+
+.system-logs-layout .logs-table .queue-row > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.system-logs-layout .logs-table .queue-row.header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #fff;
+}
+
+@media (max-width: 700px) {
+    .system-logs-layout .logs-table .queue-row.header {
+        display: none;
+    }
+
+    .system-logs-layout .logs-table .queue-row:not(.header) {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        padding: 12px;
+    }
+
+    .system-logs-layout .logs-table .queue-row:not(.header) > * {
+        display: grid;
+        grid-template-columns: minmax(88px, .55fr) minmax(0, 1fr);
+        gap: 8px;
+        align-items: start;
+    }
+
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(1)::before { content: "User Name"; }
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(2)::before { content: "Role"; }
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(3)::before { content: "Action"; }
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(4)::before { content: "Description"; }
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(5)::before { content: "IP"; }
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(6)::before { content: "Device"; }
+    .system-logs-layout .logs-table .queue-row:not(.header) > :nth-child(7)::before { content: "Timestamp"; }
+}

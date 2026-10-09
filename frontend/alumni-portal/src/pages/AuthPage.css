@@ -1,0 +1,676 @@
+/* ============================================
+   DJEMC Alumni Portal — Premium Auth Styles
+   ============================================ */
+
+/* 1. Background: subtle depth */
+.auth-shell {
+    min-height: calc(100vh - 70px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background:
+        radial-gradient(ellipse at top left, rgba(31, 107, 73, 0.06), transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(23, 64, 42, 0.04), transparent 50%),
+        linear-gradient(180deg, #F6F2E9 0%, #EFE8DC 50%, #E7DED1 100%);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2. Authentication Card: premium, compact */
+.auth-card {
+    width: 100%;
+    max-width: 440px;
+    min-width: 0;
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 4px 12px rgba(15, 23, 42, 0.06),
+        0 16px 40px rgba(15, 23, 42, 0.1);
+    padding: 28px 28px 24px;
+    border: 1px solid rgba(23, 64, 42, 0.08);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.auth-card:hover {
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 6px 16px rgba(15, 23, 42, 0.08),
+        0 24px 48px rgba(15, 23, 42, 0.14);
+    transform: translateY(-1px);
+}
+
+/* 3. Header: refined typography */
+.auth-card-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.auth-card-header h1 {
+    margin: 0 0 6px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.auth-card-header p {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    font-weight: 400;
+}
+
+/* 4. Form spacing: compact rhythm */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.field>span {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+}
+
+/* 5. Inputs: modern clean design */
+.line-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.line-input input {
+    width: 100%;
+    height: 46px;
+    padding: 0 42px 0 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    font-size: 0.92rem;
+    color: #0f172a;
+    font-weight: 400;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
+    box-sizing: border-box;
+}
+
+.line-input input:hover {
+    border-color: #cbd5e1;
+    background: #fafbfc;
+}
+
+.line-input input:focus {
+    outline: none;
+    border-color: #1f6b49;
+    box-shadow: 0 0 0 4px rgba(31, 107, 73, 0.08);
+    background: #ffffff;
+}
+
+.line-input input::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+.input-icon {
+    position: absolute;
+    right: 12px;
+    width: 18px;
+    height: 18px;
+    color: #64748b;
+    pointer-events: none;
+    opacity: 0.65;
+    transition: opacity 0.2s ease;
+}
+
+.line-input input:focus~.input-icon,
+.line-input:focus-within .input-icon {
+    opacity: 1;
+    color: #1f6b49;
+}
+
+/* 6. Actions & Buttons */
+.auth-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    padding-top: 0;
+}
+
+.auth-submit {
+    width: 100%;
+    height: 46px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-radius: 12px;
+}
+
+.auth-footer {
+    text-align: center;
+    margin: 16px 0 0;
+    color: #64748b;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+/* 7. Feedback messages */
+.auth-error {
+    color: #b42318;
+    background: #fef2f2;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    border: 1px solid #fecaca;
+    line-height: 1.4;
+}
+
+.auth-success {
+    color: #067647;
+    background: #f0fdf4;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    border: 1px solid #bbf7d0;
+    line-height: 1.4;
+}
+
+.auth-switch {
+    margin-top: 12px;
+    margin-bottom: 0;
+    font-size: 0.92rem;
+}
+
+/* 8. Buttons & Links */
+.inline-link-btn {
+    color: #1f6b49;
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.inline-link-btn:hover {
+    color: #15442f;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.primary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 46px;
+    padding: 0 24px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1f6b49 0%, #15442f 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    box-shadow: 0 4px 12px rgba(31, 107, 73, 0.2);
+}
+
+.primary-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(31, 107, 73, 0.35);
+    background: linear-gradient(135deg, #237a4f 0%, #1a5a3a 100%);
+}
+
+.primary-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(31, 107, 73, 0.25);
+}
+
+.primary-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(31, 107, 73, 0.15);
+}
+
+/* 9. Consent & File Input */
+.consent-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.85rem;
+    color: #334155;
+    line-height: 1.5;
+    padding: 2px 0;
+}
+
+.consent-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-top: 3px;
+    accent-color: #1f6b49;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.highlight-link {
+    color: #1f6b49;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    transition: color 0.2s ease;
+}
+
+.highlight-link:hover {
+    color: #15442f;
+}
+
+.employer-file-input {
+    width: 100%;
+    padding: 12px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8faf9;
+    font-size: 0.88rem;
+    color: #334155;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.employer-file-input:hover {
+    border-color: #1f6b49;
+    background: #f0fdf4;
+    box-shadow: 0 0 0 3px rgba(31, 107, 73, 0.06);
+}
+
+.upload-helper-text {
+    margin: 8px 0 0;
+    font-size: 0.8rem;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+/* 10. Select styling */
+.role-select-wrap select {
+    width: 100%;
+    min-width: 0;
+    padding: 11px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #ffffff;
+    font-size: 0.92rem;
+    color: #0f172a;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    background-size: 12px;
+    padding-right: 36px;
+    box-sizing: border-box;
+}
+
+.role-select-wrap select:focus {
+    outline: none;
+    border-color: #1f6b49;
+    box-shadow: 0 0 0 4px rgba(31, 107, 73, 0.08);
+}
+
+.role-select-wrap option {
+    color: #0f172a;
+}
+
+/* 11. Password visibility toggle */
+.password-input-wrap input {
+    padding-right: 46px;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: color 0.2s ease, background 0.2s ease;
+    z-index: 1;
+}
+
+.password-toggle-btn:hover,
+.password-toggle-btn:focus-visible {
+    color: #1f6b49;
+    background: rgba(31, 107, 73, 0.08);
+    outline: none;
+}
+
+.password-toggle-icon {
+    font-size: 1rem;
+    pointer-events: none;
+}
+
+/* 12. Responsive: tablets */
+@media (max-width: 767.98px) {
+    .auth-shell {
+        padding: 16px;
+    }
+
+    .auth-card {
+        padding: 24px 20px 20px;
+        border-radius: 18px;
+    }
+
+    .auth-card-header {
+        margin-bottom: 20px;
+    }
+
+    .auth-card-header h1 {
+        font-size: 1.35rem;
+    }
+
+    .auth-form {
+        gap: 14px;
+    }
+
+    .field {
+        gap: 5px;
+    }
+
+    .line-input input {
+        height: 46px;
+        padding: 0 40px 0 14px;
+    }
+
+    .primary-btn,
+    .auth-submit {
+        height: 46px;
+        font-size: 0.92rem;
+        border-radius: 12px;
+    }
+}
+
+/* 13. Responsive: small phones */
+@media (max-width: 575.98px) {
+    .auth-shell {
+        padding: 12px;
+    }
+
+    .auth-card {
+        padding: 20px 16px 16px;
+        border-radius: 16px;
+    }
+
+    .auth-card-header {
+        margin-bottom: 16px;
+    }
+
+    .auth-card-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .auth-card-header p {
+        font-size: 0.85rem;
+    }
+
+    .auth-form {
+        gap: 12px;
+    }
+
+    .field>span {
+        font-size: 0.8rem;
+    }
+
+    .field {
+        gap: 4px;
+    }
+
+    .line-input input {
+        height: 44px;
+        font-size: 0.88rem;
+        border-radius: 10px;
+    }
+
+    .primary-btn,
+    .auth-submit {
+        height: 44px;
+        font-size: 0.88rem;
+        border-radius: 10px;
+    }
+
+    .auth-footer {
+        font-size: 0.8rem;
+        margin: 14px 0 0;
+    }
+
+    .auth-error,
+    .auth-success {
+        font-size: 0.8rem;
+        padding: 10px 12px;
+        border-radius: 10px;
+    }
+}
+
+/* Safety: ensure any logo markup stays hidden */
+.auth-logo {
+    display: none;
+}
+
+/* ============================================
+   14. Employer Data Privacy Consent Modal
+   ============================================ */
+
+/* Backdrop - dark overlay that prevents interaction */
+.consent-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+    overflow-y: auto;
+}
+
+/* Modal container - centered with proper dimensions */
+.consent-modal {
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 760px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    transform: translateY(0);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+/* Modal header - title and close button */
+.consent-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.consent-header h4 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+}
+
+/* Modal body - scrollable content area */
+.consent-body {
+    padding: 24px;
+    overflow-y: auto;
+    flex-grow: 1;
+    max-height: calc(85vh - 140px);
+}
+
+.consent-body p {
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.consent-body p:last-child {
+    margin-bottom: 0;
+}
+
+.consent-body ul {
+    margin: 0 0 16px 20px;
+    padding: 0;
+}
+
+.consent-body li {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #334155;
+}
+
+.consent-body li:last-child {
+    margin-bottom: 0;
+}
+
+/* Modal footer - scroll hint and actions */
+.consent-footer {
+    padding: 16px 24px 20px;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Scroll hint text */
+.scroll-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+    font-style: italic;
+}
+
+/* Consent actions - button container in footer */
+.consent-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* Responsive: tablets and smaller */
+@media (max-width: 767.98px) {
+    .consent-modal {
+        max-width: 95vw;
+        max-height: 90vh;
+        border-radius: 14px;
+    }
+
+    .consent-header {
+        padding: 16px 20px;
+    }
+
+    .consent-header h4 {
+        font-size: 1.15rem;
+    }
+
+    .consent-body {
+        padding: 20px;
+        max-height: calc(90vh - 130px);
+    }
+
+    .consent-footer {
+        padding: 14px 20px 18px;
+    }
+
+    .scroll-hint {
+        margin: 14px 20px 0 0;
+        font-size: 0.8rem;
+    }
+}
+
+/* Responsive: small phones */
+@media (max-width: 575.98px) {
+    .consent-backdrop {
+        padding: 16px;
+    }
+
+    .consent-modal {
+        max-width: 100vw;
+        border-radius: 12px;
+    }
+
+    .consent-header {
+        padding: 14px 16px;
+    }
+
+    .consent-header h4 {
+        font-size: 1.1rem;
+    }
+
+    .consent-body {
+        padding: 16px;
+        max-height: calc(95vh - 120px);
+    }
+
+    .consent-body p,
+    .consent-body li {
+        font-size: 0.85rem;
+        line-height: 1.55;
+    }
+
+    .consent-footer {
+        padding: 12px 16px 16px;
+    }
+
+    .scroll-hint {
+        margin: 12px 16px 0 0;
+        font-size: 0.78rem;
+    }
+}

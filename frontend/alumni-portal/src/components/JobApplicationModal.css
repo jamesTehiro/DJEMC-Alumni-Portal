@@ -1,0 +1,80 @@
+.job-application-modal .modal-dialog {
+    max-width: min(960px, calc(100vw - 32px));
+}
+
+.job-application-modal .modal-content {
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.job-application-modal .modal-header,
+.job-application-modal .modal-body {
+    padding-inline: clamp(16px, 3vw, 28px);
+}
+
+.job-application-modal .modal-body {
+    padding-bottom: 24px;
+}
+
+.job-application-modal .form-check {
+    margin-bottom: 8px;
+}
+
+.job-application-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.job-application-actions .btn {
+    min-width: 160px;
+}
+
+@media (max-width: 767.98px) {
+    .job-application-modal .modal-dialog {
+        max-width: calc(100vw - 16px);
+        margin: 8px auto;
+    }
+
+    .job-application-modal .modal-header {
+        padding-top: 14px;
+        padding-bottom: 14px;
+    }
+
+    .job-application-modal .modal-title {
+        font-size: 1.05rem;
+        line-height: 1.35;
+    }
+
+    .job-application-modal .row {
+        --bs-gutter-x: 0.85rem;
+    }
+
+    .job-application-modal .form-check-inline {
+        display: flex;
+        margin-right: 0;
+        padding-left: 1.75em;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .job-application-modal .modal-body {
+        padding-bottom: 20px;
+    }
+
+    .job-application-modal .form-control,
+    .job-application-modal .btn {
+        min-height: 44px;
+    }
+
+    .job-application-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+    .job-application-actions .btn {
+        width: 100%;
+        min-width: 0;
+    }
+}

@@ -1,0 +1,36 @@
+.about-hero h1 {
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.about-page h2,
+.about-page h4 {
+    color: #174c3b;
+}
+
+.about-page p,
+.about-page li {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #27353a;
+}
+
+.about-page ul {
+    list-style-type: disc;
+    padding-left: 20px;
+
+}
+
+.highlight {
+    color: #11684a;
+    font-weight: 600;
+}
+
+.section-title {
+    color: #1b4238;
+    margin-top: 20px;
+}
+
+.about-page p {
+    color: #27353a;
+    line-height: 1.7;
+}

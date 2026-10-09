@@ -1,0 +1,77 @@
+.admin-employer-messages-page .employer-conversation-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 0 auto;
+    min-width: 0;
+    margin: 0 0 2px;
+    padding: 0 12px;
+    height: 42px;
+    border: 1px solid rgba(23, 59, 45, 0.14);
+    border-radius: 12px;
+    background: rgba(23, 59, 45, 0.04);
+    color: #557363;
+}
+
+.admin-employer-messages-page .employer-conversation-search:focus-within {
+    border-color: #1f6b49;
+    box-shadow: 0 0 0 3px rgba(31, 107, 73, 0.14);
+}
+
+.admin-employer-messages-page .employer-conversation-search svg {
+    flex: 0 0 auto;
+    font-size: 1rem;
+}
+
+.admin-employer-messages-page .employer-conversation-search input {
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #173b2d;
+    font: inherit;
+    font-size: 0.88rem;
+}
+
+.admin-employer-messages-page .employer-conversation-search input::placeholder {
+    color: #74847c;
+    opacity: 1;
+}
+
+.admin-employer-messages-page .employer-conversation-search input:focus-visible {
+    outline: 0;
+}
+
+.admin-employer-messages-page .employer-conversation-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: min(72vh, 760px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #1f6b49 transparent;
+}
+
+.admin-employer-messages-page .employer-conversation-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-employer-messages-page .employer-conversation-list::-webkit-scrollbar-thumb {
+    background: #1f6b49;
+    border-radius: 999px;
+}
+
+.admin-employer-messages-page .employer-conversation-list .conversation-item {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (max-width: 767.98px) {
+    .admin-employer-messages-page .employer-conversation-list {
+        max-height: none;
+    }
+}

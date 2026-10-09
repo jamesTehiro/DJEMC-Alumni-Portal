@@ -1,0 +1,27 @@
+/* ============================================================
+   Alumni‑only Sidebar Color Overrides
+   Applied via .alumniShell class on the shell container
+   when `scope === "alumni"`.  These override the CSS custom
+   properties used by Sidebar.module.css, affecting only the
+   Alumni sidebar without touching employer or registrar.
+   ============================================================ */
+
+.alumniShell {
+    /* Primary background gradient stops */
+    --sidebar-bg-start: #065845;
+    --sidebar-bg-mid: #1b8a72;
+    --sidebar-bg-end: #044a3a;
+
+    /* Hover & active states – solid green per spec */
+    --sidebar-hover: #1b8a72;
+    --sidebar-active: #1b8a72;
+
+    /* Overlay background – darker accent */
+    --sidebar-overlay: rgba(4, 74, 58, 0.45);
+
+    /* Mobile toggle gradient */
+    --sidebar-toggle-start: #065845;
+    --sidebar-toggle-end: #1b8a72;
+    --sidebar-toggle-border: #1b8a72;
+    --sidebar-toggle-shadow: rgba(4, 74, 58, 0.2);
+}

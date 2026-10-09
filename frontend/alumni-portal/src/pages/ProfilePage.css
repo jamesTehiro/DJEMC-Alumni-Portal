@@ -1,0 +1,401 @@
+.profile-page {
+    padding: 26px;
+    max-width: 980px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+.profile-header {
+    margin-bottom: 18px;
+}
+
+.profile-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px;
+}
+
+.profile-subtitle {
+    color: #64748b;
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.profile-alert {
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+}
+
+.profile-alert-success {
+    background: #ecfdf3;
+    color: #067647;
+    border: 1px solid #abefc6;
+}
+
+.profile-alert-error {
+    background: #fef3f2;
+    color: #b42318;
+    border: 1px solid #fecdca;
+}
+
+.profile-card,
+.resume-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.profile-card {
+    margin-bottom: 16px;
+}
+
+.profile-top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.profile-top {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.profile-avatar,
+.resume-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #065f46;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    background-size: cover;
+    background-position: center;
+}
+
+.profile-avatar.with-photo,
+.resume-avatar.with-photo {
+    color: transparent;
+}
+
+.profile-name {
+    margin: 0 0 2px;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.profile-course {
+    margin: 0;
+    color: #475467;
+    font-size: 0.92rem;
+}
+
+.profile-year {
+    margin: 2px 0 0;
+    color: #667085;
+    font-size: 0.85rem;
+}
+
+.profile-info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.profile-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.profile-info-box span {
+    color: #667085;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.profile-info-box p {
+    margin: 5px 0 0;
+    color: #101828;
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.profile-form {
+    border-top: 1px solid #edf2f7;
+    padding-top: 14px;
+}
+
+.form-section-title {
+    margin: 0 0 10px;
+    font-weight: 700;
+    color: #344054;
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.profile-form .form-label {
+    font-size: 0.82rem;
+    color: #475467;
+    margin-bottom: 4px;
+}
+
+.profile-form .form-control,
+.profile-form .form-select {
+    border-radius: 10px;
+    border: 1px solid #d0d5dd;
+    font-size: 0.93rem;
+}
+
+.profile-form .form-control:focus,
+.profile-form .form-select:focus {
+    border-color: #12b76a;
+    box-shadow: 0 0 0 3px rgba(18, 183, 106, 0.15);
+}
+
+.profile-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+}
+
+.avatar-upload-row {
+    display: flex;
+    gap: 10px;
+}
+
+.work-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+}
+
+.work-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.edit-btn {
+    background: #1b6f52;
+    border-color: #1b6f52;
+    font-weight: 700;
+}
+
+.edit-btn:hover {
+    background: #155a43;
+    border-color: #155a43;
+}
+
+.resume-card .card-body {
+    padding: 18px;
+}
+
+.resume-title {
+    margin: 0 0 12px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.resume-preview {
+    border: 1px dashed #cbd5e1;
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+}
+
+.resume-preview h5 {
+    margin-top: 10px;
+    margin-bottom: 2px;
+    font-weight: 700;
+}
+
+.resume-preview p {
+    margin: 2px 0;
+    color: #475467;
+}
+
+.resume-class {
+    color: #667085;
+    font-size: 0.83rem;
+}
+
+.resume-job-title {
+    margin: 0 0 6px;
+    color: #1f6b49;
+    font-weight: 600;
+}
+
+.resume-bio {
+    margin-top: 8px;
+    color: #344054;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.resume-work-list {
+    margin-top: 14px;
+    text-align: left;
+}
+
+.resume-work-list h6 {
+    margin: 0 0 8px;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.resume-work-empty {
+    margin: 0;
+    color: #667085;
+    font-size: 0.86rem;
+}
+
+.resume-work-item {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #fff;
+}
+
+.resume-work-meta {
+    color: #667085;
+    font-size: 0.82rem;
+    margin-top: 2px;
+}
+
+@media (max-width: 767.98px) {
+    .profile-page {
+        padding: 16px 12px 18px;
+        max-width: 100%;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .profile-card {
+        min-width: 0;
+        width: 100%;
+        overflow: hidden;
+    }
+
+    .profile-top-row {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    .profile-top {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .profile-name,
+    .profile-course,
+    .profile-year,
+    .profile-info-box p,
+    .profile-info-box span {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .profile-avatar {
+        width: 52px;
+        height: 52px;
+        flex-shrink: 0;
+    }
+
+    .profile-top-row .edit-btn {
+        align-self: flex-start;
+        width: auto;
+        white-space: nowrap;
+    }
+
+    .profile-info-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .profile-info-box {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .profile-form .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .profile-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .profile-actions .btn {
+        flex: 1 1 140px;
+    }
+
+    .work-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .work-item,
+    .resume-work-item {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .avatar-upload-row {
+        flex-direction: column;
+    }
+
+    .profile-form .form-control,
+    .profile-form .form-select,
+    .profile-form textarea,
+    .profile-form input,
+    .profile-form select {
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 360px) {
+    .profile-page {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .profile-card,
+    .resume-card {
+        border-radius: 12px;
+    }
+
+    .profile-info-box {
+        padding: 10px;
+    }
+}

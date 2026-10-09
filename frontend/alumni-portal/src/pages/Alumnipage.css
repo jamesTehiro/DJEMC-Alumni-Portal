@@ -1,0 +1,535 @@
+/* Alumni Dashboard Page Styles */
+
+/* =============================================
+   ALUMNI MODERN DASHBOARD
+   ============================================= */
+
+.alumni-shell {
+    min-height: calc(100vh - 70px);
+    display: block;
+    padding: 32px;
+    background: radial-gradient(120% 120% at 15% 10%, rgba(182, 126, 125, 0.14), transparent 40%), radial-gradient(120% 120% at 90% 20%, rgba(93, 168, 122, 0.18), transparent 45%), var(--cream, #f6f8f5);
+}
+
+.alumni-main {
+    min-width: 0;
+}
+
+.alumni-layout {
+    padding: 24px 30px;
+    background: transparent;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.alumni-layout .welcome-banner {
+    background: var(--sidebar-gradient);
+    color: var(--sidebar-text);
+    padding: 40px 30px;
+    border-radius: 10px;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.alumni-layout .welcome-banner h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.welcome-text p {
+    margin: 0;
+    opacity: 0.9;
+}
+
+.welcome-bell {
+    position: relative;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: rgba(11, 11, 11, 0.16);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.welcome-bell:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.welcome-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: #e11d48;
+    color: #fff;
+    min-width: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 2px solid rgba(15, 23, 42, 0.15);
+}
+
+/* =============================================
+   ALUMNI MODERN DASHBOARD
+   ============================================= */
+
+.alu-dash-metrics {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    margin-bottom: 24px;
+}
+
+@media (min-width: 640px) {
+    .alu-dash-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1024px) {
+    .alu-dash-metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 430px) {
+    .alumni-shell {
+        padding: 20px 12px;
+        overflow-x: hidden;
+    }
+
+    .alumni-layout {
+        padding: 0;
+        gap: 16px;
+        max-width: 100%;
+    }
+
+    .alumni-layout .welcome-banner {
+        padding: 18px 16px;
+        min-height: 112px;
+        gap: 12px;
+        align-items: center;
+        border-radius: 14px;
+    }
+
+    .welcome-text {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .alumni-layout .welcome-banner h2 {
+        font-size: clamp(1.5rem, 5vw, 2.1rem);
+        line-height: 1.2;
+        margin-bottom: 6px;
+        letter-spacing: -0.02em;
+    }
+
+    .welcome-text p {
+        font-size: 0.78rem;
+        line-height: 1.4;
+    }
+
+    .welcome-bell {
+        width: 44px;
+        height: 44px;
+        font-size: 19px;
+        flex-shrink: 0;
+    }
+
+    .alu-dash-metrics {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 12px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        padding-bottom: 6px;
+        grid-template-columns: none;
+        margin-bottom: 18px;
+    }
+
+    .alu-dash-card {
+        flex: 0 0 72%;
+        min-width: 180px;
+        width: auto;
+        padding: 14px 10px;
+    }
+
+    .alu-dash-card-count {
+        font-size: 1.35rem;
+    }
+
+    .alu-dash-card-label {
+        font-size: 0.72rem;
+    }
+}
+
+.alu-dash-card {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 14px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 250ms ease;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+}
+
+.alu-dash-card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+        0 0 10px rgba(34, 197, 94, 0.25),
+        0 0 20px rgba(34, 197, 94, 0.20),
+        0 0 40px rgba(34, 197, 94, 0.15),
+        0 18px 40px rgba(5, 11, 29, 0.12);
+}
+
+.alu-dash-card.active {
+    border-color: #22c55e;
+    box-shadow:
+        0 0 10px rgba(34, 197, 94, 0.30),
+        0 0 20px rgba(34, 197, 94, 0.25),
+        0 0 40px rgba(34, 197, 94, 0.18);
+}
+
+.alu-dash-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 8px;
+    transition: transform 250ms ease;
+}
+
+.alu-dash-card:hover .alu-dash-card-icon {
+    transform: scale(1.1);
+}
+
+.alu-dash-card-icon.jobs-icon {
+    background: rgba(59, 130, 246, 0.12);
+    color: #3b82f6;
+}
+
+.alu-dash-card-icon.apps-icon {
+    background: rgba(99, 102, 241, 0.12);
+    color: #6366f1;
+}
+
+.alu-dash-card-icon.announce-icon {
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+}
+
+.alu-dash-card-icon.notif-icon {
+    background: rgba(236, 72, 153, 0.12);
+    color: #ec4899;
+}
+
+.alu-dash-card-count {
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #0f172a;
+    line-height: 1;
+    margin-bottom: 4px;
+}
+
+.alu-dash-card-label {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.alu-dash-panel {
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+}
+
+.alu-dash-panel-inner {
+    padding: 20px 24px;
+}
+
+.alu-dash-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.alu-dash-panel-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.alu-dash-panel-header span {
+    font-size: 0.82rem;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.alu-view-all {
+    font-size: 0.85rem;
+    color: #22c55e;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 180ms ease;
+}
+
+.alu-view-all:hover {
+    color: #166534;
+}
+
+.alu-job-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+@media (min-width: 768px) {
+    .alu-job-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.alu-job-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 16px;
+    background: #ffffff;
+    transition: all 200ms ease;
+}
+
+.alu-job-card:hover {
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    transform: translateY(-2px);
+}
+
+.alu-job-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.alu-job-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #e8f3ef;
+    color: #155a43;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.alu-job-meta h4 {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.alu-job-company-text {
+    margin: 2px 0 0;
+    font-size: 0.84rem;
+    color: #64748b;
+}
+
+.alu-job-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.alu-job-tag {
+    font-size: 0.72rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 600;
+}
+
+.alu-job-tag.location {
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.alu-job-desc {
+    margin: 0 0 10px;
+    color: #475467;
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.alu-job-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid #f0f2f5;
+    font-size: 0.78rem;
+}
+
+.alu-job-date {
+    color: #94a3b8;
+}
+
+.alu-job-qual {
+    color: #64748b;
+    font-weight: 600;
+}
+
+.alu-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid #f0f2f5;
+    gap: 12px;
+}
+
+.alu-list-item:last-child {
+    border-bottom: none;
+}
+
+.alu-list-item-left strong {
+    display: block;
+    color: #111827;
+    font-size: 0.95rem;
+}
+
+.alu-list-item-left p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 0.86rem;
+}
+
+.alu-list-item-right {
+    flex-shrink: 0;
+}
+
+.alu-status-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.alu-status-badge.approved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.alu-status-badge.pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.alu-status-badge.rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.alu-announce-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid #f0f2f5;
+}
+
+.alu-announce-item:last-child {
+    border-bottom: none;
+}
+
+.alu-announce-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: rgba(245, 158, 11, 0.12);
+    color: #f59e0b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.alu-announce-content strong {
+    display: block;
+    color: #111827;
+    font-size: 0.95rem;
+}
+
+.alu-announce-content p {
+    margin: 4px 0;
+    color: #64748b;
+    font-size: 0.88rem;
+}
+
+.alu-announce-date {
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+
+.alu-dash-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #94a3b8;
+}
+
+.alu-dash-empty svg {
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.alu-dash-empty p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Fade In Animation reused from employer */
+.fade-in {
+    animation: fadeIn 250ms ease both;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

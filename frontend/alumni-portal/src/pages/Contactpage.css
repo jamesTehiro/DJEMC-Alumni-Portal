@@ -1,0 +1,33 @@
+.contact-hero h1 {
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.contact-page h2 {
+    color: #174c3b;
+}
+
+.contact-page p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #27353a;
+}
+
+.contact-info p {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.highlight {
+    color: #11684a;
+}
+
+.highlight-subtitle {
+    color: #0a0a0a;
+    font-size: 1.2rem;
+    margin-top: 10px;
+}
+
+.contact-info p {
+    margin-bottom: 8px;
+    color: #27353a;
+}

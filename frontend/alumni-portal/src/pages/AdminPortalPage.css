@@ -1,0 +1,35 @@
+.admin-portal-page {
+    min-height: calc(100vh - 70px);
+    background: #f4f7fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.admin-portal-card {
+    width: 100%;
+    max-width: 560px;
+    border: 0;
+    border-radius: 14px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+}
+
+.admin-portal-card h2 {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.admin-portal-card p {
+    margin: 8px 0 14px;
+    color: #475467;
+}
+
+.admin-portal-success {
+    color: #067647;
+}
+
+.admin-portal-error {
+    color: #b42318;
+}

@@ -1,0 +1,38 @@
+.employer-verification-table {
+    max-height: min(68vh, 720px);
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.employer-verification-table > .queue-row.header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #fff;
+}
+
+.employer-verification-table > .queue-row {
+    min-width: 0;
+}
+
+.employer-verification-table > .queue-row > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.employer-verification-table .actions {
+    overflow-wrap: normal;
+}
+
+@media (max-width: 700px) {
+    .employer-verification-table {
+        max-height: min(64vh, 620px);
+    }
+
+    .employer-verification-table > .queue-row.header {
+        display: none;
+    }
+}

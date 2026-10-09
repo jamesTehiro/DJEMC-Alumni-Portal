@@ -1,0 +1,58 @@
+/* ============================================================
+   LoginButton.css — Shared Login Button Styles
+   Used across Alumni, Employer, and Admin login pages
+   ============================================================ */
+
+.login-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 46px;
+    padding: 0 24px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1f6b49 0%, #15442f 100%);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    box-shadow: 0 4px 12px rgba(31, 107, 73, 0.2);
+}
+
+.login-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(31, 107, 73, 0.35);
+    background: linear-gradient(135deg, #237a4f 0%, #1a5a3a 100%);
+}
+
+.login-button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(31, 107, 73, 0.25);
+}
+
+.login-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(31, 107, 73, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .login-button {
+        height: 46px;
+        font-size: 0.92rem;
+        border-radius: 12px;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .login-button {
+        height: 44px;
+        font-size: 0.88rem;
+        border-radius: 10px;
+    }
+}

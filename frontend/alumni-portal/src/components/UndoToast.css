@@ -1,0 +1,185 @@
+/* ===== Undo Toast ===== */
+
+.undo-toast-container {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 480px;
+    width: calc(100% - 32px);
+    pointer-events: none;
+}
+
+.undo-toast-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--toast-bg, #1e1e2e);
+    color: var(--toast-text, #ffffff);
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: auto;
+    animation: undoToastSlideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+/* Slide-up + fade-in animation */
+@keyframes undoToastSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Slide-down + fade-out animation for removal */
+.undo-toast-card.removing {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+}
+
+.undo-toast-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.undo-toast-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.undo-toast-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.undo-toast-title {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--toast-title, #ffffff);
+}
+
+.undo-toast-message {
+    font-size: 12px;
+    opacity: 0.78;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--toast-message, #cdd6f4);
+}
+
+.undo-toast-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.undo-toast-btn {
+    background: var(--toast-undo-bg, #45475a);
+    color: var(--toast-undo-text, #cdd6f4);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+    white-space: nowrap;
+}
+
+.undo-toast-btn:hover {
+    background: var(--toast-undo-hover-bg, #585b70);
+}
+
+.undo-toast-btn:active {
+    transform: scale(0.96);
+}
+
+.undo-toast-btn:focus-visible {
+    outline: 2px solid var(--toast-focus, #89b4fa);
+    outline-offset: 2px;
+}
+
+.undo-toast-countdown {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.7;
+    min-width: 24px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    color: var(--toast-countdown, #a6adc8);
+}
+
+/* ===== Dark mode overrides ===== */
+@media (prefers-color-scheme: light) {
+    .undo-toast-card {
+        --toast-bg: #ffffff;
+        --toast-text: #1e1e2e;
+        --toast-title: #1e1e2e;
+        --toast-message: #585b70;
+        --toast-undo-bg: #e6e9f0;
+        --toast-undo-text: #45475a;
+        --toast-undo-hover-bg: #d0d4e0;
+        --toast-countdown: #6c7086;
+        --toast-focus: #1e66f5;
+    }
+}
+
+/* ===== Light mode explicit override ===== */
+[data-theme="light"] .undo-toast-card {
+    --toast-bg: #ffffff;
+    --toast-text: #1e1e2e;
+    --toast-title: #1e1e2e;
+    --toast-message: #585b70;
+    --toast-undo-bg: #e6e9f0;
+    --toast-undo-text: #45475a;
+    --toast-undo-hover-bg: #d0d4e0;
+    --toast-countdown: #6c7086;
+    --toast-focus: #1e66f5;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 520px) {
+    .undo-toast-container {
+        bottom: 16px;
+        width: calc(100% - 16px);
+    }
+
+    .undo-toast-card {
+        padding: 12px 14px;
+        border-radius: 12px;
+        flex-wrap: wrap;
+    }
+
+    .undo-toast-text {
+        white-space: normal;
+    }
+
+    .undo-toast-title,
+    .undo-toast-message {
+        white-space: normal;
+        overflow: visible;
+    }
+}
