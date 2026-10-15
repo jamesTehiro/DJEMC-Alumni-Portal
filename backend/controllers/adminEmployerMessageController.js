@@ -90,6 +90,7 @@ const normalizeMessagePayload = (message) => ({
     attachment: toAttachmentUrl(message),
     file_name: message.file_name || getStoredFileOriginalName(message.attachment) || (message.attachment && !isStoredFileReference(message.attachment) ? path.basename(String(message.attachment)) : null),
     file_mime: message.file_mime || null,
+    file_size: message.file_size || null,
     createdAt: message.createdAt,
     updatedAt: message.updatedAt
 });
@@ -221,7 +222,8 @@ exports.sendEmployerMessage = async (req, res, next) => {
             message: messageText || null,
             attachment: attachmentPath,
             file_name: req.file?.originalname || null,
-            file_mime: req.file?.mimetype || null
+            file_mime: req.file?.mimetype || null,
+            file_size: req.file?.size || null
         });
 
         await conversation.update({

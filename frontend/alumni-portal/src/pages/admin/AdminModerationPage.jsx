@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button, Form, Row, Col } from "react-bootstrap";
 import { api } from "../../services/api";
@@ -7,14 +7,16 @@ import useStrictSafeEffect from "../../hooks/useStrictSafeEffect";
 import AdminShell from "../../components/AdminShell";
 import SectionHeader from "../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "./adminUtils";
-import { EMPLOYMENT_TYPE_OPTIONS } from "../../utils/employmentTypes";
+import JobPostingForm from "../../components/jobs/JobPostingForm";
+import InterviewDetailsModal, { EMPTY_INTERVIEW_DETAILS } from "../../components/InterviewDetailsModal";
+import { createJobPostingForm, jobPostingPayload, validateJobPosting } from "../../utils/jobPosting";
 import "../AdminEmployerPage.css";
 
 export default function AdminModerationPage({ role }) {
     useRenderDebug(`AdminModerationPage:${role}`);
     const navigate = useNavigate();
     // ── Jobs state ──
-    const [jobs, setJobs] = useState([]);
+    const [, setJobs] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
     const [announcement, setAnnouncement] = useState({
         title: "",
@@ -26,18 +28,17 @@ export default function AdminModerationPage({ role }) {
     });
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [announcementSubmitting, setAnnouncementSubmitting] = useState(false);
+    const announcementSubmitInFlight = useRef(false);
 
     // ── Post Job form state ──
-    const [form, setForm] = useState({
-        title: "",
-        description: "",
-        location: "",
-        employment_type: "full-time",
-        course_target: "",
-        expected_salary: ""
-    });
+    const [form, setForm] = useState(createJobPostingForm);
     const [requirements, setRequirements] = useState([]);
     const [submitting, setSubmitting] = useState(false);
+    const jobSubmitInFlight = useRef(false);
+    const [jobProfile, setJobProfile] = useState(null);
+    const [interviewEditorOpen, setInterviewEditorOpen] = useState(false);
+    const [interviewDraft, setInterviewDraft] = useState({ ...EMPTY_INTERVIEW_DETAILS });
 
     const user = useMemo(() => getStoredUser(), []);
     const isAllowed = isAllowedAdminScope(user, role);
@@ -51,6 +52,11 @@ export default function AdminModerationPage({ role }) {
         } catch (err) {
             setError(err.message);
         }
+    };
+
+    const loadJobProfile = async () => {
+        try { setJobProfile(await api.get("/profile", true)); }
+        catch (err) { setError(err.message || "Unable to load your organization profile."); }
     };
 
     const loadAlumniAnnouncements = async () => {
@@ -68,6 +74,7 @@ export default function AdminModerationPage({ role }) {
             if (!isAllowed) return undefined;
             if (role === "employer") {
                 loadEmployerJobs();
+                loadJobProfile();
                 return undefined;
             }
             loadAlumniAnnouncements();
@@ -78,15 +85,11 @@ export default function AdminModerationPage({ role }) {
     );
 
     // ── Employer: Post Job helpers ──
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
-    };
-
     const addRequirement = () => {
         setRequirements((prev) => [
             ...prev,
             {
-                requirement_code: `custom_${Date.now()}`,
+                requirement_code: `custom_${crypto.randomUUID()}`,
                 label: "",
                 requirement_type: "document_upload",
                 value_type: "file",
@@ -100,7 +103,7 @@ export default function AdminModerationPage({ role }) {
     const updateRequirement = (index, field, value) => {
         setRequirements((prev) => {
             const next = [...prev];
-            next[index] = { ...next[index], [field]: value };
+            next[index] = { ...next[index], [field]: value, ...(field === "requirement_type" ? { value_type: value === "document_upload" ? "file" : "text" } : {}) };
             return next;
         });
     };
@@ -112,75 +115,48 @@ export default function AdminModerationPage({ role }) {
         });
     };
 
-    const handleCreateJob = async (e) => {
-        e.preventDefault();
+    const handleCreateJob = async () => {
+        if (jobSubmitInFlight.current) return false;
         setMessage("");
         setError("");
 
-        if (!form.title || !form.location || !form.expected_salary) {
-            setError("Title, location, and expected salary are required.");
-            return;
-        }
-
-        if (requirements.length === 0) {
-            setError("Please add at least one application requirement before publishing.");
-            return;
-        }
-
+        const errors = validateJobPosting(form, requirements);
+        if (errors.length) { setError(errors.join(" ")); return false; }
+        jobSubmitInFlight.current = true;
         setSubmitting(true);
         try {
-            const payload = {
-                title: form.title,
-                description: form.description,
-                location: form.location,
-                employment_type: form.employment_type,
-                course_target: form.course_target,
-                expected_salary: form.expected_salary,
-                requirements: requirements.map((r) => ({
-                    requirement_code: r.requirement_code,
-                    label: r.label,
-                    requirement_type: r.requirement_type,
-                    value_type: r.value_type || (r.requirement_type === "information_field" ? "text" : "file"),
-                    required: r.required,
-                    is_custom: r.is_custom,
-                    library_code: r.library_code,
-                    allowed_types: r.allowed_types,
-                    max_file_size: r.max_file_size,
-                    sort_order: r.sort_order
-                }))
-            };
-
-            const data = await api.post("/jobs", payload, true);
+            await api.post("/jobs", jobPostingPayload(form, requirements), true);
             setMessage("Job posted successfully.");
-            setForm({
-                title: "",
-                description: "",
-                location: "",
-                employment_type: "full-time",
-                course_target: "",
-                expected_salary: ""
-            });
+            setForm(createJobPostingForm());
             setRequirements([]);
+            setInterviewDraft({ ...EMPTY_INTERVIEW_DETAILS });
             await loadEmployerJobs();
+            return true;
         } catch (err) {
             setError(err.message);
+            return false;
         } finally {
+            jobSubmitInFlight.current = false;
             setSubmitting(false);
         }
     };
 
-    // ── Render helpers ──
-    const renderTextInput = (label, name) => (
-        <Form.Group className="mb-3">
-            <Form.Label>{label}</Form.Label>
-            <Form.Control name={name} value={form[name]} onChange={handleChange} required />
-        </Form.Group>
-    );
+    const openInterviewEditor = () => {
+        setInterviewDraft({ ...EMPTY_INTERVIEW_DETAILS, ...(form.interview_details || {}) });
+        setInterviewEditorOpen(true);
+    };
 
+    const saveInterviewDraft = () => {
+        if (!["venue", "place", "date", "time", "contact_info"].every(key => String(interviewDraft[key] || "").trim())) return;
+        setForm(previous => ({ ...previous, interview_details: { ...interviewDraft } }));
+        setInterviewEditorOpen(false);
+    };
+
+    // ── Render helpers ──
     const renderRequirementFields = () => (
         <div className="mt-3">
             <h6>Application Requirements</h6>
-            <p className="text-muted small mb-3">Define what applicants must submit.</p>
+            <p className="text-muted small mb-3">Define the documents and information applicants must submit. Add at least one requirement.</p>
             {requirements.map((req, idx) => (
                 <div key={idx} className="border rounded p-3 mb-2">
                     <Row className="align-items-end">
@@ -291,6 +267,9 @@ export default function AdminModerationPage({ role }) {
 
     const submitAnnouncement = async (event) => {
         event.preventDefault();
+        if (announcementSubmitInFlight.current) return;
+        announcementSubmitInFlight.current = true;
+        setAnnouncementSubmitting(true);
         setMessage("");
         setError("");
         try {
@@ -315,9 +294,12 @@ export default function AdminModerationPage({ role }) {
                 time: "",
                 location: ""
             });
-            loadAlumniAnnouncements();
+            await loadAlumniAnnouncements();
         } catch (err) {
             setError(err.message);
+        } finally {
+            announcementSubmitInFlight.current = false;
+            setAnnouncementSubmitting(false);
         }
     };
 
@@ -353,8 +335,8 @@ export default function AdminModerationPage({ role }) {
         return (
             <AdminShell
                 scope={role}
-                title="Job Management"
-                subtitle="Post a new job and manage existing listings side by side."
+                title="Create Job Posting"
+                subtitle="Create a professional job opportunity for DJEMC alumni."
                 onLogout={() => clearSessionAndGoHome(navigate)}
             >
                 {message && <p className="notice success">{message}</p>}
@@ -363,55 +345,28 @@ export default function AdminModerationPage({ role }) {
                 <section className="content-grid-centered">
                     {/* ── Post a Job Form (centered) ── */}
                     <div className="queue-panel">
-                        <SectionHeader title="Post a Job" meta="Create a new vacancy" />
-                        <Form onSubmit={handleCreateJob}>
-                            <Row>
-                                <Col md={6}>{renderTextInput("Job Title", "title")}</Col>
-                                <Col md={6}>{renderTextInput("Location", "location")}</Col>
-                            </Row>
-                            <Row>
-                                <Col md={6}>
-                                    <Form.Group className="mb-3">
-                                        <Form.Label>Employment Type</Form.Label>
-                                        <Form.Select name="employment_type" value={form.employment_type} onChange={handleChange} required>
-                                            {EMPLOYMENT_TYPE_OPTIONS.map(({ value, label }) => (
-                                                <option key={value} value={value}>{label}</option>
-                                            ))}
-                                        </Form.Select>
-                                    </Form.Group>
-                                </Col>
-                                <Col md={6}>{renderTextInput("Expected Salary", "expected_salary")}</Col>
-                            </Row>
-                            <Form.Group className="mb-3">
-                                <Form.Label>Description</Form.Label>
-                                <Form.Control
-                                    as="textarea"
-                                    rows={3}
-                                    name="description"
-                                    value={form.description}
-                                    onChange={handleChange}
-                                    required
-                                />
-                            </Form.Group>
-                            <Form.Group className="mb-3">
-                                <Form.Label>Qualification</Form.Label>
-                                <Form.Control name="course_target" value={form.course_target} onChange={handleChange} />
-                            </Form.Group>
-
-                            {renderRequirementFields()}
-
-                            <div className="mt-4 d-flex justify-content-end gap-2">
-                                <Button
-                                    type="submit"
-                                    className="primary-btn"
-                                    disabled={submitting || requirements.length === 0}
-                                >
-                                    {submitting ? "Saving..." : "Publish Job"}
-                                </Button>
-                            </div>
-                        </Form>
+                        <JobPostingForm
+                            value={form}
+                            onChange={setForm}
+                            profile={jobProfile || user}
+                            requirements={requirements}
+                            requirementsEditor={renderRequirementFields()}
+                            onConfigureInterview={openInterviewEditor}
+                            submitting={submitting}
+                            onPublish={handleCreateJob}
+                        />
                     </div>
                 </section>
+                <InterviewDetailsModal
+                    show={interviewEditorOpen}
+                    onHide={() => setInterviewEditorOpen(false)}
+                    jobTitle={form.title}
+                    values={interviewDraft}
+                    onChange={(key, value) => setInterviewDraft(previous => ({ ...previous, [key]: value }))}
+                    onSave={saveInterviewDraft}
+                    mode="draft"
+                    configured={Boolean(form.interview_details)}
+                />
             </AdminShell>
         );
     }
@@ -455,10 +410,11 @@ export default function AdminModerationPage({ role }) {
                             <input
                                 type="text"
                                 className="saas-input"
-                                placeholder="e.g. 2023"
+                                placeholder="e.g. 2023 or 2023-2026"
                                 value={announcement.targetYear}
                                 onChange={(event) => setAnnouncement((prev) => ({ ...prev, targetYear: event.target.value }))}
                             />
+                            <small>Enter one year or an inclusive range. For example, 2026-2023 targets alumni from 2023 through 2026.</small>
                         </label>
                         <label className="field">
                             <span>Day</span>
@@ -488,11 +444,13 @@ export default function AdminModerationPage({ role }) {
                                 onChange={(event) => setAnnouncement((prev) => ({ ...prev, location: event.target.value }))}
                             />
                         </label>
-                        <button type="submit" className="primary-btn">Post Announcement</button>
+                        <button type="submit" className="primary-btn" disabled={announcementSubmitting}>
+                            {announcementSubmitting ? "Posting…" : "Post Announcement"}
+                        </button>
                     </form>
                 </div>
 
-                <aside className="audit-panel">
+                <aside className="audit-panel announcement-history-panel">
                     <h3>Announcement History</h3>
                     {announcements.length === 0 && <p className="empty">No announcements yet.</p>}
                     <div className="announcement-list announcement-history-scroll">

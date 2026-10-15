@@ -1,457 +1,255 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Row, Col, Button, Form, InputGroup, Dropdown, Spinner, Alert } from "react-bootstrap";
-import { FaSave, FaUndo, FaRedo, FaPrint, FaFilePdf, FaEye, FaCopy, FaPalette, FaFont } from "react-icons/fa";
-import { FiMenu, FiX } from "react-icons/fi";
+import React, { useEffect, useRef, useState } from "react";
+import { Alert, Button, Dropdown, Form, Spinner } from "react-bootstrap";
+import { FaArrowLeft, FaArrowRight, FaCheck, FaCopy, FaFilePdf, FaPlus, FaPrint, FaRedo, FaSave, FaUndo } from "react-icons/fa";
 import ResumeEditor from "../components/resume/ResumeEditor";
 import ResumePreview from "../components/resume/ResumePreview";
 import ResumeScorePanel from "../components/resume/ResumeScorePanel";
-import TemplateSelector, { normalizeTemplateId } from "../components/resume/TemplateSelector";
+import TemplateSelector, { RESUME_TEMPLATE_OPTIONS } from "../components/resume/TemplateSelector";
+import { buildResumeDocumentHtml } from "../components/resume/templates/resumeDocumentExport";
 import { api } from "../services/api";
+import { createResumeDraft, normalizeResume, persistResume, restoreResumeDraft, resumeCompletion,
+    resumeFingerprint, unwrapResume, unwrapResumeList, validateResume } from "../utils/resumeWorkflow";
 import "./ResumeBuilderPage.css";
 
-const HTML_AMP = "\x26\x61\x6d\x70\x3b";
-const HTML_LT = "\x26\x6c\x74\x3b";
-const HTML_GT = "\x26\x67\x74\x3b";
-const HTML_QUOT = "\x26\x71\x75\x6f\x74\x3b";
+const steps = ["Resume Information", "Choose Template", "Preview & Download"];
+const newDraftId = () => globalThis.crypto?.randomUUID?.() || `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+const readUser = () => { try { return JSON.parse(localStorage.getItem("user") || "{}"); } catch { return {}; } };
 
 export default function ResumeBuilderPage() {
+    const [user] = useState(readUser);
     const [resumes, setResumes] = useState([]);
     const [currentResume, setCurrentResume] = useState(null);
+    const [savedResume, setSavedResume] = useState(null);
+    const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState(null);
-    const [showPreview, setShowPreview] = useState(true);
-    const [showScorePanel, setShowScorePanel] = useState(true);
-    const [lastSaved, setLastSaved] = useState(null);
-    const [completionPercentage, setCompletionPercentage] = useState(0);
+    const [exporting, setExporting] = useState(false);
+    const [photoBusy, setPhotoBusy] = useState(false);
+    const [error, setError] = useState("");
+    const [notice, setNotice] = useState("");
+    const [cacheWarning, setCacheWarning] = useState("");
+    const [fieldErrors, setFieldErrors] = useState({});
     const [undoStack, setUndoStack] = useState([]);
     const [redoStack, setRedoStack] = useState([]);
-
-    const autoSaveTimerRef = useRef(null);
-    const previewRef = useRef(null);
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const [reloadKey, setReloadKey] = useState(0);
+    const currentRef = useRef(null);
+    const profileRef = useRef(user);
+    const busyRef = useRef(false);
+    const cacheKey = `djemc:resume-builder:${user.id || "current-user"}`;
+    const dirty = Boolean(currentResume && (!savedResume || resumeFingerprint(currentResume) !== resumeFingerprint(savedResume)));
+    const busy = loading || saving || exporting || photoBusy;
+    const selectedTemplate = RESUME_TEMPLATE_OPTIONS.find(template => template.id === (step === 3 ? savedResume : currentResume)?.template_id);
+    const replaceDraft = (resume) => { currentRef.current = resume; setCurrentResume(resume); };
 
     useEffect(() => {
-        loadResumes();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        let cancelled = false;
+        const initialize = async () => {
+            setLoading(true);
+            setError("");
+            try {
+                const [listResult, profileResult] = await Promise.allSettled([api.get("/resumes", true), api.get("/profile", true)]);
+                if (listResult.status === "rejected") throw listResult.reason;
+                const list = unwrapResumeList(listResult.value);
+                const profile = profileResult.status === "fulfilled" ? profileResult.value : user;
+                if (cancelled) return;
+                profileRef.current = profile;
+                setResumes(list);
+                let cached = null;
+                try { if (user.id) cached = restoreResumeDraft(sessionStorage.getItem(cacheKey), user.id, list); } catch { /* Storage may be disabled. */ }
+                const recordId = cached?.id || list[0]?.id;
+                const persisted = recordId ? unwrapResume(await api.get(`/resumes/${recordId}`, true)) : null;
+                if (cancelled) return;
+                const next = cached || persisted || createResumeDraft(profile, newDraftId());
+                currentRef.current = next;
+                setCurrentResume(next);
+                setSavedResume(persisted);
+                setStep(cached || !persisted ? 1 : 3);
+                setUndoStack([]);
+                setRedoStack([]);
+                if (cached) setNotice("Your unsaved changes were restored. Save when you are ready.");
+                else if (profileResult.status === "rejected") setNotice("Profile prefill is unavailable. You can enter your information below.");
+            } catch (err) {
+                if (!cancelled) setError(err.message || "Unable to load your resumes. Please try again.");
+            } finally { if (!cancelled) setLoading(false); }
+        };
+        initialize();
+        return () => { cancelled = true; };
+    }, [cacheKey, reloadKey, user]);
 
     useEffect(() => {
-        if (currentResume) {
-            calculateCompletion(currentResume);
-        }
-    }, [currentResume]);
-
-    const loadResumes = async () => {
+        if (loading || !currentResume || !user.id) return;
         try {
-            const response = await api.get("/resumes");
-            const resumeList = response.data || [];
-            setResumes(resumeList);
+            if (dirty) sessionStorage.setItem(cacheKey, JSON.stringify({ version: 1, userId: user.id, resume: currentResume }));
+            else sessionStorage.removeItem(cacheKey);
+            setCacheWarning("");
+        } catch { setCacheWarning("This browser could not keep a local draft. Save your changes before leaving the page."); }
+    }, [cacheKey, currentResume, dirty, loading, user.id]);
 
-            if (resumeList.length > 0) {
-                await loadResumeDetail(resumeList[0].id);
-            } else {
-                // No resumes exist yet. User must explicitly click "+ New Resume" to create one.
-                setLoading(false);
+    useEffect(() => {
+        if (!dirty) return;
+        const warn = (event) => { event.preventDefault(); event.returnValue = ""; };
+        window.addEventListener("beforeunload", warn);
+        return () => window.removeEventListener("beforeunload", warn);
+    }, [dirty]);
+    useEffect(() => {
+        const headings = ["resume-information-title", "resume-template-title", "resume-preview-title"];
+        document.getElementById(headings[step - 1])?.focus({ preventScroll: true });
+    }, [step]);
+
+    const changeDraft = (patch) => {
+        const previous = currentRef.current;
+        if (!previous || busyRef.current) return;
+        const next = normalizeResume({ ...previous, ...patch });
+        setUndoStack(stack => [...stack.slice(-39), previous]);
+        setRedoStack([]);
+        replaceDraft(next);
+        setNotice("");
+        if (patch.personalInfo && Object.keys(fieldErrors).length) setFieldErrors(validateResume(next));
+    };
+    const discardConfirmed = () => !dirty || window.confirm("You have unsaved changes. Discard them and open another resume?");
+    const startNewResume = () => {
+        if (busy || !discardConfirmed()) return;
+        replaceDraft(createResumeDraft(profileRef.current, newDraftId()));
+        setSavedResume(null); setStep(1); setUndoStack([]); setRedoStack([]);
+        setFieldErrors({}); setError(""); setNotice("");
+    };
+    const openResume = async (id) => {
+        if (busy || (String(id) !== String(currentRef.current?.id) && !discardConfirmed())) return;
+        if (String(id) === String(currentRef.current?.id)) { setStep(dirty ? 1 : 3); return; }
+        setLoading(true); setError("");
+        try {
+            const resume = unwrapResume(await api.get(`/resumes/${id}`, true));
+            replaceDraft(resume); setSavedResume(resume); setStep(3);
+            setUndoStack([]); setRedoStack([]); setFieldErrors({}); setNotice("");
+        } catch (err) { setError(err.message || "Unable to open this resume."); }
+        finally { setLoading(false); }
+    };
+    const validate = () => {
+        const errors = validateResume(currentRef.current);
+        setFieldErrors(errors);
+        if (Object.keys(errors).length) {
+            setError("Complete the required personal information to continue."); setStep(1); return false;
+        }
+        setError(""); return true;
+    };
+    const saveResume = async (generate = false) => {
+        if (busyRef.current || busy || !validate()) return;
+        busyRef.current = true; setSaving(true); setNotice("");
+        try {
+            const saved = await persistResume({ api, resume: currentRef.current,
+                onIdentified: (id) => replaceDraft({ ...currentRef.current, id }) });
+            replaceDraft(saved); setSavedResume(saved);
+            setResumes(list => [saved, ...list.filter(item => String(item.id) !== String(saved.id))]);
+            setUndoStack([]); setRedoStack([]);
+            setNotice(generate ? "Resume saved. Your preview and PDF use this saved version." : "Resume saved.");
+            if (generate) setStep(3);
+        } catch (err) { setError(err.message || "Your resume could not be saved. Your changes are still available to retry."); }
+        finally { busyRef.current = false; setSaving(false); }
+    };
+    const duplicateResume = async () => {
+        if (!savedResume?.id || busy || busyRef.current || !discardConfirmed()) return;
+        busyRef.current = true; setSaving(true); setError("");
+        let copyCreated = false;
+        try {
+            const created = unwrapResume(await api.post(`/resumes/${savedResume.id}/duplicate`, {}, true));
+            copyCreated = true;
+            setResumes(list => [created, ...list]);
+            const duplicate = unwrapResume(await api.get(`/resumes/${created.id}`, true));
+            replaceDraft(duplicate); setSavedResume(duplicate); setStep(3);
+            setUndoStack([]); setRedoStack([]); setNotice("A copy of your saved resume was created.");
+        } catch (err) { setError(copyCreated ? "The copy was created, but could not be opened. Select it from My Resumes to try again." : (err.message || "Unable to create a copy. Your original resume is still open.")); }
+        finally { busyRef.current = false; setSaving(false); }
+    };
+    const undo = () => {
+        if (!undoStack.length || busy) return;
+        setRedoStack(stack => [...stack.slice(-39), currentRef.current]);
+        replaceDraft(undoStack[undoStack.length - 1]); setUndoStack(stack => stack.slice(0, -1));
+    };
+    const redo = () => {
+        if (!redoStack.length || busy) return;
+        setUndoStack(stack => [...stack.slice(-39), currentRef.current]);
+        replaceDraft(redoStack[redoStack.length - 1]); setRedoStack(stack => stack.slice(0, -1));
+    };
+    const downloadPdf = async () => {
+        if (!savedResume?.id || busy || busyRef.current) return;
+        busyRef.current = true; setExporting(true); setError("");
+        try {
+            const html = await buildResumeDocumentHtml(savedResume);
+            const blob = await api.post(`/resumes/${savedResume.id}/pdf`, { html, template_id: savedResume.template_id }, true, { responseType: "blob", validateStatus: () => true });
+            if (blob instanceof Blob && !blob.type.includes("application/pdf")) {
+                let message = "The server did not return a valid PDF. Please try again.";
+                try { const payload = JSON.parse(await blob.text()); message = payload.msg || payload.message || message; } catch { /* Keep a useful fallback for non-JSON errors. */ }
+                throw new Error(message);
             }
-        } catch (err) {
-            console.error("Failed to load resumes:", err);
-            setError("Failed to load resumes. Please try again.");
-            setLoading(false);
-        }
+            if (!(blob instanceof Blob) || !blob.size || await blob.slice(0, 5).text() !== "%PDF-") throw new Error("The server did not return a valid PDF. Please try again.");
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url; link.download = `${(savedResume.title || "Resume").replace(/[<>:"/\\|?*\x00-\x1f]/g, "-")}.pdf`;
+            document.body.appendChild(link); link.click(); link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (err) { setError(err.message || "Unable to generate your PDF. Please try again."); }
+        finally { busyRef.current = false; setExporting(false); }
     };
-
-    const loadResumeDetail = async (resumeId) => {
+    const printResume = async () => {
+        if (!savedResume?.id || busy || busyRef.current) return;
+        const popup = window.open("", "_blank");
+        if (!popup) { setError("Allow pop-ups for this page to print your resume."); return; }
+        popup.opener = null; busyRef.current = true; setExporting(true); setError("");
         try {
-            setLoading(true);
-            const response = await api.get(`/resumes/${resumeId}`);
-            setCurrentResume(response);
-            setError(null);
-        } catch (err) {
-            console.error("Failed to load resume detail:", err);
-            setError("Failed to load resume details.");
-        } finally {
-            setLoading(false);
-        }
+            popup.document.write(await buildResumeDocumentHtml(savedResume)); popup.document.close();
+            await Promise.all(Array.from(popup.document.images, image => image.decode().catch(() => {})));
+            await popup.document.fonts?.ready;
+            popup.focus(); popup.print();
+        } catch (err) { popup.close(); setError(err.message || "Unable to prepare your resume for printing."); }
+        finally { busyRef.current = false; setExporting(false); }
     };
 
-    const createNewResume = async () => {
-        try {
-            setLoading(true);
-            const response = await api.post("/resumes", {
-                title: "My Resume",
-                template_id: "modern-professional",
-                is_default: true
-            });
-            await loadResumeDetail(response.data.id);
-            return response.data;
-        } catch (err) {
-            console.error("Failed to create resume:", err);
-            setError("Failed to create new resume.");
-            setLoading(false);
-            throw err;
-        }
-    };
-
-    const calculateCompletion = (resume) => {
-        let total = 0;
-        let filled = 0;
-
-        const pi = resume.personalInfo || {};
-        total += 20;
-        if (pi.full_name) filled += 5;
-        if (pi.email) filled += 5;
-        if (pi.phone) filled += 5;
-        if (pi.address) filled += 5;
-
-        total += 10;
-        if (resume.summary?.content) filled += 10;
-
-        total += 15;
-        if (resume.education?.length > 0) filled += 15;
-
-        total += 20;
-        if (resume.workExperience?.length > 0) filled += 20;
-
-        total += 15;
-        if (resume.skills?.length > 0) filled += 15;
-
-        total += 20;
-        const otherSections = [
-            resume.projects?.length > 0,
-            resume.certifications?.length > 0,
-            resume.trainings?.length > 0,
-            resume.seminars?.length > 0,
-            resume.awards?.length > 0,
-            resume.organizations?.length > 0,
-            resume.volunteerWork?.length > 0,
-            resume.languages?.length > 0,
-            resume.references?.length > 0
-        ];
-        const filledSections = otherSections.filter(Boolean).length;
-        filled += (filledSections / otherSections.length) * 20;
-
-        const percentage = Math.round((filled / total) * 100);
-        setCompletionPercentage(percentage);
-    };
-
-    const autoSave = useCallback(async (resumeData) => {
-        if (autoSaveTimerRef.current) {
-            clearTimeout(autoSaveTimerRef.current);
-        }
-
-        autoSaveTimerRef.current = setTimeout(async () => {
-            await saveResume(resumeData, true);
-        }, 2000);
-    }, []);
-
-    const saveResume = async (resumeData, isAutoSave = false) => {
-        if (!resumeData?.id) return;
-
-        try {
-            setSaving(true);
-            const { id, ...updateData } = resumeData;
-
-            await api.put(`/resumes/${id}`, updateData);
-
-            setLastSaved(new Date());
-            setUndoStack(prev => [...prev, resumeData]);
-            setRedoStack([]);
-        } catch (err) {
-            console.error("Failed to save resume:", err);
-            if (!isAutoSave) {
-                setError("Failed to save resume. Please try again.");
-            }
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const handleUndo = () => {
-        if (undoStack.length === 0) return;
-        const current = undoStack[undoStack.length - 1];
-        setRedoStack(prev => [...prev, current]);
-        setUndoStack(prev => prev.slice(0, -1));
-    };
-
-    const handleRedo = () => {
-        if (redoStack.length === 0) return;
-        const next = redoStack[redoStack.length - 1];
-        setUndoStack(prev => [...prev, next]);
-        setRedoStack(prev => prev.slice(0, -1));
-    };
-
-    const handleDuplicate = async () => {
-        if (!currentResume?.id) return;
-        try {
-            const response = await api.post(`/resumes/${currentResume.id}/duplicate`);
-            await loadResumes();
-            await loadResumeDetail(response.data.id);
-        } catch (err) {
-            console.error("Failed to duplicate resume:", err);
-            setError("Failed to duplicate resume.");
-        }
-    };
-
-    const escapeHtmlEntity = (text) => {
-        if (!text) return '';
-        return String(text)
-            .replace(/&/g, HTML_AMP)
-            .replace(/</g, HTML_LT)
-            .replace(/>/g, HTML_GT)
-            .replace(/"/g, HTML_QUOT);
-    };
-
-    const renderSectionHtml = (title, items, headerFields, detailFields, descField) => {
-        if (!items || items.length === 0) return '';
-        let html = '<div class="section-title">' + title + '</div>';
-        items.forEach(item => {
-            const header = headerFields.map(f => item[f]).filter(Boolean).join(' - ');
-            const details = detailFields.map(f => {
-                const val = item[f];
-                return val ? formatDate(val) : '';
-            }).filter(Boolean).join(' | ');
-            const desc = descField ? (item[descField] || '') : '';
-
-            html += '<div class="entry">';
-            if (header) html += '<div class="entry-header">' + escapeHtmlEntity(header) + '</div>';
-            if (details) html += '<div class="entry-details">' + escapeHtmlEntity(details) + '</div>';
-            if (desc) html += '<div class="entry-description">' + escapeHtmlEntity(desc) + '</div>';
-            html += '</div>';
-        });
-        return html;
-    };
-
-    const renderSkillsHtml = (skills) => {
-        if (!skills || skills.length === 0) return '';
-        let html = '<div class="section-title">Skills</div><div class="skills-list">';
-        skills.forEach(s => {
-            html += '<span class="skill-item">' + escapeHtmlEntity(s.name || '') + (s.level ? ' - ' + s.level : '') + '</span>';
-        });
-        html += '</div>';
-        return html;
-    };
-
-    const renderLanguagesHtml = (languages) => {
-        if (!languages || languages.length === 0) return '';
-        let html = '<div class="section-title">Languages</div><ul>';
-        languages.forEach(l => {
-            html += '<li>' + escapeHtmlEntity(l.name || '') + (l.proficiency ? ' - ' + l.proficiency : '') + '</li>';
-        });
-        html += '</ul>';
-        return html;
-    };
-
-    const formatDate = (dateStr) => {
-        if (!dateStr) return '';
-        try {
-            const d = new Date(dateStr);
-            if (!isNaN(d.getTime())) {
-                return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
-            }
-        } catch { }
-        return dateStr;
-    };
-
-    const buildPrintHtml = () => {
-        const resume = currentResume;
-        if (!resume) return '';
-
-        const pi = resume.personalInfo || {};
-        const summary = resume.summary || {};
-        const fontSize = resume.font_size || 11;
-        const fontFamily = resume.font_family || 'Inter, Arial, sans-serif';
-        const lineSpacing = resume.line_spacing || 1.5;
-        const colorTheme = resume.color_theme || '#155a43';
-
-        const headerName = pi.full_name ? '<h1>' + escapeHtmlEntity(pi.full_name) + '</h1>' : '';
-        let contactInfo = '';
-        if (pi.email) contactInfo += escapeHtmlEntity(pi.email);
-        if (pi.phone) contactInfo += (contactInfo ? ' | ' : '') + escapeHtmlEntity(pi.phone);
-        if (pi.address) contactInfo += '<br>' + escapeHtmlEntity(pi.address);
-        const contactSection = contactInfo ? '<div class="contact-info">' + contactInfo + '</div>' : '';
-
-        const summarySection = summary.content
-            ? '<div class="section-title">Professional Summary</div><div class="summary-content">' + escapeHtmlEntity(summary.content) + '</div>'
-            : '';
-
-        return '<!DOCTYPE html><html><head><title>' + (resume.title || 'Resume') + ' - Print</title>'
-            + '<style>'
-            + '@page { margin: 0.5in; size: A4; }'
-            + '* { box-sizing: border-box; margin: 0; padding: 0; }'
-            + 'body { font-family: ' + fontFamily + '; font-size: ' + fontSize + 'pt; line-height: ' + lineSpacing + '; color: #333; padding: 20px; background: #fff; }'
-            + '.resume-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid ' + colorTheme + '; padding-bottom: 15px; }'
-            + '.resume-header h1 { font-size: ' + (fontSize + 8) + 'pt; color: ' + colorTheme + '; margin-bottom: 5px; }'
-            + '.resume-header .contact-info { font-size: ' + fontSize + 'pt; color: #555; }'
-            + '.section-title { font-size: ' + (fontSize + 2) + 'pt; color: ' + colorTheme + '; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 15px; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }'
-            + '.entry { margin-bottom: 10px; }'
-            + '.entry-header { display: flex; justify-content: space-between; font-weight: bold; }'
-            + '.entry-details { color: #555; font-style: italic; }'
-            + '.entry-description { margin-top: 3px; white-space: pre-wrap; }'
-            + '.skills-list { display: flex; flex-wrap: wrap; gap: 5px; }'
-            + '.skill-item { background: #f5f5f5; padding: 2px 8px; border-radius: 3px; font-size: ' + (fontSize - 1) + 'pt; }'
-            + '.summary-content { white-space: pre-wrap; margin-bottom: 10px; }'
-            + 'ul { padding-left: 20px; } li { margin-bottom: 3px; }'
-            + '@media print { body { padding: 0; } }'
-            + '</style></head><body>'
-            + '<div class="resume-header">' + headerName + contactSection + '</div>'
-            + summarySection
-            + renderSectionHtml('Education', resume.education, ['degree', 'school'], ['field_of_study', 'start_date', 'end_date'], 'description')
-            + renderSectionHtml('Work Experience', resume.workExperience, ['job_title', 'company'], ['location', 'start_date', 'end_date'], 'description')
-            + renderSkillsHtml(resume.skills)
-            + renderSectionHtml('Projects', resume.projects, ['name'], ['start_date', 'end_date'], 'description')
-            + renderSectionHtml('Certifications', resume.certifications, ['name', 'issuer'], ['date'], 'description')
-            + renderSectionHtml('Trainings', resume.trainings, ['title', 'provider'], ['start_date', 'end_date'], 'description')
-            + renderSectionHtml('Seminars', resume.seminars, ['title', 'organizer'], ['date'], 'description')
-            + renderSectionHtml('Awards', resume.awards, ['title', 'issuer'], ['date'], 'description')
-            + renderSectionHtml('Organizations', resume.organizations, ['name', 'role'], ['start_date', 'end_date'], 'description')
-            + renderSectionHtml('Volunteer Work', resume.volunteerWork, ['organization', 'role'], ['start_date', 'end_date'], 'description')
-            + renderLanguagesHtml(resume.languages)
-            + renderSectionHtml('References', resume.references, ['name', 'position', 'company'], ['email', 'phone'], null)
-            + '</body></html>';
-    };
-
-    const handlePrint = () => {
-        const printWindow = window.open('', '_blank', 'width=800,height=600');
-        if (!printWindow) {
-            window.print();
-            return;
-        }
-
-        printWindow.document.write(buildPrintHtml());
-        printWindow.document.close();
-
-        setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-        }, 500);
-    };
-
-    const handleDownloadPDF = async () => {
-        handlePrint();
-    };
-
-    const handleResumeDataChange = (updatedData) => {
-        setCurrentResume(prev => {
-            const next = { ...prev, ...updatedData };
-            autoSave(next);
-            return next;
-        });
-    };
-
-    if (loading && !currentResume) {
-        return (
-            <div className="resume-builder-loading">
-                <Spinner animation="border" variant="success" />
-                <p>Loading Resume Builder...</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="resume-builder-page">
-            <div className="resume-builder-toolbar">
-                <div className="toolbar-left">
-                    <Dropdown>
-                        <Dropdown.Toggle variant="success" size="sm" className="toolbar-btn">
-                            <FaFilePdf /> {currentResume?.title || "My Resume"}
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu>
-                            {resumes.map(resume => (
-                                <Dropdown.Item
-                                    key={resume.id}
-                                    onClick={() => loadResumeDetail(resume.id)}
-                                    active={currentResume?.id === resume.id}
-                                >
-                                    {resume.personalInfo?.full_name || resume.title}
-                                </Dropdown.Item>
-                            ))}
-                            <Dropdown.Divider />
-                            <Dropdown.Item onClick={createNewResume}>
-                                + New Resume
-                            </Dropdown.Item>
-                        </Dropdown.Menu>
-                    </Dropdown>
-
-                    <Button variant="outline-secondary" size="sm" onClick={handleUndo} disabled={undoStack.length === 0}>
-                        <FaUndo />
-                    </Button>
-                    <Button variant="outline-secondary" size="sm" onClick={handleRedo} disabled={redoStack.length === 0}>
-                        <FaRedo />
-                    </Button>
-
-                    <div className="toolbar-divider" />
-
-                    {saving && <Spinner animation="border" size="sm" />}
-                    <span className="last-saved">
-                        {lastSaved ? `Saved ${lastSaved.toLocaleTimeString()}` : "Not saved"}
-                    </span>
-                </div>
-
-                <div className="toolbar-center">
-                    <Button variant="outline-primary" size="sm" onClick={() => setShowPreview(!showPreview)}>
-                        <FaEye /> {showPreview ? "Hide" : "Show"} Preview
-                    </Button>
-                    <Button variant="outline-primary" size="sm" onClick={() => setShowScorePanel(!showScorePanel)}>
-                        Score: {completionPercentage}%
-                    </Button>
-                </div>
-
-                <div className="toolbar-right">
-                    <TemplateSelector
-                        currentTemplate={currentResume?.template_id}
-                        onSelect={async (template) => {
-                            await handleResumeDataChange({ template_id: template });
-                        }}
-                    />
-
-                    <Button variant="success" size="sm" onClick={() => saveResume(currentResume)} disabled={saving}>
-                        <FaSave /> Save
-                    </Button>
-                    <Button variant="outline-secondary" size="sm" onClick={handleDuplicate}>
-                        <FaCopy />
-                    </Button>
-                    <Button variant="outline-secondary" size="sm" onClick={handlePrint}>
-                        <FaPrint />
-                    </Button>
-                    <Button variant="success" size="sm" onClick={handleDownloadPDF}>
-                        <FaFilePdf /> PDF
-                    </Button>
-                </div>
-            </div>
-
-            {error && (
-                <Alert variant="danger" dismissible onClose={() => setError(null)} className="resume-error">
-                    {error}
-                </Alert>
-            )}
-
-            <div className="resume-builder-content">
-                <Row className="h-100">
-                    <Col md={showScorePanel ? 7 : 8} className={`editor-section ${showPreview ? "with-preview" : ""}`}>
-                        {currentResume && (
-                            <ResumeEditor
-                                resume={currentResume}
-                                onChange={handleResumeDataChange}
-                            />
-                        )}
-                    </Col>
-
-                    {showPreview && (
-                        <Col md={showScorePanel ? 5 : 4} className="preview-section">
-                            <div className="preview-container" ref={previewRef}>
-                                <ResumePreview resume={currentResume} />
-                            </div>
-                        </Col>
-                    )}
-
-                    {showScorePanel && (
-                        <Col md={showPreview ? 0 : 5} className="score-section">
-                            <ResumeScorePanel resume={currentResume} />
-                        </Col>
-                    )}
-                </Row>
-            </div>
+    if (loading && !currentResume) return <div className="resume-builder-loading"><Spinner animation="border" variant="success" /><p>Loading Resume Builder...</p></div>;
+    return <div className="resume-builder-page">
+        <header className="resume-builder-header">
+            <div><p className="resume-eyebrow">YOUR NEXT CHAPTER</p><h1>Resume Builder</h1><p>Create a professional resume in three simple steps.</p></div>
+            <div className="resume-management-actions"><Dropdown>
+                <Dropdown.Toggle variant="outline-success" disabled={busy}>My Resumes</Dropdown.Toggle>
+                <Dropdown.Menu>{!resumes.length && <Dropdown.Item disabled>No saved resumes yet</Dropdown.Item>}{resumes.map(resume => <Dropdown.Item key={resume.id} active={String(currentResume?.id) === String(resume.id)} onClick={() => openResume(resume.id)}>{resume.title || "My Resume"}</Dropdown.Item>)}</Dropdown.Menu>
+            </Dropdown><Button variant="success" onClick={startNewResume} disabled={busy}><FaPlus /> New Resume</Button></div>
+        </header>
+        <ol className="resume-stepper" aria-label="Resume creation progress">{steps.map((label, index) => <li key={label} className={step === index + 1 ? "active" : step > index + 1 ? "complete" : ""} aria-current={step === index + 1 ? "step" : undefined}><span className="resume-step-number">{step > index + 1 ? <FaCheck /> : index + 1}</span><span>{label}</span></li>)}</ol>
+        <div aria-live="polite">
+            {error && <Alert variant="danger" dismissible onClose={() => setError("")}>{error}{!currentResume && <Button variant="outline-danger" className="ms-3" onClick={() => setReloadKey(key => key + 1)}>Retry</Button>}</Alert>}
+            {notice && <Alert variant="success" dismissible onClose={() => setNotice("")}>{notice}</Alert>}
+            {cacheWarning && <Alert variant="warning">{cacheWarning}</Alert>}
+            {loading && <p><Spinner size="sm" animation="border" /> Loading resume...</p>}
         </div>
-    );
+        {currentResume && <>
+            <section hidden={step !== 1} aria-labelledby="resume-information-title">
+                <div className="resume-step-heading"><div><h2 tabIndex={-1} id="resume-information-title">Resume Information</h2><p>Add your experience and achievements. Optional sections can be left empty.</p></div><span className="resume-save-indicator">{saving ? "Saving..." : dirty ? "Unsaved changes" : "Saved"}</span></div>
+                <fieldset disabled={busy} className="resume-editor-fields">
+                    <div className="resume-document-name"><Form.Group controlId="resume-document-title"><Form.Label>Resume name</Form.Label><Form.Control maxLength={255} value={currentResume.title} onChange={event => changeDraft({ title: event.target.value })} placeholder="My Resume" /></Form.Group><div className="resume-history-buttons"><Button variant="outline-secondary" onClick={undo} disabled={!undoStack.length || busy} aria-label="Undo last change"><FaUndo /></Button><Button variant="outline-secondary" onClick={redo} disabled={!redoStack.length || busy} aria-label="Redo last change"><FaRedo /></Button></div></div>
+                    <ResumeEditor key={currentResume.settings?.client_draft_id || currentResume.id || "new-resume"} resume={currentResume} onChange={changeDraft} errors={fieldErrors} onPhotoBusyChange={setPhotoBusy} />
+                </fieldset>
+                <details className="resume-completion-details"><summary>Resume completeness <strong>{resumeCompletion(currentResume)}%</strong></summary><ResumeScorePanel resume={currentResume} /></details>
+                <footer className="resume-step-footer"><Button variant="outline-success" onClick={() => saveResume(false)} disabled={busy}><FaSave /> {saving ? "Saving..." : "Save Progress"}</Button><Button variant="success" onClick={() => { if (validate()) setStep(2); }} disabled={busy}>Continue to Templates <FaArrowRight /></Button></footer>
+            </section>
+            {step === 2 && <section aria-labelledby="resume-template-title">
+                <div className="resume-step-heading"><div><h2 tabIndex={-1} id="resume-template-title">Choose Template</h2><p>Select a design for your resume. Your information stays the same in every template.</p></div></div>
+                <fieldset disabled={busy} className="resume-editor-fields"><TemplateSelector currentTemplate={currentResume.template_id} onSelect={template_id => changeDraft({ template_id })} resume={currentResume} />
+                    <details className="resume-appearance-settings"><summary>Customize typography &amp; accent</summary><div className="resume-appearance-grid">
+                        <Form.Group controlId="resume-font-family"><Form.Label>Font</Form.Label><Form.Select value={currentResume.font_family || "Arial, sans-serif"} onChange={event => changeDraft({ font_family: event.target.value })}>{["Arial, sans-serif", "Inter, sans-serif", "Georgia, serif", "Times New Roman, serif"].map(font => <option key={font} value={font}>{font.split(",")[0]}</option>)}</Form.Select></Form.Group>
+                        <Form.Group controlId="resume-font-size"><Form.Label>Text size</Form.Label><Form.Select value={currentResume.font_size || 11} onChange={event => changeDraft({ font_size: Number(event.target.value) })}>{[8, 9, 10, 11, 12, 13, 14].map(size => <option key={size} value={size}>{size} pt</option>)}</Form.Select></Form.Group>
+                        <Form.Group controlId="resume-line-spacing"><Form.Label>Line spacing</Form.Label><Form.Select value={currentResume.line_spacing || 1.45} onChange={event => changeDraft({ line_spacing: Number(event.target.value) })}>{[1.2, 1.35, 1.45, 1.5, 1.65, 1.8].map(spacing => <option key={spacing} value={spacing}>{spacing}</option>)}</Form.Select></Form.Group>
+                        <Form.Group controlId="resume-accent"><Form.Label>Accent color</Form.Label><Form.Control type="color" value={/^#[\da-f]{6}$/i.test(currentResume.color_theme || "") ? currentResume.color_theme : "#065845"} onChange={event => changeDraft({ color_theme: event.target.value })} /></Form.Group>
+                    </div></details>
+                </fieldset>
+                <footer className="resume-step-footer"><Button variant="outline-success" onClick={() => setStep(1)} disabled={busy}><FaArrowLeft /> Back to Information</Button><Button variant="success" onClick={() => saveResume(true)} disabled={busy}>{saving ? <><Spinner size="sm" animation="border" /> Saving &amp; Generating...</> : <>Save &amp; Generate Resume <FaArrowRight /></>}</Button></footer>
+            </section>}
+            {step === 3 && savedResume && <section aria-labelledby="resume-preview-title">
+                <div className="resume-step-heading"><div><h2 tabIndex={-1} id="resume-preview-title">Preview &amp; Download</h2><p>Review your saved resume, then download or print it.</p></div><span className="resume-save-indicator saved"><FaCheck /> Saved</span></div>
+                <div className="resume-final-layout"><div className="resume-final-preview"><ResumePreview resume={savedResume} /></div><aside className="resume-final-aside">
+                    <div className="resume-actions-card"><h3>Resume Actions</h3><Button variant="success" onClick={downloadPdf} disabled={busy}>{exporting ? <Spinner size="sm" animation="border" /> : <FaFilePdf />} {exporting ? "Preparing document..." : "Download Resume (PDF)"}</Button><Button variant="outline-success" onClick={() => { setStep(1); setNotice(""); }} disabled={busy}>Edit Information</Button><Button variant="outline-success" onClick={() => { setStep(2); setNotice(""); }} disabled={busy}>Change Template</Button><Button variant="outline-secondary" onClick={printResume} disabled={busy}><FaPrint /> Print Resume</Button><Button variant="outline-secondary" onClick={duplicateResume} disabled={busy}><FaCopy /> Duplicate Resume</Button></div>
+                    <div className="resume-template-info"><span className="resume-eyebrow">SELECTED TEMPLATE</span><h3>{selectedTemplate?.name}</h3><p>{selectedTemplate?.description}</p><span className="resume-template-format">A4 · PDF &amp; print ready</span></div>
+                    <p className="resume-saved-caption">{savedResume.title}{savedResume.updatedAt && <> · Saved {new Date(savedResume.updatedAt).toLocaleDateString()}</>}</p>
+                </aside></div>
+            </section>}
+        </>}
+    </div>;
 }

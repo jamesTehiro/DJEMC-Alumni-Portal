@@ -80,6 +80,7 @@ module.exports = (sequelize, DataTypes) => {
         transcript_path: DataTypes.STRING,
         certificate_path: DataTypes.STRING,
         status: { type: DataTypes.STRING, defaultValue: "pending" },
+        is_archived: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
         recruitment_cycle: {
             type: DataTypes.INTEGER,
             defaultValue: 1,

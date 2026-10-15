@@ -8,6 +8,8 @@ const bootstrapGuard = require("../middleware/bootstrapGuard");
 const authController = require("../controllers/authController");
 const fileController = require("../controllers/fileController");
 const applicationController = require("../controllers/applicationController");
+const notificationController = require("../controllers/notificationController");
+const resumeController = require("../controllers/resumeController");
 const adminScopeMiddleware = require("../middleware/adminScopeMiddleware");
 const registrarController = require("../controllers/registrarController");
 const { encrypt, decrypt } = require("../utils/fieldEncryption");
@@ -219,6 +221,84 @@ test("application document endpoint denies users unrelated to the application", 
     } finally {
         db.Application.findByPk = originalFindByPk;
         db.ApplicationDocument.findOne = originalDocumentFindOne;
+    }
+});
+
+test("notification deletion is scoped to the authenticated owner", async () => {
+    const originalFindByPk = db.Notification.findByPk;
+    let destroyCalled = false;
+    db.Notification.findByPk = async () => ({
+        id: 654,
+        userId: 22,
+        destroy: async () => { destroyCalled = true; }
+    });
+
+    try {
+        const req = { params: { id: "654" }, user: { id: 99, role: "employer" } };
+        const res = createRes();
+        await notificationController.deleteNotification(req, res);
+
+        assert.equal(res.statusCode, 403);
+        assert.equal(res.body.msg, "Forbidden");
+        assert.equal(destroyCalled, false);
+    } finally {
+        db.Notification.findByPk = originalFindByPk;
+    }
+});
+
+test("notification deletion removes the authenticated user's notification", async () => {
+    const originalFindByPk = db.Notification.findByPk;
+    let destroyCalled = false;
+    db.Notification.findByPk = async () => ({
+        id: 655,
+        userId: 99,
+        destroy: async () => { destroyCalled = true; }
+    });
+
+    try {
+        const req = { params: { id: "655" }, user: { id: 99, role: "employer" } };
+        const res = createRes();
+        await notificationController.deleteNotification(req, res);
+
+        assert.equal(res.statusCode, 200);
+        assert.equal(res.body.msg, "Notification deleted");
+        assert.equal(destroyCalled, true);
+    } finally {
+        db.Notification.findByPk = originalFindByPk;
+    }
+});
+
+test("resume updates persist the profile photo URL from personalInfo", async () => {
+    const originalResumeFindOne = db.Resume.findOne;
+    const originalPersonalInfoFindOne = db.ResumePersonalInfo.findOne;
+    const originalUserFindByPk = db.User.findByPk;
+    const originalTransaction = db.sequelize.transaction;
+    let savedPersonalInfo = null;
+    db.User.findByPk = async () => ({ id: 19 });
+    db.sequelize.transaction = async (run) => run({ LOCK: { UPDATE: "UPDATE" } });
+    db.Resume.findOne = async () => ({ id: 812, user_id: 19, update: async () => {} });
+    db.ResumePersonalInfo.findOne = async () => ({
+        update: async (values) => { savedPersonalInfo = values; }
+    });
+
+    try {
+        const req = {
+            params: { id: "812" },
+            user: { id: 19 },
+            body: { personalInfo: { full_name: "A. Alumni", photo_url: "data:image/jpeg;base64,Zm9v" } }
+        };
+        const res = createRes();
+        await resumeController.updateResume(req, res);
+
+        assert.equal(res.statusCode, 200);
+        assert.equal(savedPersonalInfo.photo_url, "data:image/jpeg;base64,Zm9v");
+        assert.equal(savedPersonalInfo.full_name, "A. Alumni");
+        assert.equal(Object.hasOwn(savedPersonalInfo, "profile_picture"), false);
+    } finally {
+        db.Resume.findOne = originalResumeFindOne;
+        db.ResumePersonalInfo.findOne = originalPersonalInfoFindOne;
+        db.User.findByPk = originalUserFindByPk;
+        db.sequelize.transaction = originalTransaction;
     }
 });
 

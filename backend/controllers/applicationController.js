@@ -1,31 +1,98 @@
 const db = require("../models");
+const { Op } = require("sequelize");
 const notificationController = require("./notificationController");
 const { encrypt, decrypt } = require("../utils/fieldEncryption");
 const { toSecureFileUrl } = require("./fileController");
 const auditService = require("../services/auditService");
-const { isStoredFileReference, sendStoredFile } = require("../services/objectStorage");
+const { isStoredFileReference, getStoredFileOriginalName, sendStoredFile } = require("../services/objectStorage");
 const path = require("path");
 const fs = require("fs");
 const archiver = require("archiver");
+const INVITATION_DETAIL_COLUMNS = {
+    venue: "interview_venue",
+    place: "interview_place",
+    date: "interview_date",
+    time: "interview_time",
+    contact_info: "interview_contact_info",
+    what_to_bring: "interview_what_to_bring"
+};
+
+const getJobInvitationDetails = (job) => Object.fromEntries(
+    Object.entries(INVITATION_DETAIL_COLUMNS).map(([key, column]) => [key, String(job?.[column] || "").trim()])
+);
+
+const getMissingInvitationField = (details) =>
+    ["venue", "place", "date", "time", "contact_info"].find((key) => !details[key]) || null;
+
+const canUseEmployerInvitationWorkflow = (user) =>
+    user?.role === "employer" || (user?.role === "admin" && user?.admin_scope === "employer");
+
+const formatInvitationDate = (value) => {
+    const [year, month, day] = String(value || "").split("-").map(Number);
+    if (!year || !month || !day) return value;
+    return new Date(year, month - 1, day).toLocaleDateString("en-PH", {
+        year: "numeric", month: "long", day: "numeric"
+    });
+};
+
+const buildInterviewInvitation = ({ applicantName, jobTitle, organizationName, details }) =>
+    `Congratulations, ${applicantName}! You have been approved for an interview for the position of ${jobTitle}${organizationName ? ` at ${organizationName}` : ""}.\n\n` +
+    `Interview Details\nVenue: ${details.venue}\nAddress: ${details.place}\nDate: ${formatInvitationDate(details.date)}\nTime: ${details.time}\nContact: ${details.contact_info}\nPlease bring: ${details.what_to_bring || "No additional items specified."}\n\n` +
+    `Please contact the employer using the provided contact information if you have any questions.`;
 const {
     Resume, ResumePersonalInfo, ResumeSummary, ResumeEducation, ResumeWorkExperience,
     ResumeSkill, ResumeProject, ResumeCertification, ResumeTraining, ResumeSeminar,
     ResumeAward, ResumeOrganization, ResumeVolunteerWork, ResumeLanguage, ResumeReference
 } = require("../models");
 
+const applicationFileMimeTypes = {
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png"
+};
+
+const getApplicationFileName = (storedPath) => {
+    const originalName = getStoredFileOriginalName(storedPath);
+    if (originalName) return path.posix.basename(String(originalName).replace(/\\/g, "/"));
+    if (!storedPath || isStoredFileReference(storedPath)) return null;
+    const normalizedPath = String(storedPath).replace(/\\/g, "/");
+    try {
+        return decodeURIComponent(path.posix.basename(new URL(normalizedPath).pathname)) || null;
+    } catch {
+        return path.posix.basename(normalizedPath) || null;
+    }
+};
+
+const getApplicationFileMimeType = (fileName) =>
+    applicationFileMimeTypes[path.extname(String(fileName || "")).toLowerCase()] || null;
+
 const hydrateSensitiveFields = (application) => {
     const plain = application.toJSON ? application.toJSON() : { ...application };
     ["sss_no", "philhealth_no", "pagibig_no", "tin"].forEach((key) => {
         plain[key] = decrypt(plain[key]);
     });
-    plain.resume_path = toSecureFileUrl(plain.resume_path);
+    // Legacy applications keep the upload's original name inside the object-storage
+    // reference. Local uploads predating document records only retain a stored name.
+    plain.resume_file_name = getApplicationFileName(plain.resume_path);
+    plain.resume_mime_type = getApplicationFileMimeType(plain.resume_file_name);
+    plain.resume_path = plain.resume_path && plain.id
+        ? `/api/applications/${plain.id}/resume/file`
+        : toSecureFileUrl(plain.resume_path);
     plain.transcript_path = toSecureFileUrl(plain.transcript_path);
     plain.certificate_path = toSecureFileUrl(plain.certificate_path);
     // Normalize ApplicationDocument file_path values
     if (plain.ApplicationDocuments && Array.isArray(plain.ApplicationDocuments)) {
         plain.ApplicationDocuments = plain.ApplicationDocuments.map((doc) => {
             if (doc && doc.file_path) {
-                return { ...doc, file_path: toSecureFileUrl(doc.file_path) };
+                return {
+                    ...doc,
+                    file_path: plain.id && doc.id
+                        ? `/api/applications/${plain.id}/documents/${doc.id}/file`
+                        : toSecureFileUrl(doc.file_path)
+                };
             }
             return doc;
         });
@@ -479,16 +546,17 @@ exports.getJobApplicants = async (req, res, next) => {
             return res.status(404).json({ msg: "Job not found." });
         }
 
-        if (job.employer_id !== req.user.id) {
+        if (Number(job.employer_id) !== Number(req.user.id) && !isEmployerAdmin) {
             return res.status(403).json({ msg: "Not allowed." });
         }
 
         const currentCycle = await db.Application.max("recruitment_cycle", { where: { job_id: jobId } }) || 1;
 
-        const appWhere = { job_id: jobId, recruitment_cycle: currentCycle };
-        if (job.recruitment_status === "closed") {
-            appWhere.status = "verified";
-        }
+        const appWhere = {
+            job_id: jobId,
+            recruitment_cycle: currentCycle,
+            [Op.or]: [{ is_archived: false }, { is_archived: null }]
+        };
 
         const apps = await db.Application.findAll({
             where: appWhere,
@@ -515,7 +583,7 @@ exports.getJobApplicants = async (req, res, next) => {
         console.log("Applications returned:", apps.length);
         console.log("Application job ids:", JSON.stringify(apps.map((app) => app.job_id)));
 
-        res.json(apps.map(hydrateSensitiveFields));
+        res.json(apps.filter(app => app.status !== "not_verified").map(hydrateSensitiveFields));
     } catch (err) {
         next(err);
     }
@@ -536,7 +604,11 @@ exports.getEmployerApplications = async (req, res, next) => {
         console.log("Authenticated user:", JSON.stringify({ id: req.user?.id, role: req.user?.role, admin_scope: req.user?.admin_scope }));
         console.log("Job where clause:", JSON.stringify(jobWhere));
 
+        const archived = String(req.query.archived || "false").toLowerCase() === "true";
         const apps = await db.Application.findAll({
+            where: archived
+                ? { is_archived: true }
+                : { [Op.or]: [{ is_archived: false }, { is_archived: null }] },
             include: [
                 {
                     model: db.Job,
@@ -560,9 +632,9 @@ exports.getEmployerApplications = async (req, res, next) => {
             order: [["createdAt", "DESC"]]
         });
 
-        const filtered = apps.filter((app) => {
+        const filtered = archived ? apps : apps.filter((app) => {
             const job = app.Job;
-            if (!job) return false;
+            if (!job || app.status === "not_verified") return false;
  
             if (job.recruitment_status === "closed") {
                 return app.status === "verified";
@@ -580,6 +652,46 @@ exports.getEmployerApplications = async (req, res, next) => {
         next(err);
     }
 };
+
+const updateEmployerApplicationArchive = async (req, res, next, isArchived) => {
+    try {
+        if (req.user?.role !== "employer") {
+            return res.status(403).json({ msg: "Only the employer who owns this application may archive or restore it." });
+        }
+
+        const application = await db.Application.findByPk(req.params.id, {
+            include: [{ model: db.Job, attributes: ["id", "employer_id"] }]
+        });
+        if (!application) return res.status(404).json({ msg: "Application not found." });
+        if (Number(application.Job?.employer_id) !== Number(req.user.id)) {
+            return res.status(403).json({ msg: "You can only manage applications for your own jobs." });
+        }
+
+        const previouslyArchived = application.is_archived === true;
+        if (previouslyArchived !== isArchived) {
+            await application.update({ is_archived: isArchived });
+            auditService.log({
+                actorId: req.user.id,
+                actorRole: req.user.role,
+                action: isArchived ? "application.archived" : "application.restored",
+                targetType: "application",
+                targetId: application.id,
+                metadata: { previous_is_archived: previouslyArchived, is_archived: isArchived },
+                ipAddress: req.ip
+            });
+        }
+
+        return res.json({
+            msg: isArchived ? "Application archived." : "Application restored.",
+            application: hydrateSensitiveFields(application)
+        });
+    } catch (err) {
+        return next(err);
+    }
+};
+
+exports.archiveEmployerApplication = (req, res, next) => updateEmployerApplicationArchive(req, res, next, true);
+exports.restoreEmployerApplication = (req, res, next) => updateEmployerApplicationArchive(req, res, next, false);
 
 // REVIEW A SINGLE REQUIREMENT (employer only)
 exports.reviewRequirement = async (req, res, next) => {
@@ -734,111 +846,265 @@ exports.getRequirementReviewStatus = async (req, res, next) => {
     }
 };
 
-// REVIEW AN APPLICATION (employer only) — overall status
+// Persist an application decision independently of interview invitations.
 exports.reviewApplication = async (req, res, next) => {
     try {
-        const isEmployerAdmin = req.user.role === "admin" && req.user.admin_scope === "employer";
-        if (req.user.role !== "employer" && !isEmployerAdmin) {
-            return res.status(403).json({ msg: "Employer access only." });
-        }
-
-        const { status, venue, place, date, time, contact_info, what_to_bring } = req.body;
-        const normalizedStatus = String(status || "").toLowerCase();
-        const allowed = ["verified", "not_verified"];
-        if (!allowed.includes(normalizedStatus)) {
-            return res.status(400).json({ msg: "Invalid review status." });
-        }
-
-        if (normalizedStatus === "verified") {
-            const requiredFields = { venue, place, date, time, contact_info };
-            const missingField = Object.entries(requiredFields).find(([, value]) => !String(value || "").trim());
-            if (missingField) {
-                return res.status(400).json({ msg: `${missingField[0]} is required.` });
-            }
-        }
-
-        const application = await db.Application.findByPk(req.params.id, {
-            include: [
-                { model: db.Job },
-                {
-                    model: db.User,
-                    as: "alumni",
-                    attributes: ["id", "name", "email"]
-                }
-            ]
+        if (!canUseEmployerInvitationWorkflow(req.user)) return res.status(403).json({ msg: "Employer access only." });
+        const { status, job_id, recruitment_cycle } = req.body;
+        if (!["verified", "not_verified"].includes(status)) return res.status(400).json({ msg: "Invalid review status." });
+        if (!job_id || !recruitment_cycle || !Number.isInteger(Number(job_id)) || !Number.isInteger(Number(recruitment_cycle))) return res.status(400).json({ msg: "Job and recruitment cycle are required." });
+        const result = await db.sequelize.transaction(async (transaction) => {
+            const fail = (code, message) => { const error = new Error(message); error.status = code; throw error; };
+            const job = await db.Job.findByPk(job_id, { transaction, lock: transaction.LOCK.UPDATE });
+            if (!job) fail(404, "Job not found.");
+            const admin = req.user.role === "admin" && req.user.admin_scope === "employer";
+            if (Number(job.employer_id) !== Number(req.user.id) && !admin) fail(403, "You can only review applications for your own jobs.");
+            const application = await db.Application.findByPk(req.params.id || req.params.applicationId, { transaction, lock: transaction.LOCK.UPDATE });
+            if (!application) fail(404, "Application not found.");
+            const cycle = await db.Application.max("recruitment_cycle", { where: { job_id: job.id }, transaction }) || 1;
+            if (Number(application.job_id) !== Number(job.id) || Number(application.recruitment_cycle) !== Number(recruitment_cycle) || Number(cycle) !== Number(recruitment_cycle)) fail(409, "Application does not belong to the selected job and current recruitment cycle.");
+            if (application.is_archived) fail(409, "Restore this application before reviewing it.");
+            if (application.status === status) return { application };
+            if (application.status === "not_verified") fail(409, "This application has already been declined.");
+            const previousStatus = application.status;
+            application.status = status;
+            await application.save({ transaction });
+            const message = status === "verified"
+                ? "Your application for " + (job.title || "the job") + " has been approved. Please await further instructions from the employer."
+                : "Your application for " + (job.title || "the job") + " was not selected for the current recruitment process.";
+            await db.Notification.create({ userId: application.alumni_id, type: "application", message, isRead: false }, { transaction });
+            await db.AuditLog.create({ actor_id: req.user.id, actor_role: req.user.role, action: status === "verified" ? "application.approved" : "application.declined", target_type: "application", target_id: application.id, metadata: { previous_status: previousStatus, status, job_id: job.id, recruitment_cycle: cycle }, ip_address: req.ip }, { transaction });
+            return { application };
         });
+        res.json({ msg: status === "verified" ? "Application approved." : "Application declined.", application: hydrateSensitiveFields(result.application) });
+    } catch (err) { next(err); }
+};
 
-        if (!application) {
-            return res.status(404).json({ msg: "Application not found." });
-        }
+const loadEmployerInvitationApplication = async (applicationId, employerId, transaction) => {
+    const application = await db.Application.findByPk(applicationId, {
+        include: [
+            { model: db.Job, include: [{ model: db.User, include: [{ model: db.EmployerProfile }] }] },
+            { model: db.User, as: "alumni", attributes: ["id", "name", "email"] }
+        ],
+        ...(transaction ? { transaction } : {})
+    });
+    if (!application) return { error: { status: 404, msg: "Application not found." } };
+    if (Number(application.Job?.employer_id) !== Number(employerId)) {
+        return { error: { status: 403, msg: "You can only manage applications for your own jobs." } };
+    }
+    return { application };
+};
 
-        if (application.Job?.employer_id !== req.user.id && !isEmployerAdmin) {
-            return res.status(403).json({ msg: "You can only review applications for your own jobs." });
-        }
+exports.getInterviewInvitationDetails = async (req, res, next) => {
+    try {
+        if (!canUseEmployerInvitationWorkflow(req.user)) return res.status(403).json({ msg: "Employer access only." });
+        const { application, error } = await loadEmployerInvitationApplication(req.params.id, req.user.id);
+        if (error) return res.status(error.status).json({ msg: error.msg });
 
-        application.status = normalizedStatus;
-        await application.save();
-
-        let interview = null;
-        if (normalizedStatus === "verified") {
-            interview = await db.Interview.create({
-                application_id: application.id,
-                venue: String(venue).trim(),
-                place: String(place).trim(),
-                date,
-                time: String(time).trim(),
-                contact_info: String(contact_info).trim(),
-                what_to_bring: String(what_to_bring || "").trim() || null
-            });
-        }
-
-        const employer = await db.User.findByPk(req.user.id, {
-            include: [{ model: db.EmployerProfile }]
+        const details = getJobInvitationDetails(application.Job);
+        const employerUser = application.Job?.User;
+        const organizationName = employerUser?.EmployerProfile?.organization_name || employerUser?.name || "";
+        const existingInterview = await db.Interview.findOne({
+            where: { application_id: application.id },
+            order: [["createdAt", "DESC"]]
         });
-
-        const orgName = employer?.EmployerProfile?.organization_name || employer?.name || "Employer";
-
-        const approvedMessage =
-            `You are qualified for ${application.Job?.title || "the job"}.\n` +
-            `Please visit our office.\n` +
-            `Organization: ${orgName}\nAddress: ${String(place || "").trim()}\nEmail: ${String(contact_info || "").trim()}`;
-
-        const rejectedMessage =
-            `Sorry, we are not satisfied for the role you applied.\n` +
-            `Role: ${application.Job?.title || "N/A"}\nOrganization: ${orgName}`;
-
-        const emailMessage = normalizedStatus === "verified" ? approvedMessage : rejectedMessage;
-        const subject =
-            normalizedStatus === "verified"
-                ? "Job Application Update: Qualified"
-                : "Job Application Update";
-
-        await notificationController.createNotification({
-            userIds: [application.alumni_id],
-            type: normalizedStatus === "verified" ? "interview" : "application",
-            message: emailMessage,
-            subject,
-            interview_id: interview?.id || null
+        const emailJob = existingInterview
+            ? await db.EmailQueueJob.findOne({ where: { dedupe_key: `interview-invitation:${existingInterview.id}` } })
+            : null;
+        return res.json({
+            application_id: application.id,
+            applicant_name: application.alumni?.name || application.full_name || "Applicant",
+            job: { id: application.Job.id, title: application.Job.title },
+            organization_name: organizationName,
+            interview_details: details,
+            complete: !getMissingInvitationField(details),
+            already_invited: application.status === "verified" || Boolean(existingInterview),
+            email_status: emailJob?.status || (application.status === "verified" ? "unknown" : null)
         });
-
-        res.json({ msg: "Application reviewed.", application: hydrateSensitiveFields(application), interview });
     } catch (err) {
-        next(err);
+        return next(err);
     }
 };
 
-// Serve one private application document to an authorized application participant.
+exports.sendInterviewInvitation = async (req, res, next) => {
+    try {
+        if (!canUseEmployerInvitationWorkflow(req.user)) return res.status(403).json({ msg: "Employer access only." });
+
+        const result = await db.sequelize.transaction(async (transaction) => {
+            const application = await db.Application.findByPk(req.params.id, {
+                include: [
+                    { model: db.Job, include: [{ model: db.User, include: [{ model: db.EmployerProfile }] }] },
+                    { model: db.User, as: "alumni", attributes: ["id", "name", "email"] }
+                ],
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+            if (!application) {
+                const error = new Error("Application not found."); error.status = 404; throw error;
+            }
+            if (Number(application.Job?.employer_id) !== Number(req.user.id)) {
+                const error = new Error("You can only manage applications for your own jobs."); error.status = 403; throw error;
+            }
+            const priorInterview = await db.Interview.findOne({
+                where: { application_id: application.id }, transaction, lock: transaction.LOCK.UPDATE
+            });
+            if (application.status === "verified" || priorInterview) {
+                const error = new Error("This application already has an interview invitation."); error.status = 409; throw error;
+            }
+
+            const details = getJobInvitationDetails(application.Job);
+            const missing = getMissingInvitationField(details);
+            if (missing) {
+                const error = new Error(`Configure the job's interview ${missing.replaceAll("_", " ")} before approving this applicant.`);
+                error.status = 400;
+                throw error;
+            }
+            if (!application.alumni?.email) {
+                const error = new Error("The applicant does not have a registered email address."); error.status = 400; throw error;
+            }
+
+            const employerUser = application.Job?.User;
+            const organizationName = employerUser?.EmployerProfile?.organization_name || employerUser?.name || "";
+            const invitationMessage = buildInterviewInvitation({
+                applicantName: application.alumni?.name || application.full_name || "Applicant",
+                jobTitle: application.Job?.title || "the position",
+                organizationName,
+                details
+            });
+            const interview = await db.Interview.create({
+                application_id: application.id,
+                venue: details.venue,
+                place: details.place,
+                date: details.date,
+                time: details.time,
+                contact_info: details.contact_info,
+                what_to_bring: details.what_to_bring || null
+            }, { transaction });
+
+            application.status = "verified";
+            await application.save({ transaction });
+            await db.Notification.create({
+                userId: application.alumni_id,
+                type: "interview",
+                interview_id: interview.id,
+                message: invitationMessage,
+                isRead: false
+            }, { transaction });
+            await db.EmailQueueJob.create({
+                to: application.alumni.email,
+                subject: `Interview Invitation: ${application.Job?.title || "Job Application"}`,
+                message: invitationMessage,
+                dedupe_key: `interview-invitation:${interview.id}`,
+                status: "pending",
+                attempts: 0,
+                scheduled_at: new Date()
+            }, { transaction });
+
+            return { application, interview, applicant_name: application.alumni.name, email_status: "pending" };
+        });
+
+        auditService.log({
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            action: "application.interview_invitation.sent",
+            targetType: "application",
+            targetId: result.application.id,
+            metadata: { interview_id: result.interview.id },
+            ipAddress: req.ip
+        });
+        return res.status(201).json({
+            msg: "Applicant approved. The in-app invitation was saved and the email is queued for delivery.",
+            application: hydrateSensitiveFields(result.application),
+            interview: result.interview,
+            applicant_name: result.applicant_name,
+            email_status: result.email_status
+        });
+    } catch (err) {
+        return next(err);
+    }
+};
+
+exports.retryInterviewInvitationEmail = async (req, res, next) => {
+    try {
+        if (!canUseEmployerInvitationWorkflow(req.user)) return res.status(403).json({ msg: "Employer access only." });
+        const { application, error } = await loadEmployerInvitationApplication(req.params.id, req.user.id);
+        if (error) return res.status(error.status).json({ msg: error.msg });
+        const interview = await db.Interview.findOne({
+            where: { application_id: application.id }, order: [["createdAt", "DESC"]]
+        });
+        if (!interview) return res.status(404).json({ msg: "No interview invitation exists for this application." });
+
+        const dedupeKey = `interview-invitation:${interview.id}`;
+        const emailJob = await db.EmailQueueJob.findOne({ where: { dedupe_key: dedupeKey } });
+        if (!emailJob) return res.status(404).json({ msg: "The invitation email is not in the delivery queue." });
+        if (emailJob.status === "sent") return res.json({ msg: "The invitation email has already been delivered.", email_status: "sent" });
+        if (emailJob.status !== "failed") return res.json({ msg: "The invitation email is already queued for delivery.", email_status: emailJob.status });
+
+        await db.EmailQueueJob.update({
+            status: "pending", attempts: 0, scheduled_at: new Date(),
+            last_error: null, processing_started_at: null
+        }, { where: { id: emailJob.id, status: "failed" } });
+        const refreshed = await db.EmailQueueJob.findByPk(emailJob.id);
+        const emailStatus = refreshed?.status || "pending";
+        return res.json({
+            msg: emailStatus === "pending" ? "Invitation email queued for retry." : "Invitation email delivery is already in progress.",
+            email_status: emailStatus
+        });
+    } catch (err) {
+        return next(err);
+    }
+};
+
+const canReadApplicationFile = (user, application) =>
+    (user.role === "admin" && user.admin_scope === "employer") ||
+    (user.role === "employer" && Number(application.Job?.employer_id) === Number(user.id)) ||
+    (user.role === "alumni" && Number(application.alumni_id) === Number(user.id));
+
+const sendPrivateApplicationFile = async (storedValue, mimeType, res) => {
+    const storedPath = String(storedValue || "").trim();
+    const safeMimeType = /^[\w.+-]+\/[\w.+-]+$/.test(String(mimeType || "")) ? mimeType : null;
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    if (isStoredFileReference(storedPath) || /^https?:\/\//i.test(storedPath)) {
+        return await sendStoredFile(storedPath, res, null, safeMimeType);
+    }
+
+    const normalizedPath = storedPath.replace(/\\/g, "/");
+    const uploadsMarker = normalizedPath.toLowerCase().lastIndexOf("/uploads/");
+    const relativePath = uploadsMarker >= 0
+        ? normalizedPath.slice(uploadsMarker + "/uploads/".length)
+        : normalizedPath.toLowerCase().startsWith("uploads/")
+            ? normalizedPath.slice("uploads/".length)
+            : "";
+    const pathParts = relativePath.split("/").filter(Boolean);
+    if (!pathParts.length || pathParts.some((part) => part === "." || part === "..")) {
+        return res.status(404).json({ msg: "Application document file not found." });
+    }
+
+    const uploadsRoot = path.resolve(__dirname, "..", "uploads");
+    const absolutePath = path.resolve(uploadsRoot, ...pathParts);
+    if (!absolutePath.startsWith(`${uploadsRoot}${path.sep}`)) {
+        return res.status(400).json({ msg: "Invalid application document path." });
+    }
+
+    try {
+        await fs.promises.access(absolutePath, fs.constants.R_OK);
+    } catch {
+        return res.status(404).json({ msg: "Application document file not found." });
+    }
+
+    if (safeMimeType) res.setHeader("Content-Type", safeMimeType);
+    return res.sendFile(absolutePath);
+};
+
+// Both file readers use the same participant checks and private storage handling.
 exports.getApplicationDocumentFile = async (req, res, next) => {
     try {
         const application = await db.Application.findByPk(req.params.id, {
             include: [{ model: db.Job, attributes: ["id", "employer_id"] }]
         });
         if (!application) return res.status(404).json({ msg: "Application not found." });
-
-        const isEmployerAdmin = req.user.role === "admin" && req.user.admin_scope === "employer";
-        const isEmployer = req.user.role === "employer" && Number(application.Job?.employer_id) === Number(req.user.id);
-        const isApplicant = req.user.role === "alumni" && Number(application.alumni_id) === Number(req.user.id);
-        if (!isEmployerAdmin && !isEmployer && !isApplicant) {
+        if (!canReadApplicationFile(req.user, application)) {
             return res.status(403).json({ msg: "Not allowed to access this application document." });
         }
 
@@ -846,40 +1112,24 @@ exports.getApplicationDocumentFile = async (req, res, next) => {
             where: { id: req.params.documentId, application_id: application.id }
         });
         if (!document) return res.status(404).json({ msg: "Application document not found." });
+        return await sendPrivateApplicationFile(document.file_path, document.mime_type, res);
+    } catch (err) {
+        return next(err);
+    }
+};
 
-        const storedPath = String(document.file_path || "").trim();
-        if (isStoredFileReference(storedPath) || /^https?:\/\//i.test(storedPath)) {
-            return await sendStoredFile(storedPath, res);
+exports.getApplicationResumeFile = async (req, res, next) => {
+    try {
+        const application = await db.Application.findByPk(req.params.id, {
+            include: [{ model: db.Job, attributes: ["id", "employer_id"] }]
+        });
+        if (!application) return res.status(404).json({ msg: "Application not found." });
+        if (!canReadApplicationFile(req.user, application)) {
+            return res.status(403).json({ msg: "Not allowed to access this application document." });
         }
-
-        const normalizedPath = storedPath.replace(/\\/g, "/");
-        const uploadsMarker = normalizedPath.toLowerCase().lastIndexOf("/uploads/");
-        const relativePath = uploadsMarker >= 0
-            ? normalizedPath.slice(uploadsMarker + "/uploads/".length)
-            : normalizedPath.toLowerCase().startsWith("uploads/")
-                ? normalizedPath.slice("uploads/".length)
-                : "";
-        const pathParts = relativePath.split("/").filter(Boolean);
-        if (!pathParts.length || pathParts.some((part) => part === "." || part === "..")) {
-            return res.status(404).json({ msg: "Application document file not found." });
-        }
-
-        const uploadsRoot = path.resolve(__dirname, "..", "uploads");
-        const absolutePath = path.resolve(uploadsRoot, ...pathParts);
-        if (!absolutePath.startsWith(`${uploadsRoot}${path.sep}`)) {
-            return res.status(400).json({ msg: "Invalid application document path." });
-        }
-
-        try {
-            await fs.promises.access(absolutePath, fs.constants.R_OK);
-        } catch {
-            return res.status(404).json({ msg: "Application document file not found." });
-        }
-
-        if (document.mime_type && /^[\w.+-]+\/[\w.+-]+$/.test(document.mime_type)) {
-            res.setHeader("Content-Type", document.mime_type);
-        }
-        return res.sendFile(absolutePath);
+        if (!application.resume_path) return res.status(404).json({ msg: "Application resume not found." });
+        const fileName = getApplicationFileName(application.resume_path);
+        return await sendPrivateApplicationFile(application.resume_path, getApplicationFileMimeType(fileName), res);
     } catch (err) {
         return next(err);
     }

@@ -48,13 +48,59 @@ const signCloudinaryParams = (params) => {
 const encodeStoredFileReference = (payload) =>
     `${REF_PREFIX}${Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")}`;
 
+// Recover complete Cloudinary fields from references truncated by older
+// VARCHAR(500) ApplicationDocuments.file_path columns.
+const recoverTruncatedCloudinaryReference = (value) => {
+    try {
+        const decoded = Buffer.from(value.slice(REF_PREFIX.length), "base64url").toString("utf8");
+        const readString = (key) => {
+            const marker = `${JSON.stringify(key)}:`;
+            const markerIndex = decoded.indexOf(marker);
+            if (markerIndex < 0) return null;
+            let index = markerIndex + marker.length;
+            if (decoded[index] !== '"') return null;
+            const start = index;
+            index += 1;
+            for (; index < decoded.length; index += 1) {
+                if (decoded[index] === "\\") {
+                    index += 1;
+                    continue;
+                }
+                if (decoded[index] === '"') return JSON.parse(decoded.slice(start, index + 1));
+            }
+            return null;
+        };
+
+        const provider = readString("provider");
+        const resourceType = readString("resourceType");
+        const type = readString("type");
+        const publicId = readString("publicId");
+        const url = readString("url");
+        if (provider !== "cloudinary" || !["image", "raw", "video"].includes(resourceType) || type !== "upload") return null;
+        if (!publicId || !/^[A-Za-z0-9._/-]+$/.test(publicId) || publicId.split("/").some((part) => !part || part === "." || part === "..")) return null;
+
+        const parsedUrl = new URL(url);
+        const urlParts = parsedUrl.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
+        if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "res.cloudinary.com" || parsedUrl.port || parsedUrl.username || parsedUrl.password) return null;
+        if (urlParts.length < 5 || urlParts[1] !== resourceType || urlParts[2] !== "upload") return null;
+        const assetPath = urlParts.slice(4).join("/");
+        const matchesPublicId = assetPath === publicId ||
+            (assetPath.startsWith(`${publicId}.`) && /^\.(jpg|jpeg|png|gif|webp|avif|bmp|pdf|doc|docx)$/i.test(assetPath.slice(publicId.length)));
+        if (!matchesPublicId) return null;
+
+        return { provider, resourceType, type, publicId, url };
+    } catch {
+        return null;
+    }
+};
+
 const parseStoredFileReference = (value) => {
     if (!value || typeof value !== "string" || !value.startsWith(REF_PREFIX)) return null;
 
     try {
         return JSON.parse(Buffer.from(value.slice(REF_PREFIX.length), "base64url").toString("utf8"));
     } catch {
-        return null;
+        return recoverTruncatedCloudinaryReference(value);
     }
 };
 
@@ -186,7 +232,7 @@ const getStoredFileOriginalName = (storedValue) => {
     return parsed?.originalName || null;
 };
 
-const sendStoredFile = async (storedValue, res, downloadName = null) => {
+const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null) => {
     const sourceUrl = getDownloadSourceUrl(storedValue);
     if (!sourceUrl) {
         const err = new Error("Stored file URL could not be resolved.");
@@ -201,7 +247,7 @@ const sendStoredFile = async (storedValue, res, downloadName = null) => {
         throw err;
     }
 
-    const contentType = response.headers.get("content-type") || "application/octet-stream";
+    const contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
     const buffer = Buffer.from(await response.arrayBuffer());
 
     res.setHeader("Content-Type", contentType);

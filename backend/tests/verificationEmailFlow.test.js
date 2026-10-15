@@ -1,4 +1,4 @@
-const test = require("node:test");
+const nodeTest = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("path");
 
@@ -6,6 +6,12 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const db = require("../models");
+// This legacy suite creates and cleans up database records. Never run its broad
+// cleanup against the developer's working portal database.
+const isolatedDatabase = /_test$/i.test(db.sequelize.config.database || "")
+    && process.env.RUN_DATABASE_INTEGRATION_TESTS === "true";
+const test = Object.assign((name, run) => nodeTest(name, { skip: !isolatedDatabase }, run), nodeTest);
+if (!isolatedDatabase) console.log("Verification database tests skipped: require a separate *_test database and RUN_DATABASE_INTEGRATION_TESTS=true.");
 const notificationController = require("../controllers/notificationController");
 const sendEmail = require("../utils/email");
 const { enqueueEmails } = require("../utils/emailQueue");

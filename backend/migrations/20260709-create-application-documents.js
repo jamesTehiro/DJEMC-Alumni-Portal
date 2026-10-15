@@ -16,7 +16,7 @@ module.exports = {
                         id: { type: Sequelize.INTEGER, autoIncrement: true, primaryKey: true },
                         application_id: { type: Sequelize.INTEGER, allowNull: false },
                         requirement_code: { type: Sequelize.STRING(100), allowNull: false },
-                        file_path: { type: Sequelize.STRING(500), allowNull: false },
+                        file_path: { type: Sequelize.TEXT, allowNull: false },
                         file_name: { type: Sequelize.STRING(255), allowNull: false },
                         file_size: { type: Sequelize.INTEGER, allowNull: true },
                         mime_type: { type: Sequelize.STRING(100), allowNull: true },

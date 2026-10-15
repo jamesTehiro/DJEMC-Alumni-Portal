@@ -16,7 +16,7 @@ import ResumeVolunteerWork from "./sections/ResumeVolunteerWork";
 import ResumeLanguages from "./sections/ResumeLanguages";
 import ResumeReferences from "./sections/ResumeReferences";
 
-export default function ResumeEditor({ resume, onChange }) {
+export default function ResumeEditor({ resume, onChange, errors = {}, onPhotoBusyChange }) {
     const [expandedSections, setExpandedSections] = useState({
         personalInfo: true,
         summary: true,
@@ -33,6 +33,10 @@ export default function ResumeEditor({ resume, onChange }) {
         languages: false,
         references: false
     });
+
+    useEffect(() => {
+        if (Object.keys(errors).length) setExpandedSections(previous => ({ ...previous, personalInfo: true }));
+    }, [errors]);
 
     const toggleSection = (section) => {
         setExpandedSections(prev => ({
@@ -64,6 +68,8 @@ export default function ResumeEditor({ resume, onChange }) {
                         <Card.Body>
                             <ResumePersonalInfo
                                 data={resume.personalInfo || {}}
+                                errors={errors}
+                                onBusyChange={onPhotoBusyChange}
                                 onChange={(data) => handleSectionChange('personalInfo', data)}
                             />
                         </Card.Body>

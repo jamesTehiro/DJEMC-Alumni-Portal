@@ -11,6 +11,9 @@ router.use(roleMiddleware("admin"));
 
 // Alumni Admin routes
 router.get("/alumni/users", adminScopeMiddleware("alumni"), adminController.getAlumniUsers);
+router.get("/alumni/tracking-summary", adminScopeMiddleware("alumni"), adminController.getAlumniTrackingSummary);
+router.get("/alumni/users/:userId/tracking", adminScopeMiddleware("alumni"), adminController.getAlumniTrackingDetails);
+router.post("/alumni/users/:userId/profile-update-requests", adminScopeMiddleware("alumni"), adminController.requestAlumniProfileUpdate);
 router.put("/alumni/users/:userId/status", adminScopeMiddleware("alumni"), adminController.updateAlumniUserStatus);
 router.post("/alumni/warnings", adminScopeMiddleware("alumni"), adminController.createAlumniWarning);
 router.post("/alumni/announcements", adminScopeMiddleware("alumni"), adminController.createAlumniAnnouncement);

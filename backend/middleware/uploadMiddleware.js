@@ -64,6 +64,9 @@ const chatFileFilter = (_req, file, cb) => {
 const verifyChatAttachment = (req, _res, next) => {
     const file = req.file;
     if (!file) return next();
+    // The cloud storage engine validates buffered contents before upload. Its
+    // path is an opaque storage reference, never a local path to read from disk.
+    if (file.signatureVerified) return next();
     const finish = async (err) => {
         if (err) {
             try {
@@ -141,7 +144,8 @@ const createCloudStorageEngine = () => ({
                     storageRef: uploaded.storageRef || null,
                     publicUrl: uploaded.publicUrl || null,
                     mimetype: file.mimetype,
-                    originalname: file.originalname
+                    originalname: file.originalname,
+                    signatureVerified: file.fieldname === "attachment"
                 });
             } catch (err) {
                 cb(err);

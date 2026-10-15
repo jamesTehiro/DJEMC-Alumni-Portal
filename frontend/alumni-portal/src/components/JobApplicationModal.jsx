@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form, Alert, Spinner } from "react-bootstrap";
 import { api } from "../services/api";
+import { performApplicationSubmission } from "../utils/jobApplicationSubmission";
 import "./JobApplicationModal.css";
 
-export default function JobApplicationModal({ show, onHide, job, onSubmitted }) {
+export default function JobApplicationModal({ show, onHide, job, onSubmitted, onSubmissionError }) {
     const [requirements, setRequirements] = useState([]);
     const [requirementFiles, setRequirementFiles] = useState({});
     const [form, setForm] = useState({});
@@ -14,6 +15,7 @@ export default function JobApplicationModal({ show, onHide, job, onSubmitted }) 
     const [uploadedResume, setUploadedResume] = useState(null);
     const [resumeMode, setResumeMode] = useState("upload");
     const [loadingResumes, setLoadingResumes] = useState(false);
+    const submissionInFlight = useRef(false);
 
     // Load dynamic requirements on mount when job changes
     React.useEffect(() => {
@@ -24,7 +26,6 @@ export default function JobApplicationModal({ show, onHide, job, onSubmitted }) 
             }
 
             try {
-                setSubmitting(false);
                 setError("");
                 const data = await api.get(`/jobs/${job.id}/requirements`);
                 if (data.version && data.version > 0 && Array.isArray(data.requirements)) {
@@ -110,30 +111,34 @@ export default function JobApplicationModal({ show, onHide, job, onSubmitted }) 
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submissionInFlight.current) return;
         setError("");
+
+        const reportFailure = (failure) => {
+            const message = failure?.message || "Your application could not be submitted. Please try again.";
+            setError(message);
+            onSubmissionError?.(failure instanceof Error ? failure : new Error(message));
+        };
 
         const hasResumeRequirement = requirements.some(r => r.requirement_code === "resume");
 
         if (hasResumeRequirement) {
             if (resumeMode === "resume-builder" && !selectedResumeId) {
-                setError("Please select a resume from Resume Builder.");
+                reportFailure(new Error("Please select a resume from Resume Builder."));
                 return;
             }
 
             if (resumeMode === "upload" && !uploadedResume) {
-                setError("Please upload a resume.");
+                reportFailure(new Error("Please upload a resume."));
                 return;
             }
         }
 
         if (!isFormComplete) {
-            setError("Please complete all required information before submitting your application.");
+            reportFailure(new Error("Please complete all required information before submitting your application."));
             return;
         }
 
-        setSubmitting(true);
-
-        try {
             const formData = new FormData();
             formData.append("job_id", job?.id);
 
@@ -160,25 +165,33 @@ export default function JobApplicationModal({ show, onHide, job, onSubmitted }) 
                 }
             });
 
-            await api.post("/applications", formData, true);
-            resetState();
-            onSubmitted?.();
-            onHide?.();
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setSubmitting(false);
-        }
+        await performApplicationSubmission({
+            inFlight: submissionInFlight,
+            jobId: job?.id,
+            request: () => api.post("/applications", formData, true),
+            onBusy: setSubmitting,
+            onSuccess: (application) => {
+                resetState();
+                onSubmitted?.(application);
+                onHide?.();
+            },
+            onFailure: reportFailure,
+        });
+    };
+
+    const handleHide = () => {
+        if (!submissionInFlight.current) onHide?.();
     };
 
     return (
-        <Modal show={show} onHide={onHide} size="lg" centered scrollable dialogClassName="job-application-modal">
-            <Modal.Header closeButton>
+        <Modal show={show} onHide={handleHide} backdrop={submitting ? "static" : true} keyboard={!submitting} size="lg" centered scrollable dialogClassName="job-application-modal">
+            <Modal.Header closeButton={!submitting}>
                 <Modal.Title>Apply for {job?.title || "Job"}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                {error && <div className="alert alert-danger">{error}</div>}
-                <Form onSubmit={handleSubmit}>
+                {error && <div className="alert alert-danger" role="alert">{error}</div>}
+                <Form onSubmit={handleSubmit} aria-busy={submitting}>
+                    <fieldset disabled={submitting}>
                     <Alert variant="info" className="mb-3">
                         Please submit the documents and information requested by the employer below. Incomplete applications will not be accepted.
                     </Alert>
@@ -295,13 +308,14 @@ export default function JobApplicationModal({ show, onHide, job, onSubmitted }) 
                         </div>
                     ))}
                     <div className="job-application-actions">
-                        <Button variant="secondary" onClick={onHide} disabled={submitting}>
+                        <Button variant="secondary" onClick={handleHide} disabled={submitting}>
                             Cancel
                         </Button>
                         <Button type="submit" variant="success" disabled={submitting || !isFormComplete || requirements.length === 0}>
                             {submitting ? "Submitting..." : "Submit Application"}
                         </Button>
                     </div>
+                    </fieldset>
                 </Form>
             </Modal.Body>
         </Modal>

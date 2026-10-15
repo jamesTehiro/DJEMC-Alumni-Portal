@@ -5,7 +5,7 @@ import "./FeedPage.css";
 import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
-import { FiImage, FiMessageCircle, FiSend } from "react-icons/fi";
+import { FiMessageCircle, FiSend } from "react-icons/fi";
 import { useUndoDelete } from "../hooks/useUndoDelete";
 import ProfileActionMenu from "../components/profile/ProfileActionMenu";
 import ProfilePreviewModal from "../components/profile/ProfilePreviewModal";
@@ -15,7 +15,6 @@ export default function FeedPage() {
     const navigate = useNavigate();
     const [posts, setPosts] = useState([]);
     const [text, setText] = useState("");
-    const [image, setImage] = useState(null);
     const [activeJob, setActiveJob] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadingMorePosts, setLoadingMorePosts] = useState(false);
@@ -43,7 +42,6 @@ export default function FeedPage() {
     const [editImage, setEditImage] = useState(null);
     const [editImagePreview, setEditImagePreview] = useState("");
     const [editSaving, setEditSaving] = useState(false);
-    const fileInputRef = useRef(null);
     const editFileInputRef = useRef(null);
     const postMenuRef = useRef(null);
 
@@ -319,13 +317,12 @@ export default function FeedPage() {
         });
 
     const submitPost = async () => {
-        if (!text.trim() && !image) return;
+        if (!text.trim()) return;
 
         try {
-            const imageUrl = image ? await fileToDataUrl(image) : "";
             const created = await api.post(
                 "/posts",
-                { text, image_url: imageUrl },
+                { text },
                 true
             );
 
@@ -339,7 +336,7 @@ export default function FeedPage() {
                 authorId: created.User?.id || currentUser?.id || null,
                 authorImage: getProfileImage(created.User) || getProfileImage(currentUser),
                 text: created.text || text,
-                image: created.image_url || imageUrl,
+                image: created.image_url || "",
                 comments: [],
                 commentCount: 0,
                 likes: 0,
@@ -349,7 +346,6 @@ export default function FeedPage() {
 
             setPosts((prev) => [newPost, ...prev]);
             setText("");
-            setImage(null);
         } catch (err) {
             setActionMessage(err.message);
         }
@@ -652,28 +648,7 @@ export default function FeedPage() {
                         onChange={(e) => setText(e.target.value)}
                     />
 
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        className="hidden-file-input"
-                        onChange={(e) => setImage(e.target.files[0])}
-                    />
-
-                    {image && <div className="image-chip">{image.name}</div>}
-
-                    <div className="composer-actions">
-                        <div className="left-icons">
-                            <button
-                                type="button"
-                                className="icon-btn"
-                                onClick={() => fileInputRef.current?.click()}
-                                title="Add image"
-                            >
-                                <FiImage />
-                                <span>Add image</span>
-                            </button>
-                        </div>
-
+                    <div className="composer-actions feed-text-composer-actions">
                         <button className="post-btn" onClick={submitPost}>
                             <FiSend />
                             <span>Post</span>

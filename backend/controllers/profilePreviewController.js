@@ -1,28 +1,22 @@
 const db = require("../models");
 
 // GET /api/profile/:userId/preview
-// Returns a privacy-safe profile preview for the feed modal.
-//
-// - Public profiles: full data (name, avatar, address, graduation_year, course,
-//   employment_status, current_company, job_title, employment_history)
-// - Private profiles: only name, avatar, visibility, and a private flag.
-// - Admins viewing themselves: full data.
-// - Employer access: only if alumni applied to their job.
+// The feed preview exposes only identity, a photo, and public employment history.
+// Full profile details remain available through the separate profile endpoints.
 exports.getProfilePreview = async (req, res) => {
     try {
-        // eslint-disable-next-line no-console
-        console.log("Profile Preview Controller Hit", {
-            userId: req.params.userId,
-            viewerId: req.user?.id,
-            method: req.method,
-            path: req.path
-        });
         const targetUserId = Number(req.params.userId);
-        if (!targetUserId) {
+        if (!Number.isSafeInteger(targetUserId) || targetUserId <= 0) {
             return res.status(400).json({ msg: "Invalid user id." });
         }
 
-        const viewer = await db.User.findByPk(req.user.id);
+        if (!req.user?.id) {
+            return res.status(401).json({ msg: "Unauthorized" });
+        }
+
+        const viewer = await db.User.findByPk(req.user.id, {
+            attributes: ["id", "role"]
+        });
         if (!viewer) {
             return res.status(401).json({ msg: "Unauthorized" });
         }
@@ -31,11 +25,15 @@ exports.getProfilePreview = async (req, res) => {
             include: [
                 {
                     model: db.AlumniProfile,
-                    include: [{ model: db.EmploymentHistory }]
+                    attributes: ["avatar_url", "profile_visibility"],
+                    include: [{
+                        model: db.EmploymentHistory,
+                        attributes: ["id", "company_name", "position", "start_year", "end_year", "employment_type"]
+                    }]
                 },
-                { model: db.EmployerProfile }
+                { model: db.EmployerProfile, attributes: ["logo_url"] }
             ],
-            attributes: { exclude: ["password"] }
+            attributes: ["id", "name", "role", "admin_avatar_url"]
         });
 
         if (!target) {
@@ -63,52 +61,19 @@ exports.getProfilePreview = async (req, res) => {
             }
         }
 
-        const targetVisibility = target.AlumniProfile?.profile_visibility || "public";
-
-        // Private profile: only return allowed fields
-        if (!isSelf && !isAdmin && target.role === "alumni" && targetVisibility !== "public") {
-            return res.json({
-                id: target.id,
-                name: target.name,
-                role: target.role,
-                visibility: "private",
-                isPrivate: true,
-                AlumniProfile: target.AlumniProfile
-                    ? {
-                        avatar_url: target.AlumniProfile.avatar_url,
-                        profile_visibility: target.AlumniProfile.profile_visibility || "private"
-                    }
-                    : null,
-                EmployerProfile: target.EmployerProfile
-                    ? {
-                        logo_url: target.EmployerProfile.logo_url,
-                        organization_name: target.EmployerProfile.organization_name
-                    }
-                    : null
-            });
-        }
-
-        // Public profile or self/admin: return full data with employment history
+        // Only explicit public visibility permits history in a feed preview,
+        // including when the viewer owns the profile or is an administrator.
+        const isAlumni = target.role === "alumni";
+        const isPrivate = isAlumni && String(target.AlumniProfile?.profile_visibility || "").trim().toLowerCase() !== "public";
         const profileData = {
             id: target.id,
             name: target.name,
             role: target.role,
-            admin_scope: target.admin_scope,
-            admin_department: target.admin_department,
-            admin_avatar_url: target.admin_avatar_url,
-            visibility: targetVisibility,
-            isPrivate: false,
-            AlumniProfile: target.AlumniProfile
+            isPrivate,
+            AlumniProfile: isAlumni && target.AlumniProfile
                 ? {
                     avatar_url: target.AlumniProfile.avatar_url,
-                    course: target.AlumniProfile.course,
-                    graduation_year: target.AlumniProfile.graduation_year,
-                    address: target.AlumniProfile.address,
-                    profile_visibility: target.AlumniProfile.profile_visibility || "public",
-                    employment_status: target.AlumniProfile.employment_status,
-                    current_company: target.AlumniProfile.current_company,
-                    job_title: target.AlumniProfile.job_title,
-                    EmploymentHistories: target.AlumniProfile.EmploymentHistories
+                    EmploymentHistories: !isPrivate && target.AlumniProfile.EmploymentHistories
                         ? target.AlumniProfile.EmploymentHistories.map((eh) => ({
                             id: eh.id,
                             company_name: eh.company_name,
@@ -120,18 +85,19 @@ exports.getProfilePreview = async (req, res) => {
                         : []
                 }
                 : null,
-            EmployerProfile: target.EmployerProfile
+            EmployerProfile: target.role === "employer" && target.EmployerProfile
                 ? {
-                    logo_url: target.EmployerProfile.logo_url,
-                    organization_name: target.EmployerProfile.organization_name,
-                    industry: target.EmployerProfile.industry,
-                    address: target.EmployerProfile.address
+                    logo_url: target.EmployerProfile.logo_url
                 }
                 : null
         };
 
+        if (target.role === "admin") {
+            profileData.admin_avatar_url = target.admin_avatar_url;
+        }
+
         return res.json(profileData);
     } catch (err) {
-        return res.status(500).json({ msg: err.message });
+        return res.status(500).json({ msg: "Unable to load profile preview." });
     }
 };

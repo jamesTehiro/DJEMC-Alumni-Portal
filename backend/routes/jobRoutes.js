@@ -12,6 +12,8 @@ router.get("/requirements/library/:code", optionalAuthMiddleware, requirementCon
 
 // Job CRUD
 router.get("/", optionalAuthMiddleware, jobController.getJobs);
+router.get("/:id/interview-details", authMiddleware, employerAccess, jobController.getJobInterviewDetails);
+router.put("/:id/interview-details", authMiddleware, employerAccess, jobController.updateJobInterviewDetails);
 router.get("/:id", optionalAuthMiddleware, jobController.getJobById);
 
 // Employer or Employer Admin only

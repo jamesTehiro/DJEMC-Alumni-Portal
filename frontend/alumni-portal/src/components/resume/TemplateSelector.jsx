@@ -1,65 +1,67 @@
-import React from "react";
-import { Dropdown } from "react-bootstrap";
-import { FaPalette } from "react-icons/fa";
+import React, { useLayoutEffect, useRef, useState } from "react";
+import { FaCheckCircle } from "react-icons/fa";
+import ResumePreviewTemplate from "./templates/ResumePreviewTemplate";
+import { RESUME_TEMPLATE_OPTIONS, RESUME_TEMPLATE_SAMPLE, normalizeTemplateId } from "./templates/resumeTemplateConfig";
+import { createResumeSections } from "./templates/resumeTemplateData";
+import { A4_WIDTH_PX } from "./templates/paginateResumeDocument";
+import "./ResumeTemplates.css";
+import "./TemplateSelector.css";
+import { resolveFileUrl } from "../../services/api";
 
-export const RESUME_TEMPLATE_OPTIONS = [
-    { id: "modern-professional", name: "Modern Professional", description: "Clean, modern design with accent colors" },
-    { id: "executive-corporate", name: "Executive Corporate", description: "Traditional corporate layout" },
-    { id: "university-green", name: "University Green Theme", description: "DJEMC branded green theme" },
-    { id: "minimal-black-white", name: "Minimal Black & White", description: "Clean minimal design" },
-    { id: "creative-professional", name: "Creative Professional", description: "Modern creative layout" }
-];
+export { RESUME_TEMPLATE_OPTIONS, normalizeTemplateId } from "./templates/resumeTemplateConfig";
 
-export const normalizeTemplateId = (templateId) => {
-    if (!templateId) return "university-green";
+function TemplateThumbnail({ resume, templateId }) {
+    const containerRef = useRef(null);
+    const [scale, setScale] = useState(0.3);
+    useLayoutEffect(() => {
+        const container = containerRef.current;
+        const resize = () => setScale(container.clientWidth / A4_WIDTH_PX);
+        resize();
+        const observer = new ResizeObserver(resize);
+        observer.observe(container);
+        return () => observer.disconnect();
+    }, []);
+    return (
+        <div className="djemc-template-thumbnail" ref={containerRef} aria-hidden="true" style={{ "--template-thumbnail-scale": scale }}>
+            <ResumePreviewTemplate resume={{ ...resume, template_id: templateId, personalInfo: { ...resume.personalInfo, photo_url: resolveFileUrl(resume.personalInfo?.photo_url) } }} />
+        </div>
+    );
+}
 
-    const cleaned = String(templateId).trim().toLowerCase();
-    const normalized = cleaned.replace(/[_\s]+/g, "-");
-    const legacyValues = {
-        "modern professional": "modern-professional",
-        "executive corporate": "executive-corporate",
-        "university green": "university-green",
-        "university green theme": "university-green",
-        "minimal black white": "minimal-black-white",
-        "minimal black & white": "minimal-black-white",
-        "creative professional": "creative-professional"
+export default function TemplateSelector({ currentTemplate, onSelect, resume }) {
+    const selected = normalizeTemplateId(currentTemplate);
+    const previewResume = resume && createResumeSections(resume).length ? resume : RESUME_TEMPLATE_SAMPLE;
+    const handleKeyDown = (event, index) => {
+        const directions = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+        let nextIndex;
+        if (event.key === "Home") nextIndex = 0;
+        else if (event.key === "End") nextIndex = RESUME_TEMPLATE_OPTIONS.length - 1;
+        else if (directions[event.key]) nextIndex = (index + directions[event.key] + RESUME_TEMPLATE_OPTIONS.length) % RESUME_TEMPLATE_OPTIONS.length;
+        else return;
+        event.preventDefault();
+        onSelect(RESUME_TEMPLATE_OPTIONS[nextIndex].id);
+        event.currentTarget.parentElement.children[nextIndex]?.focus();
     };
 
-    if (RESUME_TEMPLATE_OPTIONS.some(option => option.id === normalized)) {
-        return normalized;
-    }
-    if (legacyValues[normalized]) {
-        return legacyValues[normalized];
-    }
-    const found = RESUME_TEMPLATE_OPTIONS.find(option => {
-        const optionName = option.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-        return optionName === normalized || option.id === normalized || option.id.replace(/-/g, "") === normalized.replace(/-/g, "");
-    });
-    return found ? found.id : "university-green";
-};
-
-export default function TemplateSelector({ currentTemplate, onSelect }) {
-    const current = RESUME_TEMPLATE_OPTIONS.find(t => normalizeTemplateId(t.id) === normalizeTemplateId(currentTemplate)) || RESUME_TEMPLATE_OPTIONS[0];
-
     return (
-        <Dropdown>
-            <Dropdown.Toggle variant="outline-secondary" size="sm" className="template-selector-btn">
-                <FaPalette /> {current.name}
-            </Dropdown.Toggle>
-            <Dropdown.Menu>
-                {RESUME_TEMPLATE_OPTIONS.map(template => (
-                    <Dropdown.Item
-                        key={template.id}
-                        onClick={() => onSelect(template.id)}
-                        active={normalizeTemplateId(currentTemplate) === normalizeTemplateId(template.id)}
-                    >
-                        <div className="template-option">
-                            <div className="template-name">{template.name}</div>
-                            <div className="template-description">{template.description}</div>
+        <div className="djemc-template-gallery" role="radiogroup" aria-label="Choose a resume template">
+            {RESUME_TEMPLATE_OPTIONS.map((template, index) => {
+                const isSelected = selected === template.id;
+                return (
+                    <button type="button" className={`djemc-template-card${isSelected ? " is-selected" : ""}`} key={template.id} role="radio" aria-checked={isSelected} aria-label={`${template.name}. ${template.description}`} tabIndex={isSelected ? 0 : -1} onClick={() => onSelect(template.id)} onKeyDown={event => handleKeyDown(event, index)}>
+                        <div className="djemc-template-thumbnail-frame">
+                            <TemplateThumbnail resume={previewResume} templateId={template.id} />
+                            {isSelected && <span className="djemc-template-selected-badge"><FaCheckCircle /> Selected</span>}
                         </div>
-                    </Dropdown.Item>
-                ))}
-            </Dropdown.Menu>
-        </Dropdown>
+                        <div className="djemc-template-card-copy">
+                            <span className="djemc-template-name">{template.name}</span>
+                            <span className="djemc-template-layout">{template.layout}</span>
+                            <span className="djemc-template-description">{template.description}</span>
+                            <span className="djemc-template-select-label">{isSelected ? "Selected Template" : "Select Template"}</span>
+                        </div>
+                    </button>
+                );
+            })}
+        </div>
     );
 }

@@ -4,7 +4,7 @@ import { FaUsers, FaPlus, FaTrash } from "react-icons/fa";
 
 export default function ResumeOrganizations({ items = [], onChange }) {
     const addItem = () => {
-        onChange([...items, { name: "", position: "", start_date: "", end_date: "", is_current: false, description: "" }]);
+        onChange([...items, { organization_name: "", position: "", start_date: "", end_date: "", is_current: false, description: "" }]);
     };
 
     const updateItem = (index, field, value) => {
@@ -26,7 +26,7 @@ export default function ResumeOrganizations({ items = [], onChange }) {
                         <Col md={6}>
                             <Form.Group className="mb-3">
                                 <Form.Label>Organization Name</Form.Label>
-                                <Form.Control type="text" value={item.name || ""} onChange={(e) => updateItem(index, "name", e.target.value)} placeholder="Professional Engineers Society" />
+                                <Form.Control type="text" value={item.organization_name ?? item.name ?? ""} onChange={(e) => updateItem(index, "organization_name", e.target.value)} placeholder="Professional Engineers Society" />
                             </Form.Group>
                         </Col>
                         <Col md={6}>

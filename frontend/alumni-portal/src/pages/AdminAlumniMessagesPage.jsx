@@ -9,6 +9,9 @@ import useAdaptivePoll from "../hooks/useAdaptivePoll";
 import { mergeUniqueById, replaceUniqueById } from "../utils/list";
 import AdminShell from "../components/AdminShell";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
+import MessageAttachment from "../components/MessageAttachment";
+import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
+import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB } from "../utils/messageAttachments";
 import "./MessagesPage.css";
 
 const PAGE_SIZE = 30;
@@ -404,15 +407,7 @@ export default function AdminAlumniMessagesPage() {
                                                     />
                                                 )}
                                             </div>
-                                            {message.file_url && (
-                                                <button
-                                                    type="button"
-                                                    className="attachment-pill"
-                                                    onClick={() => openAttachment(message)}
-                                                >
-                                                    {previewAttachmentLabel(message)}
-                                                </button>
-                                            )}
+                                            {message.file_url && <MessageAttachment message={message} openAttachment={openAttachment} />}
                                         </div>                                        {isSelf && (
                                             <button
                                                 type="button"
@@ -427,20 +422,7 @@ export default function AdminAlumniMessagesPage() {
                         </div>
 
                         <div className="chat-composer">
-                            {attachment && (
-                                <div className="attachment-preview">
-                                    <span>{attachment.name}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setAttachment(null);
-                                            if (fileInputRef.current) fileInputRef.current.value = "";
-                                        }}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            )}
+                        <AttachmentSelectionPreview file={attachment} onRemove={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
                             <div className="composer-row">
                                 <button
                                     type="button"
@@ -454,8 +436,8 @@ export default function AdminAlumniMessagesPage() {
                                     ref={fileInputRef}
                                     type="file"
                                     hidden
-                                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
-                                    onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                                    accept={ALLOWED_ATTACHMENT_TYPES}
+                                    onChange={(e) => { const selected = e.target.files?.[0] || null; if (selected && selected.size > MAX_ATTACHMENT_BYTES) { setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`); e.target.value = ""; return; } setError(""); setAttachment(selected); }}
                                 />
                                 <Form.Control
                                     placeholder="Write a forum message..."

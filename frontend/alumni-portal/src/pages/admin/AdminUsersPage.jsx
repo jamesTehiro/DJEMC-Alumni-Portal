@@ -10,17 +10,30 @@ import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminS
 import "../AdminEmployerPage.css";
 import "../FeedPage.css";
 import "../AdminAlumniPage.css";
+import "./AdminAlumniRecordsPage.css";
 
 export default function AdminUsersPage({ role }) {
     useRenderDebug(`AdminUsersPage:${role}`);
     const navigate = useNavigate();
     const [records, setRecords] = useState([]);
+    const [recordsLoading, setRecordsLoading] = useState(true);
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedYear, setSelectedYear] = useState("");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [profileLoading, setProfileLoading] = useState(false);
+    const [trackingData, setTrackingData] = useState(null);
+    const [trackingSummary, setTrackingSummary] = useState({ totalGraduates: 0, employed: 0, unemployed: 0, selfEmployed: 0 });
+    const [trackingActivityError, setTrackingActivityError] = useState("");
+    const [recordsQuery, setRecordsQuery] = useState("");
+    const [employmentFilter, setEmploymentFilter] = useState("");
+    const [trackingFilter, setTrackingFilter] = useState("");
+    const [recordsPage, setRecordsPage] = useState(1);
+    const [recordsPageSize, setRecordsPageSize] = useState(10);
+    const [profileTab, setProfileTab] = useState("overview");
+    const [requestConfirmOpen, setRequestConfirmOpen] = useState(false);
+    const [requestSending, setRequestSending] = useState(false);
 
     const user = useMemo(() => getStoredUser(), []);
     const isAllowed = isAllowedAdminScope(user, role);
@@ -32,11 +45,18 @@ export default function AdminUsersPage({ role }) {
             if (!isAllowed) return undefined;
 
             const loadRecords = async () => {
+                setRecordsLoading(true);
                 try {
                     const data = await api.get(scopeMeta.usersEndpoint, true);
                     setRecords(Array.isArray(data) ? data : []);
+                    if (role === "alumni") {
+                        const summary = await api.get("/admin/alumni/tracking-summary", true);
+                        setTrackingSummary(summary || { totalGraduates: 0, employed: 0, unemployed: 0, selfEmployed: 0 });
+                    }
                 } catch (err) {
                     setError(err.message);
+                } finally {
+                    setRecordsLoading(false);
                 }
             };
 
@@ -119,19 +139,48 @@ export default function AdminUsersPage({ role }) {
 
         setSelectedProfile(fallbackProfile);
         setProfileLoading(true);
-        setError("");
+        setTrackingData(null);
+        setTrackingActivityError("");
+        setProfileTab("overview");
 
         try {
-            const latestProfile = await api.get(`/profile/${item.id}`, true);
+            const result = await api.get(`/admin/alumni/users/${item.id}/tracking`, true);
+            const latestProfile = result?.alumni || {};
+            setTrackingData(result);
             setSelectedProfile({
                 ...fallbackProfile,
-                ...(latestProfile || {}),
-                imageUrl: getProfileImage(latestProfile || fallbackProfile)
+                ...latestProfile,
+                id: item.id,
+                AlumniProfile: latestProfile.AlumniProfile || null,
+                AlumniRecord: latestProfile.AlumniRecord || item.AlumniRecord,
+                imageUrl: getProfileImage(latestProfile) || fallbackProfile.imageUrl
             });
         } catch (err) {
-            setError(err.message || "Failed to load profile preview.");
+            setTrackingActivityError(err.message || "Failed to load alumni tracking details.");
         } finally {
             setProfileLoading(false);
+        }
+    };
+
+    const submitProfileUpdateRequest = async () => {
+        if (!selectedProfile?.id || requestSending) return;
+        setRequestSending(true);
+        setTrackingActivityError("");
+        setError("");
+        try {
+            const result = await api.post(`/admin/alumni/users/${selectedProfile.id}/profile-update-requests`, {}, true);
+            setMessage(result?.msg || "Profile update request sent.");
+            setRequestConfirmOpen(false);
+            const currentTime = new Date().toISOString();
+            setRecords((previous) => previous.map((item) => Number(item.id) === Number(selectedProfile.id)
+                ? { ...item, latestProfileUpdateRequest: { ...(result?.request || {}), createdAt: result?.request?.createdAt || currentTime } }
+                : item));
+            const refreshed = await api.get(`/admin/alumni/users/${selectedProfile.id}/tracking`, true);
+            setTrackingData(refreshed);
+        } catch (err) {
+            setTrackingActivityError(err.message || "Unable to send the profile update request.");
+        } finally {
+            setRequestSending(false);
         }
     };
 
@@ -146,6 +195,190 @@ export default function AdminUsersPage({ role }) {
         if (value === "self-employed") return { label: "Self-Employed", tone: "self-employed" };
         return null;
     };
+
+    if (role === "alumni") {
+        const getRecordName = (item) => item.AlumniRecord?.full_name || item.name || "Unknown Alumni";
+        const getRecordCourse = (item) => item.AlumniRecord?.course || item.AlumniProfile?.course || "";
+        const getRecordYear = (item) => item.AlumniRecord?.batch_year || item.AlumniProfile?.graduation_year || "";
+        const getTrackingStatus = (item) => {
+            if (item.account_status !== "verified") return { label: "Pending verification", tone: "pending" };
+            const requestStatus = item.latestProfileUpdateRequest?.status;
+            if (["pending", "sent", "responded"].includes(requestStatus)) return { label: "Update requested", tone: "requested" };
+            if (requestStatus === "failed") return { label: "Follow-up needed", tone: "follow-up" };
+            const updatedAt = item.AlumniProfile?.updatedAt;
+            const age = updatedAt ? Date.now() - new Date(updatedAt).getTime() : Number.POSITIVE_INFINITY;
+            return age <= 365 * 24 * 60 * 60 * 1000
+                ? { label: "Up to date", tone: "current" }
+                : { label: "Follow-up needed", tone: "follow-up" };
+        };
+        const courses = [...new Set(records.map(getRecordCourse).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+        const years = [...new Set(records.map(getRecordYear).filter(Boolean))].sort((a, b) => Number(b) - Number(a));
+        const filtered = records.filter((item) => {
+            const profile = item.AlumniProfile || {};
+            const query = recordsQuery.trim().toLowerCase();
+            const matchesQuery = !query || [getRecordName(item), getRecordCourse(item), getRecordYear(item), profile.employment_status, profile.job_title, profile.current_company]
+                .some((value) => String(value || "").toLowerCase().includes(query));
+            const employment = getEmploymentStatus(item)?.label.toLowerCase() || "not specified";
+            const matchesEmployment = !employmentFilter || employment === employmentFilter;
+            const matchesTracking = !trackingFilter || getTrackingStatus(item).label.toLowerCase() === trackingFilter;
+            return matchesQuery && (!selectedCourse || getRecordCourse(item) === selectedCourse)
+                && (!selectedYear || String(getRecordYear(item)) === String(selectedYear))
+                && matchesEmployment && matchesTracking;
+        }).sort((a, b) => getRecordName(a).localeCompare(getRecordName(b), undefined, { sensitivity: "base" }) || Number(a.id) - Number(b.id));
+        const pageCount = Math.max(1, Math.ceil(filtered.length / recordsPageSize));
+        const page = Math.min(recordsPage, pageCount);
+        const visibleRecords = filtered.slice((page - 1) * recordsPageSize, page * recordsPageSize);
+        const profileIsPrivate = String(selectedProfile?.AlumniProfile?.profile_visibility || "public").toLowerCase() !== "public";
+        const latestRequest = [...(trackingData?.requests || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+        const requestRecent = latestRequest?.createdAt && Date.now() - new Date(latestRequest.createdAt).getTime() < 7 * 24 * 60 * 60 * 1000;
+        const requestActive = latestRequest && ["pending", "sent", "responded"].includes(latestRequest.status);
+        const requestDisabled = Boolean(requestActive || requestRecent);
+        const timeline = [
+            ...(trackingData?.requests || []).map((request) => ({
+                id: `request-${request.id}`,
+                date: request.completed_at || request.responded_at || request.sent_at || request.createdAt,
+                title: `Profile update request: ${String(request.status || "pending").replaceAll("_", " ")}`,
+                detail: `${request.requester?.name ? `Requested by ${request.requester.name}. ` : ""}${request.emailQueueJob ? `Email status: ${request.emailQueueJob.status}.` : "In-app notification saved; no email delivery address available."}`
+            })),
+            ...(trackingData?.events || []).map((event) => ({
+                id: `event-${event.id}`,
+                date: event.created_at,
+                title: event.action === "alumni.profile.updated" ? "Career profile updated" : event.action === "alumni.profile_update.responded" ? "Update request opened" : event.action === "alumni.account_status.changed" ? "Account verification status changed" : "Profile update request sent",
+                detail: `${event.User?.name ? `By ${event.User.name}. ` : ""}${event.action === "alumni.account_status.changed" ? `Status: ${event.metadata?.from || "unknown"} → ${event.metadata?.to || "unknown"}.` : Array.isArray(event.metadata?.fields) ? `Updated sections: ${event.metadata.fields.join(", ")}.` : ""}`
+            }))
+        ].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+        const refreshTracking = async () => {
+            if (!selectedProfile?.id) return;
+            setProfileLoading(true);
+            setTrackingActivityError("");
+            try {
+                setTrackingData(await api.get(`/admin/alumni/users/${selectedProfile.id}/tracking`, true));
+            } catch (err) {
+                setTrackingActivityError(err.message || "Unable to refresh tracking activity.");
+            } finally {
+                setProfileLoading(false);
+            }
+        };
+        const closeDrawer = () => {
+            setSelectedProfile(null);
+            setTrackingData(null);
+            setTrackingActivityError("");
+        };
+
+        return (
+            <AdminShell
+                scope={role}
+                title="Alumni Records"
+                subtitle="Track graduate employment and review profile updates using official master records."
+                onLogout={() => clearSessionAndGoHome(navigate)}
+            >
+                {message && <p className="notice success" role="status">{message}</p>}
+                {error && <p className="notice error" role="alert">{error}</p>}
+
+                <section className="alumni-tracking-summary" aria-label="Alumni employment summary">
+                    <article><span>Total Graduates</span><strong>{trackingSummary.totalGraduates}</strong><small>Official master-list records</small></article>
+                    <article><span>Employed</span><strong>{trackingSummary.employed}</strong><small>Reported by linked alumni</small></article>
+                    <article><span>Unemployed</span><strong>{trackingSummary.unemployed}</strong><small>Reported by linked alumni</small></article>
+                    <article><span>Self-Employed</span><strong>{trackingSummary.selfEmployed}</strong><small>Reported by linked alumni</small></article>
+                </section>
+
+                <section className="queue-panel alumni-tracking-panel">
+                    <div className="alumni-tracking-heading">
+                        <div><h2>Graduate Tracking</h2><p>Summary counts use all official master-list records; table filters apply to the list below.</p></div>
+                        <strong>{filtered.length} matching alumni</strong>
+                    </div>
+                    <div className="alumni-tracking-filters">
+                        <input type="search" value={recordsQuery} placeholder="Search name, course, year, position, or company" onChange={(event) => { setRecordsQuery(event.target.value); setRecordsPage(1); }} aria-label="Search alumni records" />
+                        <select value={selectedCourse} onChange={(event) => { setSelectedCourse(event.target.value); setRecordsPage(1); }} aria-label="Filter by course">
+                            <option value="">All courses</option>{courses.map((course) => <option key={course} value={course}>{course}</option>)}
+                        </select>
+                        <select value={selectedYear} onChange={(event) => { setSelectedYear(event.target.value); setRecordsPage(1); }} aria-label="Filter by batch">
+                            <option value="">Batch</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}
+                        </select>
+                        <select value={employmentFilter} onChange={(event) => { setEmploymentFilter(event.target.value); setRecordsPage(1); }} aria-label="Filter by employment status">
+                            <option value="">All employment statuses</option><option value="employed">Employed</option><option value="unemployed">Unemployed</option><option value="self-employed">Self-Employed</option><option value="not specified">Not specified</option>
+                        </select>
+                        <select value={trackingFilter} onChange={(event) => { setTrackingFilter(event.target.value); setRecordsPage(1); }} aria-label="Filter by tracking status">
+                            <option value="">All tracking statuses</option><option value="up to date">Up to date</option><option value="follow-up needed">Follow-up needed</option><option value="update requested">Update requested</option><option value="pending verification">Pending verification</option>
+                        </select>
+                    </div>
+
+                    <div className="alumni-tracking-table-wrap">
+                        <table className="alumni-tracking-table">
+                            <thead><tr><th>Alumnus</th><th>Course / Year</th><th>Employment</th><th>Position / Company</th><th>Last Profile Update</th><th>Tracking</th><th>Actions</th></tr></thead>
+                            <tbody>
+                                {recordsLoading ? <tr><td colSpan="7" className="alumni-tracking-empty">Loading alumni records…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="7" className="alumni-tracking-empty">No alumni match these filters.</td></tr> : visibleRecords.map((item) => {
+                                    const employment = getEmploymentStatus(item);
+                                    const tracking = getTrackingStatus(item);
+                                    const privateProfile = String(item.AlumniProfile?.profile_visibility || "public").toLowerCase() !== "public";
+                                    return (
+                                        <tr key={item.id} role="button" tabIndex={0} className={Number(selectedProfile?.id) === Number(item.id) ? "selected" : ""} onClick={() => openProfilePreview(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProfilePreview(item); } }}>
+                                            <td><strong>{getRecordName(item)}</strong><small>{item.account_status === "verified" ? "Verified account" : "Pending verification"}</small></td>
+                                            <td>{getRecordCourse(item) || "—"}<small>{getRecordYear(item) || "Year not recorded"}</small></td>
+                                            <td>{employment ? <span className={`employment-status-badge ${employment.tone}`}>{employment.label}</span> : <span className="alumni-tracking-muted">Not specified</span>}</td>
+                                            <td>{privateProfile ? <span className="alumni-tracking-muted">Private profile</span> : <>{item.AlumniProfile?.job_title || "—"}<small>{item.AlumniProfile?.current_company || "Company not listed"}</small></>}</td>
+                                            <td>{item.AlumniProfile?.updatedAt ? new Date(item.AlumniProfile.updatedAt).toLocaleDateString() : "Not updated"}</td>
+                                            <td><span className={`alumni-tracking-status ${tracking.tone}`}>{tracking.label}</span></td>
+                                            <td><button type="button" className="alumni-profile-view-button" onClick={(event) => { event.stopPropagation(); openProfilePreview(item); }}>View Profile</button></td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="alumni-tracking-pagination">
+                        <label>Rows per page <select value={recordsPageSize} onChange={(event) => { setRecordsPageSize(Number(event.target.value)); setRecordsPage(1); }}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select></label>
+                        <span>Page {page} of {pageCount}</span>
+                        <div><button type="button" onClick={() => setRecordsPage((value) => Math.max(1, value - 1))} disabled={page <= 1}>Previous</button><button type="button" onClick={() => setRecordsPage((value) => Math.min(pageCount, value + 1))} disabled={page >= pageCount}>Next</button></div>
+                    </div>
+                </section>
+
+                {selectedProfile && <div className="alumni-profile-drawer-backdrop" onClick={closeDrawer}>
+                    <aside className="alumni-profile-drawer" role="dialog" aria-modal="true" aria-label={`Profile for ${selectedProfile.name}`} onClick={(event) => event.stopPropagation()}>
+                        <header className="alumni-profile-drawer-header">
+                            <div className="alumni-profile-drawer-person">
+                                <div className={`alumni-record-profile-avatar ${profileImage ? "has-photo" : ""}`}>{profileImage ? <img src={profileImage} alt="" /> : getInitials(selectedProfile.name)}</div>
+                                <div><h2>{selectedProfile.AlumniRecord?.full_name || selectedProfile.name}</h2><p>{selectedProfile.AlumniRecord?.course || profileCourse} · Class of {selectedProfile.AlumniRecord?.batch_year || profileGraduationYear || "Not recorded"}</p><span className={`employment-status-badge ${getEmploymentStatus(selectedProfile)?.tone || ""}`}>{getEmploymentStatus(selectedProfile)?.label || "Employment not specified"}</span></div>
+                            </div>
+                            <button type="button" aria-label="Close profile" onClick={closeDrawer}>×</button>
+                        </header>
+                        <div className="alumni-profile-drawer-actions">
+                            <button type="button" className="primary-btn" onClick={() => setRequestConfirmOpen(true)} disabled={requestDisabled || requestSending}>
+                                {requestActive ? "Update Request Active" : requestRecent ? "Request Sent Recently" : "Request Profile Update"}
+                            </button>
+                            {requestRecent && <small>Another request can be sent after the seven-day cooldown.</small>}
+                        </div>
+                        <nav className="alumni-profile-tabs" aria-label="Alumni profile sections">
+                            {["overview", "employment", "tracking", "notes"].map((tab) => <button key={tab} type="button" className={profileTab === tab ? "active" : ""} onClick={() => setProfileTab(tab)}>{tab === "employment" ? "Employment History" : tab === "tracking" ? "Tracking Activity" : tab[0].toUpperCase() + tab.slice(1)}</button>)}
+                        </nav>
+                        <div className="alumni-profile-drawer-content">
+                            {profileLoading && <p className="alumni-tracking-muted">Loading permitted profile and tracking details…</p>}
+                            {trackingActivityError && <div className="alumni-tracking-error" role="alert">{trackingActivityError}<button type="button" onClick={refreshTracking}>Retry</button></div>}
+                            {!profileLoading && profileTab === "overview" && <div className="alumni-profile-overview">
+                                <h3>Overview</h3><dl><dt>Course</dt><dd>{selectedProfile.AlumniRecord?.course || profileCourse}</dd><dt>Graduation year</dt><dd>{selectedProfile.AlumniRecord?.batch_year || profileGraduationYear || "Not recorded"}</dd><dt>Account status</dt><dd>{selectedProfile.account_status || "Pending"}</dd><dt>Employment status</dt><dd>{getEmploymentStatus(selectedProfile)?.label || "Not specified"}</dd>
+                                    {!profileIsPrivate && <><dt>Current position</dt><dd>{selectedProfile.AlumniProfile?.job_title || "Not listed"}</dd><dt>Company</dt><dd>{selectedProfile.AlumniProfile?.current_company || "Not listed"}</dd></>}
+                                    <dt>Profile visibility</dt><dd>{profileIsPrivate ? "Private employment details are hidden" : "Public"}</dd><dt>Last profile update</dt><dd>{selectedProfile.AlumniProfile?.updatedAt ? new Date(selectedProfile.AlumniProfile.updatedAt).toLocaleString() : "Not recorded"}</dd>
+                                </dl>
+                            </div>}
+                            {!profileLoading && profileTab === "employment" && <div><h3>Employment History</h3>{profileIsPrivate ? <p className="alumni-tracking-muted">Employment details are hidden by this alumnus's profile visibility setting.</p> : employmentHistory.length ? employmentHistory.map((job) => <article className="alumni-profile-history-item" key={job.id}><strong>{job.position || "Position not listed"}</strong><span>{job.company_name || "Company not listed"}</span><small>{[job.start_year, job.end_year || (job.is_current ? "Present" : "")].filter(Boolean).join(" – ") || "Dates not recorded"}{job.employment_type ? ` · ${job.employment_type}` : ""}</small></article>) : <p className="alumni-tracking-muted">No employment history available.</p>}</div>}
+                            {!profileLoading && profileTab === "tracking" && <div><div className="alumni-profile-tab-heading"><h3>Tracking Activity</h3><button type="button" onClick={refreshTracking}>Refresh</button></div>{timeline.length ? <ol className="alumni-tracking-timeline">{timeline.map((event) => <li key={event.id}><strong>{event.title}</strong><time>{event.date ? new Date(event.date).toLocaleString() : "Date unavailable"}</time>{event.detail && <p>{event.detail}</p>}</li>)}</ol> : <p className="alumni-tracking-muted">No tracking activity recorded yet.</p>}</div>}
+                            {!profileLoading && profileTab === "notes" && <div><h3>Notes</h3><p className="alumni-tracking-muted">Administrative notes are not enabled for this record.</p></div>}
+                        </div>
+                    </aside>
+                </div>}
+
+                <Modal show={requestConfirmOpen} onHide={() => !requestSending && setRequestConfirmOpen(false)} centered>
+                    <Modal.Header closeButton><Modal.Title>Request Profile Update</Modal.Title></Modal.Header>
+                    <Modal.Body>
+                        <p>Send a profile update request to <strong>{selectedProfile?.AlumniRecord?.full_name || selectedProfile?.name}</strong>?</p>
+                        <p className="mb-0">They will receive an in-app notification and, when an email address is available, an email will be queued. Their employment status will not change unless they update it.</p>
+                        {trackingActivityError && <div className="alumni-tracking-error mt-3" role="alert">{trackingActivityError}</div>}
+                    </Modal.Body>
+                    <Modal.Footer><button type="button" className="secondary-btn" onClick={() => setRequestConfirmOpen(false)} disabled={requestSending}>Cancel</button><button type="button" className="primary-btn" onClick={submitProfileUpdateRequest} disabled={requestSending}>{requestSending ? "Sending…" : "Confirm Request"}</button></Modal.Footer>
+                </Modal>
+            </AdminShell>
+        );
+    }
 
     return (
         <AdminShell

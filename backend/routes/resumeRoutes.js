@@ -14,5 +14,6 @@ router.post("/:id/duplicate", resumeController.duplicateResume);
 router.get("/:id/versions", resumeController.getVersions);
 router.post("/:id/snapshot", resumeController.createSnapshot);
 router.get("/:id/pdf", resumeController.getResumePdf);
+router.post("/:id/pdf", resumeController.exportResumePdf);
 
 module.exports = router;

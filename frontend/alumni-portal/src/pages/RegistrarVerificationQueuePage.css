@@ -1,0 +1,638 @@
+.registrar-verification-queue {
+    display: grid;
+    grid-template-columns: minmax(0, 2.3fr) minmax(280px, 1fr);
+    align-items: stretch;
+    gap: 20px;
+    width: 100%;
+    min-width: 0;
+    color: #27342d;
+    color-scheme: light;
+}
+
+.registrar-verification-queue .rvq-panel {
+    min-width: 0;
+    padding: 22px;
+    border: 1px solid #e1e7e3;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 3px 10px rgba(24, 58, 39, 0.045);
+}
+
+.registrar-verification-queue .rvq-panel-header {
+    margin-bottom: 18px;
+}
+
+.registrar-verification-queue .rvq-panel-header h2 {
+    margin: 0 0 5px;
+    color: #216b43;
+    font-size: 19px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.registrar-verification-queue .rvq-panel-header p {
+    margin: 0;
+    color: #828a85;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.registrar-verification-queue .rvq-selected-panel .rvq-panel-header h2 {
+    color: #216b43;
+    font-size: 19px;
+}
+
+.registrar-verification-queue .rvq-search-label {
+    position: relative;
+    display: block;
+    margin: 0 0 18px;
+}
+
+.registrar-verification-queue .rvq-search-label > svg {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    width: 16px;
+    height: 16px;
+    color: #909b94;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.registrar-verification-queue .rvq-search-label input {
+    display: block;
+    width: 100%;
+    height: 39px;
+    min-height: 39px;
+    padding: 8px 12px 8px 38px;
+    border: 1px solid #dfe6e1;
+    border-radius: 5px;
+    background: #fff;
+    color: #35433a;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.registrar-verification-queue .rvq-search-label input::placeholder {
+    color: #919a94;
+    opacity: 1;
+}
+
+.registrar-verification-queue .rvq-search-label input:focus {
+    border-color: #42875e;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(40, 114, 69, 0.09);
+}
+
+.registrar-verification-queue .rvq-table-scroll {
+    width: 100%;
+    min-width: 0;
+    max-height: 64vh;
+    overflow: auto;
+    overscroll-behavior-x: contain;
+}
+
+.registrar-verification-queue .rvq-table-scroll table {
+    width: 100%;
+    min-width: 750px;
+    margin: 0;
+    border-collapse: collapse;
+    color: #4c5850;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.registrar-verification-queue .rvq-table-scroll th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 11px 9px;
+    border-top: 1px solid #e4e9e5;
+    border-bottom: 1px solid #e0e7e2;
+    background: #f6f8f6;
+    color: #4c5c51;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.registrar-verification-queue .rvq-table-scroll td {
+    padding: 14px 9px;
+    border-bottom: 1px solid #e9edea;
+    vertical-align: middle;
+}
+
+.registrar-verification-queue .rvq-table-scroll tbody tr:nth-child(even) td {
+    background: #f8faf8;
+}
+
+.registrar-verification-queue .rvq-table-scroll tbody tr:hover td {
+    background: #f0f7f2;
+}
+
+.registrar-verification-queue .rvq-table-scroll tbody .selected-row td,
+.registrar-verification-queue .rvq-table-scroll tbody .selected td {
+    background: #edf6ef !important;
+}
+
+.registrar-verification-queue .rvq-table-scroll tbody tr {
+    cursor: pointer;
+}
+
+.registrar-verification-queue .rvq-table-scroll td:nth-child(3) {
+    overflow-wrap: anywhere;
+}
+
+.registrar-verification-queue .rvq-table-scroll td:nth-child(4) {
+    min-width: 140px;
+    max-width: 190px;
+}
+
+.registrar-verification-queue .rvq-table-scroll td:nth-child(5) {
+    white-space: nowrap;
+}
+
+.registrar-verification-queue .rvq-table-scroll .rvq-table-empty {
+    padding: 34px 12px;
+    color: #87938b;
+    text-align: center;
+    cursor: default;
+}
+
+.registrar-verification-queue .rvq-table-scroll td > small,
+.registrar-verification-queue .rvq-table-scroll td .rvq-cell-secondary {
+    display: block;
+    margin-top: 3px;
+    color: #949c96;
+    font-size: 10px;
+}
+
+.registrar-verification-queue .rvq-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 130px;
+    color: #3e4e43;
+    font-weight: 500;
+}
+
+.registrar-verification-queue .rvq-name-cell .avatar-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 26px;
+    width: 26px;
+    height: 26px;
+    padding: 5px;
+    border: 1px solid #e0e5e1;
+    border-radius: 50%;
+    background: #edf0ee;
+    color: #a2aaa4;
+}
+
+.registrar-verification-queue .rvq-name-cell .avatar-icon svg {
+    width: 16px;
+    height: 16px;
+}
+
+.registrar-verification-queue .rvq-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border: 1px solid #f5e3a9;
+    border-radius: 12px;
+    background: #fff4cf;
+    color: #a88119;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+
+.registrar-verification-queue .rvq-row-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.registrar-verification-queue .rvq-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    padding: 5px;
+    border: 1px solid #99bea7;
+    border-radius: 4px;
+    background: #fff;
+    color: #32784b;
+    box-shadow: none;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+.registrar-verification-queue .rvq-action-button svg {
+    width: 16px;
+    height: 16px;
+}
+
+.registrar-verification-queue .rvq-action-button:hover {
+    border-color: #32784b;
+    background: #edf6ef;
+}
+
+.registrar-verification-queue .rvq-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 18px;
+    color: #838c85;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.registrar-verification-queue .rvq-pagination-controls,
+.registrar-verification-queue .rvq-pagination-controls label,
+.registrar-verification-queue .rvq-pagination-controls nav {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+}
+
+.registrar-verification-queue .rvq-pagination-controls {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.registrar-verification-queue .rvq-pagination-controls select {
+    width: 54px;
+    height: 29px;
+    min-height: 29px;
+    padding: 4px 22px 4px 8px;
+    border: 1px solid #dce4de;
+    border-radius: 4px;
+    background-color: #fff;
+    background-position: calc(100% - 12px) calc(50% - 2px), calc(100% - 8px) calc(50% - 2px);
+    background-size: 4px 4px, 4px 4px;
+    color: #5d6960;
+    font-size: 10px;
+}
+
+.registrar-verification-queue .rvq-pagination-controls nav button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 29px;
+    height: 29px;
+    padding: 4px 8px;
+    border: 1px solid #dce4de;
+    border-radius: 4px;
+    background: #fff;
+    color: #637066;
+    font-size: 10px;
+    line-height: 1;
+    box-shadow: none;
+}
+
+.registrar-verification-queue .rvq-pagination-controls nav button svg {
+    width: 13px;
+    height: 13px;
+}
+
+.registrar-verification-queue .rvq-pagination-controls nav button[aria-current="page"],
+.registrar-verification-queue .rvq-pagination-controls nav button.active,
+.registrar-verification-queue .rvq-pagination-controls nav span[aria-current="page"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 29px;
+    height: 29px;
+    padding: 4px 8px;
+    border: 1px solid #347b4c;
+    border-radius: 4px;
+    border-color: #347b4c;
+    background: #347b4c;
+    color: #fff;
+}
+
+.registrar-verification-queue .rvq-pagination-controls nav button:hover:not(:disabled):not([aria-current="page"]) {
+    border-color: #95b7a0;
+    background: #f0f7f2;
+}
+
+.registrar-verification-queue .rvq-pagination-controls nav button:disabled {
+    color: #a3aaa5;
+    background: #fafbfa;
+    cursor: default;
+}
+
+.registrar-verification-queue .rvq-empty-user,
+.registrar-verification-queue .rvq-user-summary {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+}
+
+.registrar-verification-queue .rvq-empty-user {
+    padding: 10px 0 12px;
+}
+
+.registrar-verification-queue .rvq-empty-avatar,
+.registrar-verification-queue .rvq-user-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 65px;
+    width: 65px;
+    height: 65px;
+    border: 1px solid #e1e5e2;
+    border-radius: 5px;
+    background: #f2f4f2;
+    color: #b0b8b2;
+}
+
+.registrar-verification-queue .rvq-empty-avatar svg,
+.registrar-verification-queue .rvq-user-avatar svg {
+    width: 38px;
+    height: 38px;
+}
+
+.registrar-verification-queue .rvq-empty-user h3,
+.registrar-verification-queue .rvq-user-summary h3 {
+    margin: 0 0 6px;
+    color: #223348;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.registrar-verification-queue .rvq-empty-user p,
+.registrar-verification-queue .rvq-user-summary p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.registrar-verification-queue .rvq-user-summary {
+    margin-bottom: 20px;
+}
+
+.registrar-verification-queue .rvq-user-avatar {
+    padding: 10px;
+}
+
+.registrar-verification-queue .rvq-user-summary h3 {
+    color: #354b3c;
+    font-weight: 600;
+}
+
+.registrar-verification-queue .rvq-user-details,
+.registrar-verification-queue .rvq-user-details dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 5px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.registrar-verification-queue .rvq-user-details dt {
+    margin: 12px 0 0;
+    color: #6c7b70;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.registrar-verification-queue .rvq-user-details dd {
+    margin: 0;
+    color: #35473b;
+    overflow-wrap: anywhere;
+}
+
+.registrar-verification-queue .rvq-user-details dd p {
+    margin: 0 0 4px;
+    font-size: 11px;
+}
+
+.registrar-verification-queue .rvq-user-details .btn {
+    margin-top: 5px;
+    padding: 6px 10px;
+    border-color: #98bca4;
+    border-radius: 4px;
+    background: #fff;
+    color: #32784b;
+    font-size: 11px;
+    box-shadow: none;
+}
+
+.registrar-verification-queue .rvq-user-details .btn:hover {
+    background: #edf6ef;
+}
+
+.registrar-verification-queue .rvq-record-match {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid #e5eae6;
+}
+
+.registrar-verification-queue .rvq-record-match h3 {
+    margin: 0 0 12px;
+    color: #395d45;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.registrar-verification-queue .rvq-record-match .saas-input {
+    width: 100%;
+    height: 38px;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid #dfe6e1;
+    border-radius: 5px;
+    background: #fff;
+    color: #35433a;
+    font-size: 11px;
+    box-shadow: none;
+}
+
+.registrar-verification-queue .rvq-record-match .search-result-list {
+    display: grid;
+    gap: 7px;
+    max-height: 250px;
+    margin-top: 12px;
+    overflow-y: auto;
+}
+
+.registrar-verification-queue .rvq-record-match .search-result-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid #e0e6e1;
+    border-radius: 5px;
+    background: #fff;
+    color: #43584a;
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: left;
+    overflow-wrap: anywhere;
+    box-shadow: none;
+}
+
+.registrar-verification-queue .rvq-record-match .search-result-item:hover,
+.registrar-verification-queue .rvq-record-match .search-result-item.active {
+    border-color: #89b199;
+    background: #edf6ef;
+    color: #2f6140;
+    box-shadow: none;
+}
+
+.registrar-verification-queue .rvq-record-match .search-result-item span {
+    color: #7e8a81;
+    font-size: 10px;
+}
+
+.registrar-verification-queue .rvq-record-match .alert {
+    margin-top: 12px;
+    margin-bottom: 0;
+    padding: 9px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+}
+
+.registrar-verification-queue .rvq-record-match > p {
+    margin: 10px 0 0;
+    color: #87938b;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.registrar-verification-queue .rvq-record-match > p:first-of-type {
+    margin: 0 0 12px;
+}
+
+.registrar-verification-queue .rvq-master-list {
+    min-width: 0;
+    margin-top: 16px;
+    color: #63776a;
+    font-size: 11px;
+}
+
+.registrar-verification-queue .rvq-master-list summary {
+    padding: 8px 0;
+    color: #3f7651;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.registrar-verification-queue .rvq-master-list[open] {
+    max-height: 360px;
+    overflow: auto;
+}
+
+.registrar-verification-queue .rvq-master-list .records-group-list {
+    gap: 8px;
+}
+
+.registrar-verification-queue .rvq-master-list .records-master-toggle,
+.registrar-verification-queue .rvq-master-list .records-course-toggle,
+.registrar-verification-queue .rvq-master-list .records-batch-toggle {
+    padding: 8px 10px;
+    border-radius: 5px;
+    color: #40594a;
+    font-size: 11px;
+}
+
+.registrar-verification-queue .rvq-master-list table {
+    font-size: 10px;
+}
+
+.registrar-verification-queue .rvq-review-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.registrar-verification-queue .rvq-review-actions button {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: none;
+}
+
+.registrar-verification-queue .rvq-review-actions .btn-success {
+    border-color: #32784b;
+    background: #32784b;
+    color: #fff;
+}
+
+.registrar-verification-queue .rvq-review-actions .btn-success:hover:not(:disabled) {
+    border-color: #27603c;
+    background: #27603c;
+}
+
+.registrar-verification-queue .rvq-review-actions .btn-outline-danger {
+    border-color: #d9aaa8;
+    background: #fff;
+    color: #b2534f;
+}
+
+.registrar-verification-queue .rvq-review-actions .btn-outline-danger:hover {
+    border-color: #b2534f;
+    background: #fff1ef;
+}
+
+.registrar-verification-queue button:focus-visible,
+.registrar-verification-queue select:focus-visible,
+.registrar-verification-queue .rvq-record-match .saas-input:focus-visible {
+    outline: 2px solid #42875e;
+    outline-offset: 2px;
+    box-shadow: none;
+}
+
+@media (max-width: 1199.98px) {
+    .registrar-verification-queue {
+        grid-template-columns: minmax(0, 1.9fr) minmax(270px, 1fr);
+        gap: 16px;
+    }
+
+    .registrar-verification-queue .rvq-panel {
+        padding: 18px;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .registrar-verification-queue {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .registrar-verification-queue .rvq-panel {
+        padding: 16px;
+    }
+
+    .registrar-verification-queue .rvq-panel-header h2 {
+        font-size: 17px;
+    }
+
+    .registrar-verification-queue .rvq-pagination {
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .registrar-verification-queue .rvq-pagination-controls {
+        justify-content: space-between;
+        width: 100%;
+    }
+}

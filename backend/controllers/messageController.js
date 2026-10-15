@@ -44,6 +44,7 @@ const buildMessagePayload = (message) => ({
             : null,
     file_name: message.file_name,
     file_mime: message.file_mime,
+    file_size: message.file_size,
     is_read: message.is_read,
     created_at: message.createdAt,
     createdAt: message.createdAt,
@@ -452,7 +453,9 @@ exports.getAccessibleConversations = async (req, res, next) => {
             .filter((p) => p.Conversation)
             .map((p) => p.Conversation);
 
-        const allConversations = [...conversations, ...directConversations];
+        const allConversations = [...conversations, ...directConversations].filter(
+            (conversation) => conversation.type !== "forum" || canAccessForum(user)
+        );
 
         const participants = await db.ConversationParticipant.findAll({
             where: {
@@ -485,6 +488,8 @@ exports.getAccessibleConversations = async (req, res, next) => {
 
         return res.json(
             participants
+                .filter((participant) => participant.Conversation &&
+                    (participant.Conversation.type !== "forum" || canAccessForum(user)))
                 .map((participant) => {
                     const conversation = participant.Conversation;
                     const latestMessage = latestMessageMap.get(conversation.id);
@@ -527,6 +532,19 @@ exports.getAccessibleConversations = async (req, res, next) => {
     } catch (err) {
         return next(err);
     }
+};
+
+// Share HTTP authorization with Socket.IO so room subscriptions cannot bypass it.
+exports.authorizeConversationSubscription = async (userId, conversationId) => {
+    const user = await getUserWithProfiles(userId);
+    if (!user) {
+        const err = new Error("Unauthorized");
+        err.status = 401;
+        throw err;
+    }
+    const conversation = await getConversationByIdentifier(user, conversationId);
+    await assertConversationAccess(user, conversation);
+    return conversation;
 };
 
 exports.getConversationMessages = async (req, res, next) => {
@@ -799,6 +817,7 @@ exports.sendConversationMessage = async (req, res, next) => {
             file_url: storedAttachment,
             file_name: attachment?.originalname || null,
             file_mime: attachment?.mimetype || null,
+            file_size: attachment?.size || null,
             is_read: false
         };
 

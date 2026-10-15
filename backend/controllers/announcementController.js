@@ -1,5 +1,6 @@
 const db = require("../models");
 const notificationController = require("./notificationController");
+const { parseTargetGraduationYear, graduationYearWhere } = require("../utils/targetGraduationYear");
 
 // CREATE ANNOUNCEMENT (admin only)
 exports.createAnnouncement = async (req, res) => {
@@ -9,28 +10,23 @@ exports.createAnnouncement = async (req, res) => {
             return res.status(400).json({ msg: "Title and content are required." });
         }
 
+        const parsedTargetYear = parseTargetGraduationYear(target_year);
+        if (!parsedTargetYear.valid) {
+            return res.status(400).json({ msg: "Target graduation year must be a year such as 2023 or a range such as 2023-2026." });
+        }
+
         const announcement = await db.Announcement.create({
             title,
             content,
             admin_id: req.user.id
         });
 
-        const targetYearValue = (target_year || "").trim();
-        let yearFilter = null;
-        if (targetYearValue) {
-            const parsedYear = Number(targetYearValue);
-            if (Number.isNaN(parsedYear)) {
-                return res.status(400).json({ msg: "Target graduation year must be numeric." });
-            }
-            yearFilter = parsedYear;
-        }
-
         const alumniWhere = { role: "alumni" };
         const alumniInclude = [];
-        if (yearFilter) {
+        if (parsedTargetYear.range) {
             alumniInclude.push({
                 model: db.AlumniProfile,
-                where: { graduation_year: yearFilter },
+                where: { graduation_year: graduationYearWhere(parsedTargetYear.range, db.Sequelize) },
                 attributes: []
             });
         }

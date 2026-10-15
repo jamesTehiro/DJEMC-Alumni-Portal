@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
 import NavigationBar from "./components/Navbar";
 import DashboardLayout from "./components/DashboardLayout";
@@ -7,12 +7,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import { UndoDeleteProvider } from "./context/UndoDeleteContext";
 import UndoToast from "./components/UndoToast";
+import { isMembershipManagementUser } from "./utils/membershipManagement";
 
 const Alumnipage = lazy(() => import("./pages/Alumnipage"));
 const JobsPage = lazy(() => import("./pages/JobsPage"));
 const FeedPage = lazy(() => import("./pages/FeedPage"));
 const MessagesPage = lazy(() => import("./pages/MessagesPage"));
 const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminMembershipApplicationsPage = lazy(() => import("./pages/admin/AdminMembershipApplicationsPage"));
 const ResumeBuilderPage = lazy(() => import("./pages/ResumeBuilderPage"));
 const NotificationPage = lazy(() => import("./pages/NotificationPage"));
 const AlumniLoginPage = lazy(() => import("./pages/AlumniLoginPage"));
@@ -200,7 +202,7 @@ function App() {
             path="/admin/employer/users"
             element={
               <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "employer"} redirectTo="/admin">
-                <EmployerPage hideRecruitmentActions={true} />
+                <EmployerPage />
               </ProtectedRoute>
             }
           />
@@ -212,6 +214,16 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/admin/alumni/membership-applications"
+            element={
+              <ProtectedRoute allow={isMembershipManagementUser} redirectTo="/admin">
+                <AdminMembershipApplicationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/admin/registrar/membership-applications" element={<Navigate to="/admin/alumni/membership-applications" replace />} />
+          <Route path="/admin/employer/membership-applications" element={<Navigate to="/admin/alumni/membership-applications" replace />} />
           <Route
             path="/admin/employer/moderation"
             element={
@@ -307,6 +319,7 @@ function App() {
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/notifications" element={<NotificationPage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/membership-application" element={<Navigate to="/dashboard" replace state={{ openMembershipApplication: true }} />} />
             <Route path="/profile/:userId" element={<ProfilePage />} />
             <Route path="/resume-builder" element={<ResumeBuilderPage />} />
           </Route>

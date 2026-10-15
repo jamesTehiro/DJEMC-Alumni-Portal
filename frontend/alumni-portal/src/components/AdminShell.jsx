@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { FiMenu, FiX } from "react-icons/fi";
+import usePortalDrawer from "../hooks/usePortalDrawer";
 import {
     FaTachometerAlt,
     FaUsers,
@@ -12,14 +13,16 @@ import {
     FaBriefcase,
     FaSignOutAlt
 } from "react-icons/fa";
-import { API_BASE_URL } from "../services/api";
+import { api, API_BASE_URL } from "../services/api";
 import styles from "./Sidebar.module.css";
 import alumniStyles from "./AdminShellAlumni.module.css";
+import { isMembershipManagementUser } from "../utils/membershipManagement";
 
 export default function AdminShell({ scope, title, subtitle, eyebrow = "Security Gate", onLogout, children }) {
     const base = `/admin/${scope}`;
     const isRegistrar = scope === "registrar";
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const [membershipAccess, setMembershipAccess] = useState({ scope: null, allowed: false });
     const currentUser = useMemo(() => {
         try {
             return JSON.parse(localStorage.getItem("user") || "null");
@@ -27,23 +30,20 @@ export default function AdminShell({ scope, title, subtitle, eyebrow = "Security
             return null;
         }
     }, []);
-
+    const isMembershipScope = scope === "alumni" && isMembershipManagementUser(currentUser);
+    const canManageMembership = isMembershipScope && membershipAccess.scope === scope && membershipAccess.allowed;
     useEffect(() => {
-        if (typeof window === "undefined") return undefined;
+        let active = true;
+        if (isMembershipScope) {
+            api.get("/membership/access", true).then((data) => {
+                if (active) setMembershipAccess({ scope, allowed: data?.scope === "alumni" && data?.can_view === true });
+            }).catch(() => { /* Backend authorization still protects the page. */ });
+        }
+        return () => { active = false; };
+    }, [scope, isMembershipScope]);
 
-        const media = window.matchMedia("(max-width: 767.98px)");
-        const applyMobileState = (matches) => {
-            if (!matches) {
-                setMobileNavOpen(false);
-            }
-        };
+    usePortalDrawer({ open: mobileNavOpen, onClose: () => setMobileNavOpen(false) });
 
-        applyMobileState(media.matches);
-
-        const handleChange = (event) => applyMobileState(event.matches);
-        media.addEventListener("change", handleChange);
-        return () => media.removeEventListener("change", handleChange);
-    }, []);
 
     const toAbsoluteUploadUrl = (url) => {
         if (!url) return "";
@@ -67,6 +67,7 @@ export default function AdminShell({ scope, title, subtitle, eyebrow = "Security
         alumni: [
             { label: "Dashboard", path: "", end: true, icon: <FaTachometerAlt /> },
             { label: "Alumni Records", path: "users", icon: <FaUsers /> },
+            ...(canManageMembership ? [{ label: "Membership Applications", path: "membership-applications", icon: <FaClipboardList /> }] : []),
             { label: "Messages", path: "messages", icon: <FaEnvelope /> },
             { label: "Post Announcement ", path: "moderation", icon: <FaBullhorn /> },
             { label: "System Logs", path: "logs", icon: <FaClipboardList /> },
@@ -75,9 +76,9 @@ export default function AdminShell({ scope, title, subtitle, eyebrow = "Security
         employer: [
             { label: "Dashboard", path: "", end: true, icon: <FaTachometerAlt /> },
             { label: "Verification History", path: "verification", icon: <FaUserCheck /> },
-            { label: "Applicant Management", path: "applicants", icon: <FaUsers /> },
+            { label: "Manage Posted Jobs", path: "applicants", icon: <FaUsers /> },
             { label: "Messages", path: "messages", icon: <FaEnvelope /> },
-            { label: "Job Management", path: "moderation", icon: <FaBriefcase /> },
+            { label: "Post Job", path: "moderation", icon: <FaBriefcase /> },
             { label: "System Logs", path: "logs", icon: <FaClipboardList /> },
             { label: "Profile", path: "settings", icon: <FaUser /> }
         ],

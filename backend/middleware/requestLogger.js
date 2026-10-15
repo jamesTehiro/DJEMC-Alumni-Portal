@@ -10,9 +10,13 @@ module.exports = (req, res, next) => {
     const start = Date.now();
     res.on("finish", () => {
         const duration = Date.now() - start;
+        // Membership search/filter queries may contain private names and email addresses.
+        const loggedUrl = /^\/api\/membership(?:\/|\?|$)/i.test(req.originalUrl)
+            ? req.originalUrl.split("?")[0]
+            : req.originalUrl;
         // eslint-disable-next-line no-console
         console.log(
-            `[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${duration}ms`
+            `[${new Date().toISOString()}] ${req.method} ${loggedUrl} ${res.statusCode} - ${duration}ms`
         );
     });
     next();

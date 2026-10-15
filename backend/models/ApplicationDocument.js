@@ -9,7 +9,8 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         file_path: {
-            type: DataTypes.STRING(500),
+            // Object-storage references contain provider URLs and may exceed 500 characters.
+            type: DataTypes.TEXT,
             allowNull: false
         },
         file_name: {

@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { FiX, FiLock, FiBriefcase, FiMapPin, FiCalendar, FiBookOpen } from "react-icons/fi";
-import { api } from "../../services/api";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { FiX, FiLock, FiBriefcase } from "react-icons/fi";
+import { api, resolveFileUrl } from "../../services/api";
 import "./ProfilePreviewModal.css";
 
 /**
@@ -15,23 +15,27 @@ export default function ProfilePreviewModal({ userId, onClose }) {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const profileRequestRef = useRef(0);
 
     const fetchProfile = useCallback(async () => {
         if (!userId) return;
+        const requestId = ++profileRequestRef.current;
         setLoading(true);
+        setProfile(null);
         setError("");
         try {
             const data = await api.get(`/profile/${userId}/preview`, true);
-            setProfile(data);
+            if (requestId === profileRequestRef.current) setProfile(data);
         } catch (err) {
-            setError(err.message || String(err));
+            if (requestId === profileRequestRef.current) setError(err.message || "Unable to load the profile preview.");
         } finally {
-            setLoading(false);
+            if (requestId === profileRequestRef.current) setLoading(false);
         }
     }, [userId]);
 
     useEffect(() => {
         fetchProfile();
+        return () => { profileRequestRef.current += 1; };
     }, [fetchProfile]);
 
     // Close on Escape
@@ -54,55 +58,30 @@ export default function ProfilePreviewModal({ userId, onClose }) {
 
     const getAvatarUrl = () => {
         if (!profile) return "";
-        if (profile.admin_avatar_url) return profile.admin_avatar_url;
-        if (profile.AlumniProfile?.avatar_url) return profile.AlumniProfile.avatar_url;
-        if (profile.EmployerProfile?.logo_url) return profile.EmployerProfile.logo_url;
-        return "";
+        return resolveFileUrl(profile.admin_avatar_url || profile.AlumniProfile?.avatar_url || profile.EmployerProfile?.logo_url || "");
     };
 
     const getRoleLabel = () => {
         if (!profile) return "";
-        if (profile.role === "admin" && profile.admin_scope) {
-            return `Admin · ${profile.admin_scope.charAt(0).toUpperCase() + profile.admin_scope.slice(1)}`;
-        }
         if (profile.role === "admin") return "Admin";
         if (profile.role === "employer") return "Employer";
-        return "Alumni";
-    };
-
-    const formatEmploymentStatus = (status) => {
-        if (!status) return null;
-        const map = {
-            employed: "Employed",
-            unemployed: "Unemployed",
-            "self-employed": "Self-Employed"
-        };
-        return map[status] || status;
-    };
-
-    const renderDetailItem = (label, value) => {
-        if (!value) return null;
-        return (
-            <div className="profile-preview-detail-item" key={label}>
-                <span className="profile-preview-detail-label">{label}</span>
-                <span className="profile-preview-detail-value">{value}</span>
-            </div>
-        );
+        if (profile.role === "alumni") return "Alumni";
+        return "User";
     };
 
     const renderEmploymentHistory = () => {
-        const histories = profile?.AlumniProfile?.EmploymentHistories;
-        if (!histories || histories.length === 0) return null;
+        const histories = Array.isArray(profile?.AlumniProfile?.EmploymentHistories) ? profile.AlumniProfile.EmploymentHistories : [];
+        if (profile?.role !== "alumni" && !histories.length) return null;
         return (
             <div className="profile-preview-timeline">
                 <div className="profile-preview-timeline-title">Employment History</div>
-                {histories.map((item) => (
+                {profile.isPrivate ? <div className="profile-preview-private-message"><FiLock aria-hidden="true" /><p>Employment history is private.</p></div> : histories.length === 0 ? <p>No employment history to show.</p> : histories.map((item) => (
                     <div className="profile-preview-timeline-item" key={item.id}>
                         <div className="profile-preview-timeline-dot" />
                         <div className="profile-preview-timeline-company">{item.company_name}</div>
                         <div className="profile-preview-timeline-position">{item.position}</div>
                         <div className="profile-preview-timeline-years">
-                            {item.start_year}{item.end_year ? ` - ${item.end_year}` : " - Present"}
+                            {item.start_year ? `${item.start_year} - ${item.end_year || "Present"}` : "Dates not provided"}
                             {item.employment_type ? ` · ${item.employment_type}` : ""}
                         </div>
                     </div>
@@ -110,33 +89,6 @@ export default function ProfilePreviewModal({ userId, onClose }) {
             </div>
         );
     };
-
-    const renderPublicProfile = () => {
-        const ap = profile?.AlumniProfile;
-        const ep = profile?.EmployerProfile;
-        return (
-            <div className="profile-preview-details">
-                {renderDetailItem("Address", ap?.address)}
-                {renderDetailItem("Graduation Year", ap?.graduation_year)}
-                {renderDetailItem("Course", ap?.course)}
-                {renderDetailItem("Employment Status", formatEmploymentStatus(ap?.employment_status))}
-                {renderDetailItem("Current Company", ap?.current_company)}
-                {renderDetailItem("Current Position", ap?.job_title)}
-                {ep?.organization_name && renderDetailItem("Organization", ep.organization_name)}
-                {ep?.industry && renderDetailItem("Industry", ep.industry)}
-                {renderEmploymentHistory()}
-            </div>
-        );
-    };
-
-    const renderPrivateProfile = () => (
-        <div className="profile-preview-private-message">
-            <FiLock size={20} style={{ marginBottom: 8 }} />
-            <p style={{ margin: 0 }}>
-                This alumni has chosen to keep their profile private.
-            </p>
-        </div>
-    );
 
     return (
         <div className="profile-preview-modal-overlay" onClick={handleOverlayClick}>
@@ -161,11 +113,7 @@ export default function ProfilePreviewModal({ userId, onClose }) {
                     {error && (
                         <div className="profile-preview-error">
                             {error}
-                            {!error.includes("preview") && !error.includes("profile") && (
-                                <span style={{ display: "block", marginTop: 6, opacity: 0.8 }}>
-                                    URL: /profile/{userId}/preview
-                                </span>
-                            )}
+                            <button type="button" onClick={fetchProfile}>Retry</button>
                         </div>
                     )}
                     {!loading && !error && profile && (
@@ -179,19 +127,12 @@ export default function ProfilePreviewModal({ userId, onClose }) {
                                     )}
                                 </div>
                                 <h4 className="profile-preview-name">{profile.name}</h4>
-                                {profile.isPrivate ? (
-                                    <span className="profile-preview-private-badge">
-                                        <FiLock size={12} />
-                                        Private Profile
-                                    </span>
-                                ) : (
-                                    <span className="profile-preview-badge">
-                                        <FiBriefcase size={12} />
-                                        {getRoleLabel()}
-                                    </span>
-                                )}
+                                <span className="profile-preview-badge">
+                                    <FiBriefcase size={12} aria-hidden="true" />
+                                    {getRoleLabel()}
+                                </span>
                             </div>
-                            {profile.isPrivate ? renderPrivateProfile() : renderPublicProfile()}
+                            <div className="profile-preview-details">{renderEmploymentHistory()}</div>
                         </>
                     )}
                 </div>

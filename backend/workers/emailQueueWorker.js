@@ -13,21 +13,27 @@ const retryDelayMs = Number(process.env.EMAIL_QUEUE_RETRY_MS || 30000);
 
 const reserveJobs = async () =>
     db.sequelize.transaction(async (transaction) => {
+        const now = new Date();
+        const staleBefore = new Date(now.getTime() - staleProcessingMs);
         const jobs = await db.EmailQueueJob.findAll({
             where: {
-                status: {
-                    [Op.in]: ["pending", "failed"]
-                },
-                scheduled_at: {
-                    [Op.lte]: new Date()
-                },
-                [Op.and]: db.sequelize.literal("attempts < max_attempts"),
-                [Op.or]: [
-                    { processing_started_at: null },
+                [Op.and]: [
+                    db.sequelize.literal("attempts < max_attempts"),
                     {
-                        processing_started_at: {
-                            [Op.lt]: new Date(Date.now() - staleProcessingMs)
-                        }
+                        [Op.or]: [
+                            {
+                                [Op.and]: [
+                                    { status: { [Op.in]: ["pending", "failed"] } },
+                                    { scheduled_at: { [Op.lte]: now } }
+                                ]
+                            },
+                            {
+                                [Op.and]: [
+                                    { status: "processing" },
+                                    { processing_started_at: { [Op.lt]: staleBefore } }
+                                ]
+                            }
+                        ]
                     }
                 ]
             },
@@ -141,8 +147,12 @@ const main = async () => {
     run();
 };
 
-main().catch((error) => {
-    // eslint-disable-next-line no-console
-    console.error("Failed to start email queue worker:", error);
-    process.exit(1);
-});
+if (require.main === module) {
+    main().catch((error) => {
+        // eslint-disable-next-line no-console
+        console.error("Failed to start email queue worker:", error);
+        process.exit(1);
+    });
+}
+
+module.exports = { reserveJobs, processJob, processBatch };

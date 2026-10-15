@@ -7,6 +7,65 @@
     scrollbar-gutter: stable;
 }
 
+.employer-verification-search {
+    padding: 0.75rem 1rem;
+    background: #fffdf6;
+}
+
+.employer-verification-search input {
+    display: block;
+    width: min(100%, 28rem);
+    border: 1px solid #d4d0bd;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #26372c;
+    padding: 0.65rem 0.85rem;
+}
+
+.employer-verification-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: #fffdf6;
+    border-bottom: 1px solid #e6e1d2;
+}
+
+.employer-verification-tabs button {
+    border: 1px solid #d4d0bd;
+    border-radius: 999px;
+    background: #fff;
+    color: #365b42;
+    padding: 0.45rem 0.9rem;
+    font-weight: 600;
+}
+
+.employer-verification-tabs button.active {
+    color: #fff;
+    background: #286b45;
+    border-color: #286b45;
+}
+
+.employer-verification-search {
+    padding: 0.75rem 1rem;
+    background: #fffdf6;
+}
+
+.employer-verification-search input {
+    display: block;
+    width: min(100%, 28rem);
+    border: 1px solid #d4d0bd;
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #26372c;
+    padding: 0.65rem 0.85rem;
+}
+
+.employer-verification-table .status-pill.approved {
+    color: #11693c;
+    background: #dcf7e6;
+}
+
 .employer-verification-table > .queue-row.header {
     position: sticky;
     top: 0;
@@ -16,6 +75,18 @@
 
 .employer-verification-table > .queue-row {
     min-width: 0;
+}
+
+.employer-verification-pending > .queue-row {
+    grid-template-columns: minmax(12rem, 1.7fr) minmax(12rem, 1.2fr) minmax(8rem, 0.9fr) minmax(8rem, 0.8fr) minmax(7rem, 0.6fr);
+}
+
+.employer-verification-approved > .queue-row {
+    grid-template-columns: minmax(12rem, 1.7fr) minmax(12rem, 1.2fr) minmax(8rem, 0.9fr) minmax(8rem, 0.8fr) minmax(7rem, 0.6fr);
+}
+
+.employer-verification-rejected > .queue-row {
+    grid-template-columns: minmax(11rem, 1.5fr) minmax(11rem, 1.1fr) minmax(8rem, 0.8fr) minmax(12rem, 1.8fr) minmax(7rem, 0.7fr) minmax(7rem, 0.6fr);
 }
 
 .employer-verification-table > .queue-row > * {
@@ -34,5 +105,10 @@
 
     .employer-verification-table > .queue-row.header {
         display: none;
+    }
+
+    .employer-verification-table > .queue-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.5rem;
     }
 }

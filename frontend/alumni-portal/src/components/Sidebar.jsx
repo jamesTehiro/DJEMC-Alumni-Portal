@@ -1,6 +1,7 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { NavLink } from "react-router-dom";
 import { FiMenu, FiX } from "react-icons/fi";
+import usePortalDrawer from "../hooks/usePortalDrawer";
 import { FaSignOutAlt } from "react-icons/fa";
 import styles from "./Sidebar.module.css";
 
@@ -18,22 +19,8 @@ export default function Sidebar({ scope = "employer", title = "Navigation", navI
     const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
     const base = `/${scope === "employer" ? "" : `admin/${scope}`}`;
 
-    useEffect(() => {
-        if (typeof window === "undefined") return undefined;
+    usePortalDrawer({ open: mobileNavOpen, onClose: () => setMobileNavOpen(false) });
 
-        const media = window.matchMedia("(max-width: 767.98px)");
-        const applyMobileState = (matches) => {
-            if (!matches) {
-                setMobileNavOpen(false);
-            }
-        };
-
-        applyMobileState(media.matches);
-
-        const handleChange = (event) => applyMobileState(event.matches);
-        media.addEventListener("change", handleChange);
-        return () => media.removeEventListener("change", handleChange);
-    }, []);
 
     return (
         <div className={styles.sidebarLayout}>

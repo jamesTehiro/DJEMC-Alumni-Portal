@@ -568,7 +568,7 @@
 
 .employer-notifications-card {
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     background: rgba(255, 255, 255, 0.96);
     box-shadow: 0 18px 44px rgba(23, 59, 45, 0.08);
 }
@@ -582,9 +582,11 @@
 .employer-warning-list {
     display: grid;
     gap: 14px;
+    overflow: visible;
 }
 
 .employer-warning-item {
+    position: relative;
     border: 1px solid #e5e7eb;
     border-radius: 18px;
     padding: 16px;
@@ -607,6 +609,79 @@
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
+}
+
+.employer-warning-top > div:first-child {
+    max-width: calc(100% - 160px);
+}
+
+.employer-warning-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.employer-warning-menu-wrap {
+    position: relative;
+}
+
+.employer-warning-menu-trigger {
+    width: 34px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dbe4df;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #155a43;
+    font-size: 1.25rem;
+    cursor: pointer;
+}
+
+.employer-warning-menu-trigger:hover,
+.employer-warning-menu-trigger:focus-visible {
+    background: #edf7f0;
+    outline: 2px solid #87c69c;
+    outline-offset: 2px;
+}
+
+.employer-warning-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 1060;
+    min-width: 144px;
+    padding: 5px;
+    border: 1px solid #e2e8e5;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
+.employer-warning-menu button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #b42318;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.employer-warning-menu button:hover,
+.employer-warning-menu button:focus-visible {
+    background: #fff1f0;
+    outline: none;
 }
 
 .employer-warning-top strong {
@@ -774,6 +849,55 @@
 
     .employer-message-compose .btn {
         width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .employer-manage-jobs-page .emp-list-item {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .employer-manage-jobs-page .emp-list-item-right {
+        width: 100%;
+        flex: 1 1 auto;
+        justify-content: flex-start;
+    }
+
+    .emp-job-actions {
+        width: 100%;
+        flex: 1 1 auto;
+        justify-content: flex-start;
+    }
+
+    .interview-invitation-summary {
+        grid-template-columns: minmax(105px, 0.4fr) minmax(0, 1fr);
+        gap: 7px 10px;
+    }
+
+    .emp-dash-panel-inner {
+        padding: 16px;
+    }
+
+    .employer-record-list {
+        max-height: min(58vh, 520px);
+        padding-right: 4px;
+    }
+
+    .employer-record-item {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .employer-record-item .emp-list-item-right {
+        justify-content: flex-start;
+        width: 100%;
+        flex-shrink: 1;
+    }
+
+    .employer-record-error {
+        align-items: stretch;
+        flex-direction: column;
     }
 }
 
@@ -947,6 +1071,22 @@
     word-break: break-word;
 }
 
+.applicant-document-download {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #1f6b49;
+    font: inherit;
+    font-size: 0.82rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.applicant-document-download:focus-visible {
+    outline: 2px solid #1f6b49;
+    outline-offset: 2px;
+}
+
 .applicant-history-empty {
     margin: 0;
     max-width: 680px;
@@ -1018,6 +1158,12 @@
 }
 
 @media (min-width: 1024px) {
+    .emp-dash-metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
     .emp-dash-metrics {
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
@@ -1122,6 +1268,73 @@
 
 .emp-dash-panel-inner {
     padding: 20px 24px;
+}
+
+.emp-dash-panel-inner.employer-record-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.employer-record-search {
+    margin: 0 0 12px;
+    border: 1px solid #dce6df;
+    border-radius: 10px;
+    min-height: 42px;
+    box-shadow: none;
+}
+
+.employer-record-search:focus {
+    border-color: #1f6b49;
+    box-shadow: 0 0 0 3px rgba(31, 107, 73, 0.12);
+}
+
+.employer-record-list {
+    max-height: min(52vh, 560px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 8px;
+}
+
+.employer-record-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    background: #fff7f7;
+    color: #991b1b;
+}
+
+.employer-record-error p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.employer-record-item {
+    align-items: center;
+    padding: 16px 4px;
+}
+
+.employer-record-item .emp-list-item-left {
+    min-width: 0;
+    flex: 1 1 280px;
+}
+
+.employer-record-item .emp-list-item-left strong,
+.employer-record-item .emp-list-item-left p {
+    overflow-wrap: anywhere;
+}
+
+.employer-record-item .emp-list-item-right {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.employer-manage-jobs-page .employer-record-search {
+    margin-bottom: 12px;
 }
 
 .emp-dash-panel-header {
@@ -1229,6 +1442,86 @@
     border-bottom: none;
 }
 
+.employer-job-applicant-sections {
+    display: grid;
+    gap: 14px;
+}
+
+.employer-job-applicant-section {
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.employer-job-applicant-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.employer-job-applicant-section-head h5 {
+    margin: 0;
+    color: #14532d;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.employer-job-applicant-section-head > span {
+    display: inline-flex;
+    min-width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.employer-job-applicant-row {
+    flex-wrap: wrap;
+}
+
+.employer-job-applicant-row .emp-list-item-left {
+    min-width: 0;
+    flex: 1 1 220px;
+}
+
+.employer-job-applicant-row .emp-list-item-right {
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.employer-job-applicant-empty {
+    margin: 0;
+    padding: 16px 0 4px;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+.employer-job-applicant-other .employer-job-applicant-section-head h5 {
+    color: #475569;
+}
+
+@media (max-width: 600px) {
+    .employer-job-applicant-section {
+        padding: 12px;
+    }
+
+    .employer-job-applicant-row .emp-list-item-right {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
 .emp-list-item-left strong {
     display: block;
     color: #111827;
@@ -1249,12 +1542,23 @@
 }
 
 .emp-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     font-size: 0.72rem;
     font-weight: 700;
     padding: 4px 10px;
     border-radius: 999px;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.emp-status-badge-icon {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.78rem;
 }
 
 .emp-status-badge.approved {
@@ -1285,12 +1589,12 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-
-    width: auto;
-    min-width: 70px;
+    box-sizing: border-box;
+    flex: 0 0 38px;
+    width: 38px;
+    min-width: 38px;
     height: 36px;
-
-    padding: 0 14px;
+    padding: 0;
 
     border-radius: 8px;
     border: 1px solid #ef4444;
@@ -1304,6 +1608,17 @@
 
     cursor: pointer;
     transition: all 180ms ease;
+}
+
+.emp-delete-btn .emp-delete-icon {
+    display: block;
+    flex: 0 0 16px;
+    width: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    height: 16px;
+    min-height: 16px;
+    max-height: 16px;
 }
 
 .emp-delete-btn:hover {
@@ -1329,6 +1644,139 @@
     color: #ffffff;
 }
 
+.emp-interview-details-btn {
+    border: 1px solid #1f8a57;
+    border-radius: 999px;
+    padding: 6px 12px;
+    background: #f0fdf4;
+    color: #166534;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.emp-interview-details-btn:hover {
+    background: #dcfce7;
+}
+
+.employer-manage-jobs-page .emp-list-item-left {
+    min-width: 160px;
+    flex: 1 1 220px;
+}
+
+.employer-manage-jobs-page .emp-list-item-right {
+    flex: 0 1 760px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.emp-job-actions {
+    min-width: 0;
+    flex: 0 1 760px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.emp-manage-applicants-btn {
+    white-space: nowrap;
+}
+
+.interview-requirements-actions {
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.interview-details-draft-action {
+    display: grid;
+    justify-items: start;
+    gap: 4px;
+}
+
+.interview-details-draft-action small {
+    color: #64748b;
+    font-size: 0.74rem;
+}
+
+.interview-details-draft-action small.is-configured {
+    color: #166534;
+}
+
+.interview-details-draft-action small.is-required {
+    color: #b45309;
+    font-weight: 600;
+}
+
+.interview-details-job {
+    margin: 0 0 16px;
+    color: #475569;
+}
+
+.interview-invitation-summary {
+    display: grid;
+    grid-template-columns: minmax(130px, 0.35fr) minmax(0, 1fr);
+    gap: 8px 14px;
+    margin: 18px 0 0;
+}
+
+.interview-invitation-summary dt {
+    color: #475569;
+    font-weight: 700;
+}
+
+.interview-invitation-summary dd {
+    min-width: 0;
+    margin: 0;
+    color: #173b2d;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.interview-email-delivery-note {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 12px;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.emp-archive-btn {
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 6px 13px;
+    background: #fff;
+    color: #475569;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.emp-archive-btn:hover:not(:disabled) {
+    border-color: #64748b;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+.emp-archive-btn:disabled {
+    opacity: 0.65;
+    cursor: wait;
+}
+
+.emp-restore-btn {
+    border-color: #22c55e;
+    color: #166534;
+}
+
+.emp-restore-btn:hover:not(:disabled) {
+    border-color: #16a34a;
+    background: #dcfce7;
+    color: #166534;
+}
+
 .emp-stop-btn,
 .emp-reactivate-btn {
     display: inline-flex;
@@ -1336,7 +1784,7 @@
     justify-content: center;
 
     width: auto;
-    min-width: 150px;
+    min-width: max-content;
     height: 36px;
 
     padding: 0 14px;
@@ -1346,6 +1794,7 @@
     font-size: 14px;
     font-weight: 600;
     line-height: 1;
+    white-space: nowrap;
 
     cursor: pointer;
     transition: all 180ms ease;
@@ -1775,6 +2224,11 @@
     grid-template-columns: minmax(0, 2.4fr) minmax(0, 1.2fr);
     gap: 24px;
     align-items: start;
+}
+
+.employer-job-posting-grid {
+    grid-template-columns: minmax(0, 900px);
+    justify-content: center;
 }
 
 .employer-post-job-panel {

@@ -93,6 +93,10 @@
     border-radius: 999px;
 }
 
+.feed-container .feed-text-composer-actions {
+    justify-content: flex-end;
+}
+
 .composer-actions {
     margin-top: 12px;
     display: flex;

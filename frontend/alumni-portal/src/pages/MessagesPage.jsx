@@ -10,6 +10,9 @@ import { mergeUniqueById, replaceUniqueById } from "../utils/list";
 import { formatMessageTimestamp, getConversationDisplayName } from "../utils/messaging";
 import ConversationListItem from "../components/ConversationListItem";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
+import MessageAttachment from "../components/MessageAttachment";
+import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
+import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB } from "../utils/messageAttachments";
 import "./MessagesPage.css";
 
 const PAGE_SIZE = 30;
@@ -694,7 +697,7 @@ export default function MessagesPage() {
                                             )}
                                         </div>
 
-                        {message.file_url && <button type="button" className="attachment-pill" onClick={() => openAttachment(message)}>{previewAttachmentLabel(message)}</button>}
+                        {message.file_url && <MessageAttachment message={message} openAttachment={openAttachment} />}
                                     </div>
 
                                     {isOwnMessage && (
@@ -712,20 +715,7 @@ export default function MessagesPage() {
                     </div>
 
                     <div className="chat-composer">
-                        {attachment && (
-                            <div className="attachment-preview">
-                                <span>{attachment.name}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setAttachment(null);
-                                        if (fileInputRef.current) fileInputRef.current.value = "";
-                                    }}
-                                >
-                                    Remove
-                                </button>
-                            </div>
-                        )}
+                        <AttachmentSelectionPreview file={attachment} onRemove={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
                         <div className="composer-row">
                             <button
                                 type="button"
@@ -739,12 +729,11 @@ export default function MessagesPage() {
                                 ref={fileInputRef}
                                 type="file"
                                 hidden
-                                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
+                                    accept={ALLOWED_ATTACHMENT_TYPES}
                                 onChange={(e) => {
                                     const selected = e.target.files?.[0] || null;
-                                    const maxMb = Number(import.meta.env.VITE_MAX_ATTACHMENT_MB || import.meta.env.MAX_UPLOAD_MB || 5);
-                                    if (selected && selected.size > maxMb * 1024 * 1024) {
-                                        setError(`This file is too large. Maximum attachment size is ${maxMb} MB.`);
+                                    if (selected && selected.size > MAX_ATTACHMENT_BYTES) {
+                                        setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`);
                                         e.target.value = "";
                                         return;
                                     }

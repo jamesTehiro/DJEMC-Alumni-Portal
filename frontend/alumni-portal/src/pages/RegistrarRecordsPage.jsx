@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Alert, Button, Card, Col, Row, Toast } from "react-bootstrap";
+import { Button, Toast } from "react-bootstrap";
+import { FiPlus, FiUpload } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import AdminShell from "../components/AdminShell";
-import AlumniSearchBar from "../components/AlumniSearchBar";
-import AlumniRecordsTable from "../components/AlumniRecordsTable";
+import MasterAlumniRecordsPanel from "../components/MasterAlumniRecordsPanel";
 import AddAlumniModal from "../components/AddAlumniModal";
+import CsvAlumniImportModal from "../components/CsvAlumniImportModal";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useRegistrarAdminData from "./registrar/useRegistrarAdminData";
 import { api } from "../services/api";
@@ -18,8 +19,6 @@ export default function RegistrarRecordsPage() {
         isAllowed,
         records,
         setRecords,
-        searchTerm,
-        searchResults,
         selectedRecord,
         setSelectedRecord,
         message,
@@ -27,14 +26,37 @@ export default function RegistrarRecordsPage() {
         showAddModal,
         savingRecord,
         handleSaveRecord,
-        handleSearchChange,
         openAddModal,
         closeAddModal
     } = useRegistrarAdminData();
 
     const [deletingRecordId, setDeletingRecordId] = useState(null);
     const [deleteToast, setDeleteToast] = useState({ show: false, message: "", type: "" });
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importNotice, setImportNotice] = useState("");
+    const [importRefreshError, setImportRefreshError] = useState("");
+    const [refreshingRecords, setRefreshingRecords] = useState(false);
     const { scheduleDelete } = useUndoDelete();
+
+    const refreshImportedRecords = async () => {
+        setRefreshingRecords(true);
+        setImportRefreshError("");
+        try {
+            const data = await api.get("/alumni-records", true);
+            if (!Array.isArray(data)) throw new Error("The records list could not be loaded.");
+            setRecords(data);
+        } catch (err) {
+            setImportRefreshError(`The import succeeded, but the records list could not be refreshed. ${err.message || "Please try refreshing the records."}`);
+        } finally {
+            setRefreshingRecords(false);
+        }
+    };
+
+    const handleImported = async (result) => {
+        setShowImportModal(false);
+        setImportNotice(`Imported ${result.inserted.toLocaleString()} alumni ${result.inserted === 1 ? "record" : "records"}.${result.duplicates > 0 ? ` Skipped ${result.duplicates.toLocaleString()} duplicate ${result.duplicates === 1 ? "row" : "rows"}.` : ""}`);
+        await refreshImportedRecords();
+    };
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -91,6 +113,8 @@ export default function RegistrarRecordsPage() {
         >
             {message && <p className="notice success">{message}</p>}
             {error && <p className="notice error">{error}</p>}
+            {importNotice && <p className="notice success" role="status">{importNotice}</p>}
+            {importRefreshError && <div className="notice error" role="alert">{importRefreshError} <Button variant="outline-danger" size="sm" onClick={refreshImportedRecords} disabled={refreshingRecords}>Refresh records</Button></div>}
 
             <Toast
                 show={deleteToast.show}
@@ -109,78 +133,18 @@ export default function RegistrarRecordsPage() {
                 </Toast.Body>
             </Toast>
 
-            <section className="content-grid">
-                <div className="queue-panel">
-                    <div className="panel-header">
-                        <h2>Search and Add Records</h2>
-                        <Button variant="success" onClick={openAddModal}>
-                            + Add Alumni Record
-                        </Button>
-                    </div>
-                    <AlumniSearchBar
-                        value={searchTerm}
-                        onChange={handleSearchChange}
-                        disabled={showAddModal}
-                    />
-                    <div className="mt-3">
-                        {selectedRecord ? (
-                            <Alert variant="success" className="mb-3">
-                                Selected Record: {selectedRecord.full_name} • {selectedRecord.course} • Batch {selectedRecord.batch_year}
-                            </Alert>
-                        ) : null}
-                        <div className="search-result-list">
-                            {searchResults.map((record) => (
-                                <button
-                                    type="button"
-                                    key={record.id}
-                                    className={`search-result-item${selectedRecord?.id === record.id ? " active" : ""}`}
-                                    onClick={() => setSelectedRecord(record)}
-                                >
-                                    <strong>{record.full_name}</strong>
-                                    <span>{record.course} • Batch {record.batch_year}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <aside className="audit-panel">
-                    <h3>Records Summary</h3>
-                    <div className="announcement-list">
-                        <div className="announcement-item">
-                            <div>
-                                <strong>Total Records</strong>
-                                <p>{records.length} alumni record(s) available.</p>
-                            </div>
-                        </div>
-                        <div className="announcement-item">
-                            <div>
-                                <strong>Highlighted Record</strong>
-                                <p>{selectedRecord ? selectedRecord.full_name : "No record selected yet."}</p>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
-            </section>
-
-            <Row className="g-4">
-                <Col lg={12}>
-                    <Card className="queue-panel">
-                        <Card.Body>
-                            <div className="panel-header">
-                                <h2>Official Master List</h2>
-                                <span>{records.length} total</span>
-                            </div>
-                            <AlumniRecordsTable
-                                records={records}
-                                selectedRecordId={selectedRecord?.id}
-                                onDeleteRecord={handleDeleteRecord}
-                                deletingRecordId={deletingRecordId}
-                            />
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+            <MasterAlumniRecordsPanel
+                records={records}
+                loading={refreshingRecords}
+                selectedRecordId={selectedRecord?.id}
+                onSelectRecord={setSelectedRecord}
+                onDeleteRecord={handleDeleteRecord}
+                deletingRecordId={deletingRecordId}
+                actions={<>
+                    <Button variant="outline-success" onClick={() => setShowImportModal(true)} disabled={refreshingRecords}><FiUpload aria-hidden="true" />Import CSV</Button>
+                    <Button variant="success" onClick={openAddModal}><FiPlus aria-hidden="true" />Add Alumni Record</Button>
+                </>}
+            />
 
             <AddAlumniModal
                 show={showAddModal}
@@ -188,6 +152,7 @@ export default function RegistrarRecordsPage() {
                 onSave={handleSaveRecord}
                 loading={savingRecord}
             />
+            {showImportModal && <CsvAlumniImportModal show onHide={() => setShowImportModal(false)} onImported={handleImported} />}
         </AdminShell>
     );
 }

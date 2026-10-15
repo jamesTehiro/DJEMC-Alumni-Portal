@@ -1,12 +1,18 @@
+import ApplicantResumePreview from "../components/ApplicantResumePreview";
+import { isResumeRequirement, getApplicantDocumentFilename, getApplicantResumeDocument, getApplicantResumeFileUrl } from "../utils/applicantResume";
+import { saveApplicationDecision, updateActiveApplications } from "../utils/applicationDecision";
+import { APPROVED_LABEL } from "../utils/applicationStatus";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Form, Modal } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
+import { Button, Modal } from "react-bootstrap";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { BsTrash } from "react-icons/bs";
 import { api, fetchFile, API_BASE_URL } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import { useUndoDelete } from "../hooks/useUndoDelete";
 import { getEmploymentTypeLabel } from "../utils/employmentTypes";
 import AdminShell from "../components/AdminShell";
+import InterviewDetailsModal, { EMPTY_INTERVIEW_DETAILS } from "../components/InterviewDetailsModal";
 import "./AdminEmployerPage.css";
 import "./EmployerPage.css";
 
@@ -34,6 +40,23 @@ export default function AdminEmployerPage({
     useRenderDebug("AdminEmployerPage");
     const { scheduleDelete } = useUndoDelete();
     const navigate = useNavigate();
+    const decisionBusy = useRef(false);
+    const [decisionSaving, setDecisionSaving] = useState(false);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedJobId = searchParams.get("jobId");
+    const [jobSearch, setJobSearch] = useState("");
+    const [jobsLoading, setJobsLoading] = useState(true);
+    const [applicationsLoading, setApplicationsLoading] = useState(true);
+    const [recruitmentBusy, setRecruitmentBusy] = useState(null);
+    const [editingInterviewJob, setEditingInterviewJob] = useState(null);
+    const [interviewDraft, setInterviewDraft] = useState({ ...EMPTY_INTERVIEW_DETAILS });
+    const [interviewLoading, setInterviewLoading] = useState(false);
+    const [interviewSaving, setInterviewSaving] = useState(false);
+    const [interviewLoadError, setInterviewLoadError] = useState("");
+    const [interviewSaveError, setInterviewSaveError] = useState("");
+    const [interviewConfigured, setInterviewConfigured] = useState(false);
+    const interviewDetailsRequestRef = useRef(0);
+    const interviewSaveInProgressRef = useRef(false);
     const [employers, setEmployers] = useState([]);
     const [jobs, setJobs] = useState([]);
     const [applications, setApplications] = useState([]);
@@ -41,20 +64,14 @@ export default function AdminEmployerPage({
     const [error, setError] = useState("");
     const [selectedEmployer, setSelectedEmployer] = useState(null);
     const [selectedApplication, setSelectedApplication] = useState(null);
+    const [inlineResume, setInlineResume] = useState(null);
+    useEffect(() => { setInlineResume(null); }, [selectedApplication?.id]);
     const [previewDocument, setPreviewDocument] = useState(null);
     const [previewDocumentError, setPreviewDocumentError] = useState("");
     const [previewDocumentLoading, setPreviewDocumentLoading] = useState(false);
     const documentPreviewUrlRef = useRef(null);
-    const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+    const documentPreviewRequestRef = useRef(0);
     const [reviewing, setReviewing] = useState(false);
-    const [verifyForm, setVerifyForm] = useState({
-        venue: "",
-        place: "",
-        date: "",
-        time: "",
-        contact_info: "",
-        what_to_bring: ""
-    });
     const applicantPrintRef = useRef(null);
     const [previewFile, setPreviewFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
@@ -85,20 +102,116 @@ export default function AdminEmployerPage({
     };
 
     const loadJobs = async () => {
+        setJobsLoading(true);
         try {
             const data = await api.get("/admin/employer/jobs", true);
             setJobs(Array.isArray(data) ? data : []);
         } catch (err) {
             setError(err.message);
+        } finally {
+            setJobsLoading(false);
         }
     };
 
     const loadApplications = async () => {
+        setApplicationsLoading(true);
         try {
             const data = await api.get("/admin/employer/applications", true);
             setApplications(Array.isArray(data) ? data : []);
         } catch (err) {
             setError(err.message);
+        } finally {
+            setApplicationsLoading(false);
+        }
+    };
+
+    const selectJob = (job) => {
+        setMessage("");
+        setError("");
+        setSelectedApplication(null);
+        setSearchParams({ jobId: String(job.id) });
+    };
+
+    const openJobInterviewDetails = async (job) => {
+        if (!job?.id || interviewSaveInProgressRef.current) return;
+        const requestId = ++interviewDetailsRequestRef.current;
+        setMessage("");
+        setError("");
+        setEditingInterviewJob(job);
+        setInterviewDraft({ ...EMPTY_INTERVIEW_DETAILS });
+        setInterviewConfigured(false);
+        setInterviewLoading(true);
+        setInterviewLoadError("");
+        setInterviewSaveError("");
+        try {
+            const result = await api.get(`/jobs/${job.id}/interview-details`, true);
+            if (requestId !== interviewDetailsRequestRef.current) return;
+            if (String(result?.job?.id) !== String(job.id)) throw new Error("The interview details response did not match the selected job. Please retry.");
+            setEditingInterviewJob({ ...job, ...result.job });
+            setInterviewDraft({ ...EMPTY_INTERVIEW_DETAILS, ...(result.interview_details || {}) });
+            setInterviewConfigured(Boolean(result.configured));
+        } catch (err) {
+            if (requestId === interviewDetailsRequestRef.current) setInterviewLoadError(err.message || "Unable to load interview details.");
+        } finally {
+            if (requestId === interviewDetailsRequestRef.current) setInterviewLoading(false);
+        }
+    };
+
+    const closeJobInterviewDetails = () => {
+        if (interviewSaveInProgressRef.current) return;
+        interviewDetailsRequestRef.current += 1;
+        setEditingInterviewJob(null);
+        setInterviewLoading(false);
+    };
+
+    const saveJobInterviewDetails = async () => {
+        if (!editingInterviewJob?.id || interviewSaveInProgressRef.current || interviewLoading || interviewLoadError) return;
+        const jobId = editingInterviewJob.id;
+        interviewSaveInProgressRef.current = true;
+        setInterviewSaving(true);
+        setInterviewSaveError("");
+        setError("");
+        try {
+            const result = await api.put(`/jobs/${jobId}/interview-details`, { interview_details: interviewDraft }, true);
+            if (String(result?.job?.id) !== String(jobId) || result.configured !== true) throw new Error("The saved interview details could not be confirmed. Reopen the job details before retrying.");
+            const savedDetails = { ...EMPTY_INTERVIEW_DETAILS, ...result.interview_details };
+            const columns = {
+                interview_venue: savedDetails.venue,
+                interview_place: savedDetails.place,
+                interview_date: savedDetails.date,
+                interview_time: savedDetails.time,
+                interview_contact_info: savedDetails.contact_info,
+                interview_what_to_bring: savedDetails.what_to_bring
+            };
+            setJobs((current) => current.map((job) => Number(job.id) === Number(jobId) ? { ...job, ...result.job, ...columns } : job));
+            setInterviewDraft(savedDetails);
+            setInterviewConfigured(true);
+            setMessage(result.msg || "Interview details updated successfully.");
+            interviewDetailsRequestRef.current += 1;
+            setEditingInterviewJob(null);
+        } catch (err) {
+            setInterviewSaveError(err.message || "Unable to save interview details.");
+        } finally {
+            interviewSaveInProgressRef.current = false;
+            setInterviewSaving(false);
+        }
+    };
+
+    const changeRecruitment = async (job) => {
+        if (recruitmentBusy !== null) return;
+        const closed = job.recruitment_status === "closed";
+        if (!window.confirm(`${closed ? "Resume" : "Stop"} recruitment for ${job.title || "this job"}?`)) return;
+        setRecruitmentBusy(job.id);
+        setError("");
+        try {
+            const result = await api.post(`/admin/employer/jobs/${job.id}/${closed ? "reactivate-recruitment" : "stop-recruitment"}`, {}, true);
+            setMessage(result.msg || "Recruitment status updated.");
+            await loadJobs();
+            await loadApplications();
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setRecruitmentBusy(null);
         }
     };
 
@@ -184,55 +297,21 @@ export default function AdminEmployerPage({
         });
     };
 
-    const handleVerifyFormChange = (e) => {
-        const { name, value } = e.target;
-        setVerifyForm((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const openVerifyModal = () => {
+    const decideApplication = async (status) => {
+        if (!selectedApplication?.id || decisionBusy.current) return;
+        decisionBusy.current = true;
+        setDecisionSaving(true);
         setError("");
-        setVerifyForm({
-            venue: "",
-            place: selectedApplication?.Job?.User?.EmployerProfile?.address || "",
-            date: "",
-            time: "",
-            contact_info: selectedApplication?.Job?.User?.email || "",
-            what_to_bring: ""
-        });
-        setVerifyModalOpen(true);
-    };
-
-    const reviewApplication = async (status, extraPayload = {}) => {
-        if (!selectedApplication?.id) return;
-
-        setReviewing(true);
-        setMessage("");
-        setError("");
-
         try {
-            await api.put(`/admin/employer/applications/${selectedApplication.id}/review`, { status, ...extraPayload }, true);
-            setMessage(
-                status === "verified"
-                    ? "Applicant marked as verified. Interview details saved and notification sent."
-                    : "Applicant marked as not verified. Notification sent."
-            );
-            setVerifyModalOpen(false);
+            const result = await saveApplicationDecision(selectedApplication, status, api, message => window.confirm(message));
+            if (!result) return;
+            const update = records => updateActiveApplications(records, selectedApplication.id, status);
+            setApplications(update);
+
             setSelectedApplication(null);
-            setVerifyForm({
-                venue: "",
-                place: "",
-                date: "",
-                time: "",
-                contact_info: "",
-                what_to_bring: ""
-            });
-            await loadJobs();
-            await loadApplications();
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setReviewing(false);
-        }
+            setMessage(result.msg);
+        } catch (err) { setError(err.message || "Unable to update application."); }
+        finally { decisionBusy.current = false; setDecisionSaving(false); }
     };
 
     const handlePrintApplication = () => {
@@ -303,6 +382,62 @@ export default function AdminEmployerPage({
             </div>
         );
     }
+
+    const applicantName = (application) => application?.alumni?.name || application?.full_name || application?.name || "";
+    const selectedJob = jobs.find((job) => String(job.id) === selectedJobId);
+    const jobApplications = selectedJob
+        ? applications.filter((application) => String(application.job_id ?? application.Job?.id) === String(selectedJob.id))
+        : [];
+    const orderedJobs = [...jobs].filter((job) => !jobSearch.trim() || [job.title, job.location].some((value) => String(value || "").toLowerCase().includes(jobSearch.trim().toLowerCase())))
+        .sort((a, b) => String(a.title || "").localeCompare(String(b.title || ""), undefined, { sensitivity: "base" }) || Number(a.id) - Number(b.id));
+    const orderedApplications = [...jobApplications].sort((a, b) => {
+        const left = applicantName(a).trim();
+        const right = applicantName(b).trim();
+        if (!left) return right ? 1 : 0;
+        if (!right) return -1;
+        return left.localeCompare(right, undefined, { sensitivity: "base" });
+    });
+    const waitingApplications = orderedApplications.filter((application) =>
+        ["pending", "pending_review", "submitted"].includes(String(application.status || "pending").toLowerCase())
+    );
+    const interviewApplications = orderedApplications.filter((application) =>
+        ["verified", "ready_for_interview", "approved"].includes(String(application.status || "").toLowerCase())
+    );
+    const otherApplications = orderedApplications.filter((application) =>
+        !["pending", "pending_review", "submitted", "verified", "ready_for_interview", "approved"].includes(String(application.status || "pending").toLowerCase())
+    );
+    const renderApplicantSection = (title, records, emptyText, tone) => (
+        <section className={`admin-applicant-status-section ${tone}`} aria-label={title}>
+            <header>
+                <h3>{title}</h3>
+                <span>{records.length}</span>
+            </header>
+            {records.length ? (
+                <div className="admin-applicant-list">
+                    {records.map((applicant) => {
+                        const status = String(applicant.status || "pending").replaceAll("_", " ").toUpperCase();
+                        return (
+                            <div key={applicant.id} className="job-item-min">
+                                <div className="admin-applicant-row-copy">
+                                    <strong>{applicantName(applicant) || "Unknown Applicant"}</strong>
+                                    <p>{applicant.Job?.title || "Job"} | {applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : "N/A"}</p>
+                                    <p>{applicant.alumni?.email || applicant.email || "N/A"}</p>
+                                </div>
+                                <div className="admin-applicant-row-actions">
+                            <span className={`emp-status-badge ${tone === "waiting" ? "pending" : tone === "ready" ? "approved" : "rejected"}`}>
+                                {tone === "waiting" ? "WAITING FOR APPROVAL" : tone === "ready" ? APPROVED_LABEL : status}
+                            </span>
+                                    <Button variant="outline-success" size="sm" onClick={() => openApplicationDetails(applicant)}>
+                                        View Application
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : <p className="empty-jobs">{emptyText}</p>}
+        </section>
+    );
 
     const pendingEmployers = employers.filter((e) => e.account_status === "pending").length;
     const verifiedEmployers = employers.filter((e) => e.account_status === "verified").length;
@@ -457,8 +592,7 @@ export default function AdminEmployerPage({
         const fileName = String(documentEntry?.file_name || "").toLowerCase();
         const mimeTypes = [blob?.type, documentEntry?.mime_type]
             .map((value) => String(value || "").split(";")[0].trim().toLowerCase());
-        const imageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp"]);
-        if (mimeTypes.some((type) => imageTypes.has(type)) || /\.(png|jpe?g|webp|gif|bmp)$/.test(fileName)) return "image";
+        if (mimeTypes.some((type) => type.startsWith("image/")) || /\.(png|jpe?g|webp|gif|bmp|avif)$/.test(fileName)) return "image";
         if (mimeTypes.includes("application/pdf") || fileName.endsWith(".pdf")) return "pdf";
         return "file";
     };
@@ -511,21 +645,23 @@ export default function AdminEmployerPage({
     };
 
     const previewDocumentFile = async (documentEntry, applicationId) => {
-        if (!applicationId || !documentEntry?.id) {
-            setPreviewDocumentError("This application document is missing its file record.");
-            setPreviewDocument(null);
-            return;
-        }
-
+        const requestId = ++documentPreviewRequestRef.current;
         if (documentPreviewUrlRef.current) URL.revokeObjectURL(documentPreviewUrlRef.current);
         documentPreviewUrlRef.current = null;
         setPreviewDocument(null);
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+            setPreviewDocumentError("This application document is missing its file record.");
+            setPreviewDocumentLoading(false);
+            return;
+        }
+
         setPreviewDocumentLoading(true);
         setPreviewDocumentError("");
 
         try {
-            const fileUrl = `/api/applications/${encodeURIComponent(applicationId)}/documents/${encodeURIComponent(documentEntry.id)}/file`;
+            const fileUrl = getApplicantResumeFileUrl(applicationId, documentEntry);
             const blob = await fetchFile(fileUrl, true);
+            if (requestId !== documentPreviewRequestRef.current) return;
             if (!blob.size || ["text/html", "application/json"].includes(blob.type)) {
                 throw new Error("The server did not return the uploaded document. Please try again or contact support.");
             }
@@ -538,18 +674,47 @@ export default function AdminEmployerPage({
                 fileName: documentEntry.file_name || "document"
             });
         } catch (error) {
-            setPreviewDocumentError(error.message || "The document could not be previewed.");
-            setPreviewDocument(null);
+            if (requestId === documentPreviewRequestRef.current) {
+                setPreviewDocumentError(error.message || "The document could not be previewed.");
+                setPreviewDocument(null);
+            }
         } finally {
-            setPreviewDocumentLoading(false);
+            if (requestId === documentPreviewRequestRef.current) setPreviewDocumentLoading(false);
+        }
+    };
+
+    const downloadApplicationDocument = async (documentEntry, applicationId) => {
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+            setError("This application document is missing its file record.");
+            return;
+        }
+
+        try {
+            const fileUrl = getApplicantResumeFileUrl(applicationId, documentEntry);
+            const blob = await fetchFile(fileUrl, true);
+            if (!blob.size || ["text/html", "application/json"].includes(blob.type)) {
+                throw new Error("The server did not return the uploaded document.");
+            }
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = String(documentEntry.file_name || "document").replace(/[\\/:*?"<>|\r\n]/g, "_");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch (downloadError) {
+            setError(downloadError.message || "The document could not be downloaded.");
         }
     };
 
     const closeDocumentPreview = () => {
+        documentPreviewRequestRef.current += 1;
         if (documentPreviewUrlRef.current) URL.revokeObjectURL(documentPreviewUrlRef.current);
         documentPreviewUrlRef.current = null;
         setPreviewDocument(null);
         setPreviewDocumentError("");
+        setPreviewDocumentLoading(false);
     };
 
     const downloadPreviewDocument = () => {
@@ -634,9 +799,9 @@ export default function AdminEmployerPage({
     return (
         <AdminShell
             scope="employer"
-            title={title}
-            subtitle={subtitle}
-            eyebrow={eyebrow}
+            title={selectedJobId ? "Job-Specific Applicants" : "Manage Posted Jobs"}
+            subtitle={selectedJobId ? `Review applicants for ${selectedJob?.title || "the selected job"}.` : "Select a job to manage its applicants and interview details."}
+            eyebrow={selectedJobId ? "Applicant Management" : "Job Management"}
             onLogout={handleLogout}
         >
             <div className="admin-main-content">
@@ -644,43 +809,59 @@ export default function AdminEmployerPage({
                 {error && <p className="notice error">{error}</p>}
 
                 <section className="content-grid admin-applicant-management-layout">
-                    <div className="queue-panel">
-                        <div className="panel-header">
-                            <h2>Applicant List</h2>
-                            <span>All applicants loaded from existing application data.</span>
-                        </div>
-                        {applications.length === 0 ? (
-                            <p className="empty-jobs">No applications yet.</p>
-                        ) : (
-                            <div className="admin-applicant-list">
-                                {applications.map((applicant) => (
-                                    <div key={applicant.id} className="job-item-min">
-                                        <div>
-                                            <strong>{applicant.alumni?.name || applicant.full_name || "Unknown Applicant"}</strong>
-                                            <p>
-                                                {applicant.Job?.title || "Job"} | {applicant.status || "pending"} | {applicant.createdAt ? new Date(applicant.createdAt).toLocaleDateString() : "N/A"}
-                                            </p>
-                                            <p>{applicant.alumni?.email || applicant.email || "N/A"}</p>
-                                        </div>
-                                        <Button
-                                            variant="outline-success"
-                                            size="sm"
-                                            onClick={() => openApplicationDetails(applicant)}
-                                        >
-                                            View Application
-                                        </Button>
+                    <div className="queue-panel employer-manage-jobs-page">
+                        {!selectedJobId ? <>
+                            <div className="panel-header"><h2>List of Jobs</h2><span>{jobs.length} total</span></div>
+                            <input className="admin-posted-jobs-search" type="search" placeholder="Search jobs by title or location" aria-label="Search posted jobs" value={jobSearch} onChange={(event) => setJobSearch(event.target.value)} />
+                            <div className="admin-posted-jobs-list">
+                                {jobsLoading ? <p role="status">Loading jobs…</p> : orderedJobs.length ? orderedJobs.map((job) => <div className="emp-list-item" key={job.id}>
+                                    <div className="emp-list-item-left"><strong>{job.title || "Untitled Job"}</strong><p>{job.location || "Location not specified"}{job.expected_salary ? ` · ${job.expected_salary}` : ""}</p></div>
+                                    <div className="emp-list-item-right">
+                                        <span className={`emp-status-badge ${job.recruitment_status === "closed" ? "rejected" : "approved"}`}>{job.recruitment_status === "closed" ? "STOPPED" : "ACTIVE"}</span>
+                                        <span className="emp-type-tag">{getEmploymentTypeLabel(job.employment_type)}</span>
+                                        <button type="button" className="emp-interview-details-btn" title="Interview Invitation & Details" onClick={() => openJobInterviewDetails(job)}>Update Interview Details</button>
+                                        <button type="button" className="emp-view-btn emp-manage-applicants-btn" onClick={() => selectJob(job)}>Manage Applicants</button>
+                                        <button type="button" className={job.recruitment_status === "closed" ? "emp-reactivate-btn" : "emp-stop-btn"} disabled={recruitmentBusy !== null} onClick={() => changeRecruitment(job)}>{recruitmentBusy === job.id ? "Updating…" : job.recruitment_status === "closed" ? "Resume Recruitment" : "Stop Recruitment"}</button>
+                                        <button type="button" className="emp-delete-btn" aria-label={`Delete ${job.title || "job"}`} title="Delete Job" onClick={() => handleDeleteJob(job)}><BsTrash className="emp-delete-icon" aria-hidden="true" /></button>
                                     </div>
-                                ))}
+                                </div>) : <p className="empty-jobs">{jobSearch ? "No jobs match your search." : "No posted jobs yet."}</p>}
                             </div>
-                        )}
+                        </> : <>
+                        <Button variant="outline-success" size="sm" className="mb-3" onClick={() => { setSearchParams({}); setMessage(""); setError(""); }}>Back to Jobs</Button>
+                        {jobsLoading || applicationsLoading ? <p role="status">Loading job applicants…</p> : !selectedJob ? <p role="alert">This job is unavailable. Return to the job list to select another job.</p> : <>
+                        <div className="panel-header">
+                            <h2>Applicants for: {selectedJob.title}</h2>
+                            <span>Applications for this job only.</span>
+                        </div>
+                        <p className="admin-applicant-total">{jobApplications.length} current applications</p>
+                        {renderApplicantSection("Waiting for Approval", waitingApplications, "No applicants waiting for approval.", "waiting")}
+                        {renderApplicantSection("Approved Applicants", interviewApplications, "No approved applicants.", "ready")}
+                        {otherApplications.length > 0 && renderApplicantSection("Other Application Statuses", otherApplications, "No other applications.", "other")}
+                        </>}
+                        </>}
                     </div>
 
                 </section>
             </div>
+            <InterviewDetailsModal
+                show={!!editingInterviewJob}
+                onHide={closeJobInterviewDetails}
+                mode="edit"
+                jobTitle={editingInterviewJob?.title}
+                values={interviewDraft}
+                configured={interviewConfigured}
+                onChange={(field, value) => setInterviewDraft((previous) => ({ ...previous, [field]: value }))}
+                onSave={saveJobInterviewDetails}
+                loading={interviewLoading}
+                saving={interviewSaving}
+                loadError={interviewLoadError}
+                saveError={interviewSaveError}
+                onRetry={() => openJobInterviewDetails(editingInterviewJob)}
+            />
             <Modal
                 show={!!selectedApplication}
                 onHide={() => {
-                    setVerifyModalOpen(false);
+                    setInlineResume(null);
                     setSelectedApplication(null);
                 }}
                 centered
@@ -694,6 +875,19 @@ export default function AdminEmployerPage({
                     <Modal.Title>Applicant Details</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
+                    {getApplicantResumeDocument(selectedApplication)?.isLegacyResume && (() => {
+                        const resume = getApplicantResumeDocument(selectedApplication);
+                        return <section className="applicant-legacy-resume" aria-label="Submitted resume">
+                            <h5>Resume / CV</h5>
+                            <span className="applicant-document-filename" title={getApplicantDocumentFilename(resume)}>{getApplicantDocumentFilename(resume)}</span>
+                            <div className="applicant-document-actions">
+                                <button type="button" className="emp-view-btn" onClick={() => previewDocumentFile(resume, selectedApplication.id)}>View</button>
+                                <button type="button" className="applicant-document-download" onClick={() => downloadApplicationDocument(resume, selectedApplication.id)}>Download</button>
+                                <button type="button" className="emp-view-btn" onClick={() => setInlineResume({ applicationId: selectedApplication.id, document: resume })}>Preview Resume</button>
+                            </div>
+                        </section>;
+                    })()}
+
                     {(() => {
                         const app = selectedApplication || {};
                         const snapshot = app?.JobRequirementSnapshot;
@@ -753,9 +947,12 @@ export default function AdminEmployerPage({
                                                             <strong>
                                                                 {req.requirement_type === "document_upload" ? (
                                                                     doc ? (
-                                                                        <button type="button" className="applicant-document-link" onClick={() => previewDocumentFile(doc, app.id)}>
-                                                                            {doc.file_name || "View Document"}
-                                                                        </button>
+                                                                        <div className="applicant-document-actions">
+                                                                            <button type="button" className="emp-view-btn" onClick={() => previewDocumentFile(doc, app.id)} style={{ padding: "4px 8px", minWidth: 0 }}>View</button>
+                                                                            <button type="button" className="applicant-document-download" onClick={() => downloadApplicationDocument(doc, app.id)}>Download</button>
+                                                                            {isResumeRequirement(req, doc) && <button type="button" className="emp-view-btn" onClick={() => setInlineResume({ applicationId: app.id, document: doc })}>Preview Resume</button>}
+                                                                            <span className="applicant-document-filename" title={getApplicantDocumentFilename(doc)}>{getApplicantDocumentFilename(doc)}</span>
+                                                                        </div>
                                                                     ) : (
                                                                         "Not submitted"
                                                                     )
@@ -784,9 +981,12 @@ export default function AdminEmployerPage({
                                                             <strong>
                                                                 {req.requirement_type === "document_upload" ? (
                                                                     doc ? (
-                                                                        <button type="button" className="applicant-document-link" onClick={() => previewDocumentFile(doc, app.id)}>
-                                                                            {doc.file_name || "View Document"}
-                                                                        </button>
+                                                                        <div className="applicant-document-actions">
+                                                                            <button type="button" className="emp-view-btn" onClick={() => previewDocumentFile(doc, app.id)} style={{ padding: "4px 8px", minWidth: 0 }}>View</button>
+                                                                            <button type="button" className="applicant-document-download" onClick={() => downloadApplicationDocument(doc, app.id)}>Download</button>
+                                                                            {isResumeRequirement(req, doc) && <button type="button" className="emp-view-btn" onClick={() => setInlineResume({ applicationId: app.id, document: doc })}>Preview Resume</button>}
+                                                                            <span className="applicant-document-filename" title={getApplicantDocumentFilename(doc)}>{getApplicantDocumentFilename(doc)}</span>
+                                                                        </div>
                                                                     ) : (
                                                                         "Not submitted"
                                                                     )
@@ -1033,18 +1233,19 @@ export default function AdminEmployerPage({
                             </div>
                         );
                     })()}
+                    {inlineResume && Number(inlineResume.applicationId) === Number(selectedApplication?.id) && <ApplicantResumePreview
+                        key={String(selectedApplication.id)} applicationId={selectedApplication.id} document={inlineResume.document}
+                        onClose={() => setInlineResume(null)}
+                        onView={() => previewDocumentFile(inlineResume.document, selectedApplication.id)}
+                        onDownload={() => downloadApplicationDocument(inlineResume.document, selectedApplication.id)} />}
                 </Modal.Body>
                 <Modal.Footer className="applicant-modal-footer">
                     <Button variant="outline-dark" onClick={handlePrintApplication} disabled={!selectedApplication}>
                         Print Application
                     </Button>
                     <div className="applicant-modal-actions">
-                        <Button variant="success" onClick={openVerifyModal} disabled={reviewing}>
-                            Verify
-                        </Button>
-                        <Button variant="outline-danger" onClick={() => reviewApplication("not_verified")} disabled={reviewing}>
-                            Not Verify
-                        </Button>
+                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={decisionSaving || selectedApplication?.status === "verified"}>Approve</Button>
+                        <Button variant="outline-danger" onClick={() => decideApplication("not_verified")} disabled={decisionSaving}>Decline</Button>
                     </div>
                 </Modal.Footer>
             </Modal>
@@ -1101,58 +1302,6 @@ export default function AdminEmployerPage({
                 </Modal.Footer>
             </Modal>
 
-            <Modal show={verifyModalOpen} onHide={() => !reviewing && setVerifyModalOpen(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>Verify Applicant</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Venue</Form.Label>
-                            <Form.Control name="venue" value={verifyForm.venue} onChange={handleVerifyFormChange} required />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Place / Address</Form.Label>
-                            <Form.Control name="place" value={verifyForm.place} onChange={handleVerifyFormChange} required />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Interview Date</Form.Label>
-                            <Form.Control type="date" name="date" value={verifyForm.date} onChange={handleVerifyFormChange} required />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Interview Time</Form.Label>
-                            <Form.Control type="time" name="time" value={verifyForm.time} onChange={handleVerifyFormChange} required />
-                        </Form.Group>
-                        <Form.Group>
-                            <Form.Label>Contact Information (Email or Phone)</Form.Label>
-                            <Form.Control name="contact_info" value={verifyForm.contact_info} onChange={handleVerifyFormChange} required />
-                        </Form.Group>
-                        <Form.Group className="mt-3">
-                            <Form.Label>What to Bring</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                name="what_to_bring"
-                                value={verifyForm.what_to_bring}
-                                onChange={handleVerifyFormChange}
-                                placeholder="Optional: list documents, IDs, resumes, or materials the applicant should bring."
-                            />
-                        </Form.Group>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer className="applicant-modal-footer">
-                    <Button variant="outline-secondary" onClick={() => setVerifyModalOpen(false)} disabled={reviewing}>
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="success"
-                        onClick={() => reviewApplication("verified", verifyForm)}
-                        disabled={reviewing || !verifyForm.venue.trim() || !verifyForm.place.trim() || !verifyForm.date || !verifyForm.time || !verifyForm.contact_info.trim()}
-                    >
-                        Done
-                    </Button>
-                </Modal.Footer>
-            </Modal>
         </AdminShell >
     );
 }

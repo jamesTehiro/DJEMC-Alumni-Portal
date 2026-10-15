@@ -7,6 +7,10 @@ import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import { FiCheck, FiFilter, FiMapPin, FiSearch } from "react-icons/fi";
 import { BsBuilding } from "react-icons/bs";
 import JobApplicationModal from "../components/JobApplicationModal";
+import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
+import JobPostingAdvertisement from "../components/jobs/JobPostingAdvertisement";
+import { getJobCompanyName, getJobPostingMeta } from "../utils/jobDisplay";
+import { APPLICATION_SUCCESS_MESSAGE, APPLICATION_SUCCESS_TITLE, APPLICATION_TOAST_DELAY } from "../utils/jobApplicationSubmission";
 import { useNavigate } from "react-router-dom";
 import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel, normalizeEmploymentType } from "../utils/employmentTypes";
 
@@ -20,12 +24,22 @@ export default function JobsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [actionMessage, setActionMessage] = useState("");
+    const [applicationNotice, setApplicationNotice] = useState(null);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [selectedJob, setSelectedJob] = useState(null);
-    const [authorImages, setAuthorImages] = useState({});
     const [brokenAuthorImages, setBrokenAuthorImages] = useState({});
+    const [previewRequirements, setPreviewRequirements] = useState([]);
+    const [requirementsLoading, setRequirementsLoading] = useState(false);
+    const [requirementsError, setRequirementsError] = useState("");
+    const [requirementsAttempt, setRequirementsAttempt] = useState(0);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!applicationNotice) return;
+        const timer = window.setTimeout(() => setApplicationNotice(null), APPLICATION_TOAST_DELAY);
+        return () => window.clearTimeout(timer);
+    }, [applicationNotice]);
 
     const currentUser = useMemo(() => {
         try {
@@ -67,53 +81,22 @@ export default function JobsPage() {
     useEffect(() => {
         let cancelled = false;
 
-        const hydrateAuthorImages = async () => {
-            const missingImageJobs = jobs.filter((job) => {
-                const author = getJobAuthor(job);
-                return author?.id && !getProfileImage(author);
-            });
-            if (missingImageJobs.length === 0) return;
-
-            try {
-                const resolved = await Promise.all(
-                    missingImageJobs.map(async (job) => {
-                        try {
-                            const author = getJobAuthor(job);
-                            const profile = await api.get(`/profile/${author.id}`, true);
-                            const image = getProfileImage(profile);
-                            return image ? [author.id, image] : null;
-                        } catch {
-                            return null;
-                        }
-                    })
-                );
-
-                if (cancelled) return;
-
-                setAuthorImages((prev) => {
-                    const next = { ...prev };
-                    resolved.forEach((entry) => {
-                        if (!entry) return;
-                        const [userId, image] = entry;
-                        next[userId] = toAbsoluteUrl(image);
-                    });
-                    return next;
-                });
-            } catch {
-                // keep the existing fallback icon if profile lookups fail
-            }
-        };
-
-        hydrateAuthorImages();
+        if (!showPreviewModal || !selectedJob?.id) return;
+        api.get(`/jobs/${selectedJob.id}/requirements`).then(data => {
+            if (!Array.isArray(data?.requirements)) throw new Error("Application requirements could not be loaded.");
+            if (!cancelled) setPreviewRequirements(data.requirements);
+        }).catch(failure => {
+            if (!cancelled) setRequirementsError(failure.message || "Application requirements could not be loaded.");
+        }).finally(() => { if (!cancelled) setRequirementsLoading(false); });
 
         return () => {
             cancelled = true;
         };
-    }, [jobs]);
+    }, [showPreviewModal, selectedJob?.id, requirementsAttempt]);
 
     const filteredJobs = useMemo(() => {
         return jobs.filter((job) => {
-            const text = `${job.title || ""} ${job.User?.name || ""}`.toLowerCase();
+            const text = `${job.title || ""} ${getJobCompanyName(job)} ${job.User?.name || ""}`.toLowerCase();
             const location = (job.location || "").toLowerCase();
             const searchMatch = text.includes(search.toLowerCase());
             const locationMatch = location.includes(locationFilter.toLowerCase());
@@ -121,6 +104,14 @@ export default function JobsPage() {
             return searchMatch && locationMatch && typeMatch;
         });
     }, [jobs, search, locationFilter, typeFilter]);
+
+    const handleOpenJobDetails = (job) => {
+        setSelectedJob(job);
+        setPreviewRequirements([]);
+        setRequirementsLoading(true);
+        setRequirementsError("");
+        setShowPreviewModal(true);
+    };
 
     const handleOpenApply = (job) => {
         if (!currentUser) {
@@ -134,11 +125,13 @@ export default function JobsPage() {
             return;
         }
 
-        setSelectedJob(job);
-        setShowPreviewModal(true);
+        handleOpenJobDetails(job);
     };
 
     const handleStartApplication = () => {
+        if (requirementsLoading || requirementsError || appliedJobIds.includes(selectedJob?.id)) return;
+        if (!currentUser) { navigate("/login"); return; }
+        if (currentUser.role !== "alumni") { setActionMessage("Only alumni accounts can apply for jobs."); return; }
         setShowPreviewModal(false);
         setShowModal(true);
     };
@@ -148,9 +141,18 @@ export default function JobsPage() {
         setShowPreviewModal(false);
     };
 
-    const handleSubmitted = (jobId) => {
-        setAppliedJobIds((prev) => [...new Set([...prev, jobId])]);
-        setActionMessage("Application submitted.");
+    const handleSubmitted = (application) => {
+        setAppliedJobIds((prev) => [...new Set([...prev, Number(application.job_id)])]);
+        setActionMessage("");
+        setApplicationNotice({ variant: "success", title: APPLICATION_SUCCESS_TITLE, message: APPLICATION_SUCCESS_MESSAGE });
+    };
+
+    const handleSubmissionError = (failure) => {
+        setApplicationNotice({
+            variant: "error",
+            title: "Application Could Not Be Submitted",
+            message: failure?.message || "Your application could not be submitted. Please try again.",
+        });
     };
 
     const getJobType = (job) => {
@@ -196,7 +198,6 @@ export default function JobsPage() {
 
         return toAbsoluteUrl(
             getProfileImage(author) ||
-            authorImages[author?.id] ||
             ""
         );
     };
@@ -281,12 +282,14 @@ export default function JobsPage() {
 
                                 <div>
                                     <h5 className="job-title">{job.title}</h5>
-                                    <p className="job-company">{getJobAuthor(job)?.name || "Employer"}</p>
+                                    <p className="job-company">{getJobCompanyName(job)}</p>
                                 </div>
                             </div>
 
                             <div className="job-tags">
                                 <span className="job-type fulltime">{getJobType(job)}</span>
+                                {getJobPostingMeta(job).workSetup && <span className="job-type fulltime">{getJobPostingMeta(job).workSetup}</span>}
+                                {getJobPostingMeta(job).vacancies && <span className="job-type fulltime">{getJobPostingMeta(job).vacancies} {getJobPostingMeta(job).vacancies === 1 ? "vacancy" : "vacancies"}</span>}
                             </div>
 
                             <p className="job-required">
@@ -300,6 +303,7 @@ export default function JobsPage() {
                             </p>
                             <p className="job-desc">{truncate(job.description || "No description provided.")}</p>
 
+                            <div className="job-card-actions">
                             {appliedJobIds.includes(job.id) ? (
                                 <Button className="apply-btn applied-btn" disabled>
                                     <FiCheck /> Applied
@@ -309,6 +313,7 @@ export default function JobsPage() {
                                     Apply Now
                                 </Button>
                             )}
+                            </div>
                         </Card.Body>
                     </Card>
                 ))}
@@ -320,7 +325,17 @@ export default function JobsPage() {
                 show={showModal}
                 onHide={handleCloseApplication}
                 job={selectedJob}
-                onSubmitted={() => handleSubmitted(selectedJob?.id)}
+                onSubmitted={handleSubmitted}
+                onSubmissionError={handleSubmissionError}
+            />
+
+            <RegistrationSuccessToast
+                show={Boolean(applicationNotice)}
+                variant={applicationNotice?.variant}
+                title={applicationNotice?.title}
+                message={applicationNotice?.message}
+                positionerClassName="jobs-application-toast"
+                onClose={() => setApplicationNotice(null)}
             />
 
             <Modal
@@ -334,43 +349,20 @@ export default function JobsPage() {
                 <Modal.Header closeButton className="job-preview-header">
                     <div>
                         <Modal.Title>{selectedJob?.title || "Job Details"}</Modal.Title>
-                        <p className="job-preview-company">{getJobAuthor(selectedJob)?.name || "Employer"}</p>
+                        <p className="job-preview-company">{getJobCompanyName(selectedJob)}</p>
                     </div>
                 </Modal.Header>
                 <Modal.Body className="job-preview-body">
-                    <div className="job-preview-grid">
-                        <div className="job-preview-block">
-                            <span>Job Title</span>
-                            <strong>{selectedJob?.title || "N/A"}</strong>
-                        </div>
-                        <div className="job-preview-block">
-                            <span>Employment Type</span>
-                            <strong>{selectedJob ? getJobType(selectedJob) : "N/A"}</strong>
-                        </div>
-                        <div className="job-preview-block job-preview-block-wide">
-                            <span>Qualification</span>
-                            <strong>{selectedJob?.course_target || "Any relevant degree"}</strong>
-                        </div>
-                        <div className="job-preview-block job-preview-block-wide">
-                            <span>Expected Salary</span>
-                            <strong>{getExpectedSalary(selectedJob) || "Not specified"}</strong>
-                        </div>
-                        <div className="job-preview-block job-preview-block-wide">
-                            <span>Location</span>
-                            <strong>{selectedJob?.location || "Not specified"}</strong>
-                        </div>
-                        <div className="job-preview-block job-preview-block-wide">
-                            <span>Description</span>
-                            <p>{selectedJob?.description || "No description provided."}</p>
-                        </div>
-                    </div>
+                    <JobPostingAdvertisement job={selectedJob} requirements={previewRequirements} companyName={getJobCompanyName(selectedJob)} />
+                    {requirementsLoading && <p role="status">Loading application requirements…</p>}
+                    {requirementsError && <div className="alert alert-danger" role="alert">{requirementsError} <Button variant="outline-danger" size="sm" onClick={() => { setRequirementsError(""); setRequirementsLoading(true); setRequirementsAttempt(value => value + 1); }}>Retry</Button></div>}
                 </Modal.Body>
                 <Modal.Footer className="job-preview-footer">
                     <Button variant="outline-secondary" onClick={() => setShowPreviewModal(false)}>
                         Close
                     </Button>
-                    <Button className="job-preview-apply" onClick={handleStartApplication}>
-                        Apply Now
+                    <Button className="job-preview-apply" disabled={requirementsLoading || Boolean(requirementsError) || appliedJobIds.includes(selectedJob?.id)} onClick={handleStartApplication}>
+                        {appliedJobIds.includes(selectedJob?.id) ? "Applied" : "Apply Now"}
                     </Button>
                 </Modal.Footer>
             </Modal>

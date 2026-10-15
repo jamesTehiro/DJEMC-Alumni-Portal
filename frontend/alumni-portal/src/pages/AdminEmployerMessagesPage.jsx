@@ -2,13 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FiPaperclip, FiSearch, FiSend } from "react-icons/fi";
-import { api } from "../services/api";
+import { api, fetchFile } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import useAdaptivePoll from "../hooks/useAdaptivePoll";
 import { mergeUniqueById, replaceUniqueById } from "../utils/list";
 import AdminShell from "../components/AdminShell";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
+import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
+import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB } from "../utils/messageAttachments";
 import "./MessagesPage.css";
 import "./AdminEmployerMessagesPage.css";
 
@@ -280,6 +282,27 @@ export default function AdminEmployerMessagesPage() {
 
     const getProfileAvatarUrl = (profile) =>
         profile?.admin_avatar_url || profile?.AlumniProfile?.avatar_url || profile?.EmployerProfile?.logo_url;
+
+    const openAttachment = async (message, disposition = "inline") => {
+        const fileUrl = message?.file_url || message?.attachment;
+        if (!fileUrl) return;
+        try {
+            const blob = await fetchFile(fileUrl, true);
+            const url = URL.createObjectURL(blob);
+            if (disposition === "download") {
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = message.file_name || "attachment";
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } else {
+                window.open(url, "_blank", "noopener,noreferrer");
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            }
+        } catch (err) {
+            setError(err.message);
+        }
+    };
 
     const sendMessage = async () => {
         if (!activeConversation || (!draft.trim() && !attachment)) return;
@@ -574,7 +597,7 @@ export default function AdminEmployerMessagesPage() {
                                             <div className="message-bubble-wrapper">
                                                 {(isForumMessage ? message.message_text : message.message) && (
                                                     <div className="message-bubble">
-                                                        {isForumMessage ? message.message_text : message.message}
+                                                {isForumMessage ? message.message_text : message.message}
                                                     </div>
                                                 )}
                                                 {isSelf && (
@@ -605,20 +628,7 @@ export default function AdminEmployerMessagesPage() {
                         </div>
 
                         <div className="chat-composer">
-                            {attachment && (
-                                <div className="attachment-preview">
-                                    <span>{attachment.name}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setAttachment(null);
-                                            if (fileInputRef.current) fileInputRef.current.value = "";
-                                        }}
-                                    >
-                                        Remove
-                                    </button>
-                                </div>
-                            )}
+                            <AttachmentSelectionPreview file={attachment} onRemove={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
                             <div className="composer-row">
                                 <button
                                     type="button"
@@ -632,8 +642,8 @@ export default function AdminEmployerMessagesPage() {
                                     ref={fileInputRef}
                                     type="file"
                                     hidden
-                                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
-                                    onChange={(e) => setAttachment(e.target.files?.[0] || null)}
+                                    accept={ALLOWED_ATTACHMENT_TYPES}
+                                    onChange={(e) => { const selected = e.target.files?.[0] || null; if (selected && selected.size > MAX_ATTACHMENT_BYTES) { setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`); e.target.value = ""; return; } setError(""); setAttachment(selected); }}
                                 />
                                 <Form.Control
                                     placeholder={

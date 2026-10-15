@@ -1,0 +1,30 @@
+.membership-review { width: 100%; min-width: 0; color: #243e37; }
+.membership-review-section { padding: 20px 0; border-bottom: 1px solid #e2eae4; }
+.membership-review-section:first-child { padding-top: 0; }
+.membership-review-section:last-child { border-bottom: 0; }
+.membership-review-section > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.membership-review-section h3 { color: #065845; font-size: 17px; font-weight: 700; margin: 0; }
+.membership-review-section > header .btn { flex-shrink: 0; }
+.membership-review-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 20px; margin: 0; }
+.membership-review-details > div { min-width: 0; }
+.membership-review-details dt { color: #657a72; font-size: 12px; font-weight: 600; }
+.membership-review-details dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.membership-review-table-scroll { max-width: 100%; min-width: 0; max-height: none; overflow-x: auto; overflow-y: hidden; border: 1px solid #e1e9e3; border-radius: 8px; }
+
+.membership-review-table-scroll:focus-visible { outline: 2px solid #065845; outline-offset: 2px; }
+.membership-review table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; min-width: 610px; }
+.membership-review th { text-align: left; padding: 10px; color: #46665a; background: #f2f7f3; font-weight: 600; }
+.membership-review td { padding: 10px; border-top: 1px solid #e3ebe5; vertical-align: top; overflow-wrap: anywhere; white-space: pre-wrap; }
+.membership-review .membership-not-provided { color: #7b8881; font-size: 13px; font-weight: 400; }
+.membership-review-section > p { margin: 0; }
+.membership-review-consent p { margin-top: 12px; font-size: 13px; line-height: 1.7; }
+@media (max-width: 800px) { .membership-review-details { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .membership-review-details { grid-template-columns: minmax(0, 1fr); } .membership-review-section > header { align-items: flex-start; } }
+
+.membership-review .membership-review-education table { min-width: 0; }
+.membership-review-education th { overflow-wrap: anywhere; vertical-align: top; }
+@media (max-width: 700px) {
+ .membership-review-education table, .membership-review-education tbody, .membership-review-education tr, .membership-review-education tbody th, .membership-review-education td { display: block; width: 100%; }
+ .membership-review-education thead { display: none; }
+ .membership-review-education td::before { content: attr(data-label); display: block; font-weight: 600; color: #46665a; }
+}

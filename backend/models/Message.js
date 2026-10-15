@@ -31,6 +31,10 @@ module.exports = (sequelize, Sequelize) => {
                 type: Sequelize.STRING,
                 allowNull: true
             },
+            file_size: {
+                type: Sequelize.INTEGER,
+                allowNull: true
+            },
             is_read: {
                 type: Sequelize.BOOLEAN,
                 allowNull: false,

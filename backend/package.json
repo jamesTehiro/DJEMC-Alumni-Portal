@@ -8,6 +8,10 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "email-worker": "node workers/emailQueueWorker.js",
+    "migrate:message-attachments": "node scripts/applyMessageAttachmentMigrations.js",
+    "migrate:application-document-paths": "node scripts/applyApplicationDocumentPathMigration.js",
+    "migrate:membership": "node scripts/applyMembershipMigration.js",
+    "migrate:job-posting": "node scripts/applyJobPostingMigration.js",
     "sequelize": "sequelize"
   },
   "author": "james tehiro",

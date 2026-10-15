@@ -168,6 +168,37 @@
     margin: 0;
 }
 
+.jobs-page .job-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: auto;
+    padding-top: 12px;
+}
+
+.jobs-page .job-card-actions .apply-btn {
+    flex: 1 1 100%;
+    width: 100%;
+    margin-top: 0;
+}
+
+/* The toast is portaled to the body; scope its placement to job applications. */
+.jobs-application-toast.registration-toast-positioner {
+    top: calc(var(--portal-header-height, 70px) + 16px + env(safe-area-inset-top, 0px));
+    right: 20px;
+    width: min(420px, calc(100vw - 40px));
+}
+
+.jobs-application-toast .registration-success-toast--error {
+    border-color: #f4c7c3;
+    border-left-color: #b42318;
+    background: #fffafa;
+}
+
+.jobs-application-toast .registration-success-toast--error .registration-toast-icon {
+    color: #b42318;
+}
+
 /* TAGS */
 
 .jobs-page .job-tags {
@@ -379,6 +410,13 @@
 }
 
 @media (max-width: 640px) {
+    .jobs-application-toast.registration-toast-positioner {
+        top: calc(var(--portal-header-height, 70px) + 64px + env(safe-area-inset-top, 0px));
+        right: 12px;
+        left: 12px;
+        width: auto;
+    }
+
     .jobs-page .jobs-filters {
         flex-direction: column;
         align-items: stretch;

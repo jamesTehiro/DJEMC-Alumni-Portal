@@ -79,6 +79,28 @@ exports.markAsRead = async (req, res) => {
 
         notification.isRead = true;
         await notification.save();
+        if (notification.type === "profile_update_request") {
+            const profileRequest = await db.AlumniProfileUpdateRequest.findOne({
+                where: { notification_id: notification.id, alumni_user_id: req.user.id, status: "sent" }
+            });
+            if (profileRequest) {
+                const respondedAt = new Date();
+                await profileRequest.update({ status: "responded", responded_at: respondedAt });
+                try {
+                    await db.AuditLog.create({
+                        actor_id: req.user.id,
+                        actor_role: "alumni",
+                        action: "alumni.profile_update.responded",
+                        target_type: "alumni",
+                        target_id: req.user.id,
+                        metadata: { request_id: profileRequest.id },
+                        ip_address: req.ip || null
+                    });
+                } catch (auditError) {
+                    console.error("[profile-tracking] Unable to log update request response:", auditError.message);
+                }
+            }
+        }
         res.json({ msg: "Notification marked as read" });
     } catch (err) {
         res.status(500).json({ msg: err.message });

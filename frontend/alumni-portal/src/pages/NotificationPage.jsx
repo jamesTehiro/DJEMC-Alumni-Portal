@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, Button } from "react-bootstrap";
+import { useNavigate } from "react-router-dom";
 import { FiBell } from "react-icons/fi";
 import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
@@ -10,10 +11,14 @@ import { useUndoDelete } from "../hooks/useUndoDelete";
 
 export default function NotificationPage() {
     useRenderDebug("NotificationPage");
+    const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [activeNotification, setActiveNotification] = useState(null);
+    const [interviewDetailsLoading, setInterviewDetailsLoading] = useState(false);
+    const [interviewDetailsError, setInterviewDetailsError] = useState("");
+    const interviewDetailsRequest = useRef(0);
     const { scheduleDelete } = useUndoDelete();
 
     const loadNotifications = async () => {
@@ -54,7 +59,12 @@ export default function NotificationPage() {
     const handleDeleteNotification = (item) => {
         const itemId = item.id;
         setNotifications((prev) => prev.filter((n) => n.id !== itemId));
-        setActiveNotification((prev) => (prev?.id === itemId ? null : prev));
+        if (activeNotification?.id === itemId) {
+            interviewDetailsRequest.current += 1;
+            setInterviewDetailsLoading(false);
+            setInterviewDetailsError("");
+            setActiveNotification(null);
+        }
 
         scheduleDelete({
             item,
@@ -79,15 +89,34 @@ export default function NotificationPage() {
     };
 
     const handleOpen = async (item) => {
-        if (!item.isRead) markAsRead(item.id);
+        if (!item.isRead) await markAsRead(item.id);
+        if (item.type === "profile_update_request") {
+            navigate("/profile");
+            return;
+        }
         if (!isInterviewNotification(item)) return;
 
+        const requestId = ++interviewDetailsRequest.current;
+        setActiveNotification(item);
+        setInterviewDetailsLoading(true);
+        setInterviewDetailsError("");
         try {
             const details = await api.get(`/notifications/${item.id}/interview`, true);
-            setActiveNotification(details);
+            if (requestId === interviewDetailsRequest.current) setActiveNotification(details);
         } catch (err) {
-            setError(err.message);
+            if (requestId === interviewDetailsRequest.current) {
+                setInterviewDetailsError(err.message || "Unable to load interview details.");
+            }
+        } finally {
+            if (requestId === interviewDetailsRequest.current) setInterviewDetailsLoading(false);
         }
+    };
+
+    const closeInterviewDetails = () => {
+        interviewDetailsRequest.current += 1;
+        setActiveNotification(null);
+        setInterviewDetailsLoading(false);
+        setInterviewDetailsError("");
     };
 
     return (
@@ -151,6 +180,18 @@ export default function NotificationPage() {
                                 </Button>
                             </div>
                             <p className="notification-message">{item.message}</p>
+                            {item.type === "profile_update_request" && (
+                                <Button
+                                    size="sm"
+                                    variant="success"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleOpen(item);
+                                    }}
+                                >
+                                    Update Profile
+                                </Button>
+                            )}
                             {!item.isRead && (
                                 <Button
                                     size="sm"
@@ -170,8 +211,11 @@ export default function NotificationPage() {
 
             <InterviewDetailsModal
                 show={!!activeNotification}
-                onHide={() => setActiveNotification(null)}
+                onHide={closeInterviewDetails}
                 notification={activeNotification}
+                notificationLoading={interviewDetailsLoading}
+                notificationError={interviewDetailsError}
+                onNotificationRetry={activeNotification ? () => handleOpen(activeNotification) : undefined}
             />
         </div>
     );

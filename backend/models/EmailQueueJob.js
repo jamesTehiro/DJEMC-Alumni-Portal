@@ -14,6 +14,10 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.TEXT("long"),
                 allowNull: false
             },
+            dedupe_key: {
+                type: DataTypes.STRING(191),
+                allowNull: true
+            },
             status: {
                 type: DataTypes.ENUM("pending", "processing", "sent", "failed"),
                 allowNull: false,
@@ -50,6 +54,7 @@ module.exports = (sequelize, DataTypes) => {
         {
             tableName: "email_queue_jobs",
             indexes: [
+                { unique: true, fields: ["dedupe_key"], name: "email_queue_jobs_dedupe_key_uq" },
                 { fields: ["status", "scheduled_at"] },
                 { fields: ["status", "processing_started_at"] }
             ]

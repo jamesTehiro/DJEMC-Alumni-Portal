@@ -9,19 +9,21 @@
 .sidebarLayout,
 .employerLayout {
     display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 28px;
+    grid-template-columns: var(--portal-sidebar-width, 300px) minmax(0, 1fr);
+    gap: var(--portal-sidebar-gap, 28px);
     align-items: start;
+    padding: var(--portal-layout-padding, 24px);
 }
 
 .adminShell {
+    --portal-layout-padding: 32px;
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
-    gap: 28px;
+    grid-template-columns: var(--portal-sidebar-width, 300px) minmax(0, 1fr);
+    gap: var(--portal-sidebar-gap, 28px);
     align-items: start;
-    min-height: calc(100vh - 70px);
+    min-height: calc(100dvh - var(--portal-header-height, 0px));
     min-width: 0;
-    padding: 32px;
+    padding: var(--portal-layout-padding);
     box-sizing: border-box;
     background:
         radial-gradient(120% 120% at 15% 10%, rgba(182, 126, 125, .14), transparent 40%),
@@ -34,12 +36,8 @@
 /* Mobile overlay - shared across all portals */
 .sidebarOverlay {
     display: none;
-}
-
-.sidebarOverlay.visible {
-    display: block;
     position: fixed;
-    inset: 70px 0 0 0;
+    inset: var(--portal-header-height, 0px) 0 0 0;
     background: var(--sidebar-overlay, rgba(15, 23, 42, 0.4));
     opacity: 0;
     pointer-events: none;
@@ -47,7 +45,7 @@
     z-index: 30;
 }
 
-.sidebarOverlay.visible {
+.sidebarOverlay:global(.visible) {
     opacity: 1;
     pointer-events: auto;
 }
@@ -57,17 +55,19 @@
     display: none;
 }
 
-/* Sidebar container - sticky on desktop */
-.sidebar {
-    position: sticky;
-    top: 104px;
-    align-self: start;
-}
-
-/* Employer sidebar variant - same positioning */
+/* One viewport position shared by every portal, below the measured navbar. */
+.sidebar,
 .employerSidebar {
-    position: sticky;
-    top: 104px;
+    position: fixed;
+    top: calc(var(--portal-header-height, 0px) + var(--portal-layout-padding, 24px));
+    left: var(--portal-layout-padding, 24px);
+    width: var(--portal-sidebar-width, 300px);
+    max-height: calc(100dvh - var(--portal-header-height, 0px) - 2 * var(--portal-layout-padding, 24px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    box-sizing: border-box;
+    z-index: 20;
     align-self: start;
 }
 
@@ -138,8 +138,8 @@
     color: #fff;
 }
 
-.navItem.active,
-.employerNavItem.active {
+.navItem:global(.active),
+.employerNavItem:global(.active) {
     background: var(--sidebar-active, rgba(255, 255, 255, 0.18));
     color: #fff;
 }
@@ -158,20 +158,25 @@
 .main,
 .employerMain {
     min-width: 0;
+    grid-column: 2;
 }
 
 .main {
     display: flex;
     flex-direction: column;
-    min-height: calc(100vh - 70px);
+    min-height: calc(100dvh - var(--portal-header-height, 0px) - 2 * var(--portal-layout-padding, 24px));
 }
 
 /* Mobile styles - exact match from Employer design */
 @media (max-width: 767.98px) {
+    .sidebarOverlay {
+        display: block;
+    }
+
     .mobileNavToggle {
         display: inline-flex;
         position: fixed;
-        top: 84px;
+        top: calc(var(--portal-header-height, 0px) + 14px);
         left: 12px;
         z-index: 45;
         width: 44px;
@@ -185,71 +190,65 @@
         box-shadow: 0 12px 24px var(--sidebar-toggle-shadow, rgba(15, 23, 42, 0.18));
     }
 
+    .mobileNavToggle[aria-expanded="true"] {
+        left: calc(min(84vw, 300px) - 56px);
+    }
+
     .sidebar,
     .employerSidebar {
         position: fixed;
-        top: 70px;
+        top: var(--portal-header-height, 0px);
         left: 0;
         bottom: 0;
         width: min(84vw, 300px);
+        max-height: calc(100dvh - var(--portal-header-height, 0px));
         z-index: 40;
         transform: translateX(-100%);
-        transition: transform 0.25s ease;
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform 0.25s ease, visibility 0.25s ease;
         padding: 12px;
         overflow-y: auto;
     }
 
-    .sidebar.open,
-    .employerSidebar.open {
+    .sidebar:global(.open),
+    .employerSidebar:global(.open) {
         transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
     }
 
     .sidebarCard,
     .employerSidebarCard {
-        min-height: calc(100vh - 94px);
+        min-height: calc(100dvh - var(--portal-header-height, 0px) - 24px);
     }
-}
-
-/* Tablet/mobile breakpoint */
-@media (max-width: 1100px) {
 
     .sidebarLayout,
-    .employerLayout {
-        grid-template-columns: 1fr;
-    }
-
+    .employerLayout,
     .adminShell {
         grid-template-columns: minmax(0, 1fr);
+        padding-top: 72px;
     }
 
-    .sidebar,
-    .employerSidebar {
-        position: relative;
-        top: 0;
+    .main,
+    .employerMain {
+        grid-column: 1;
     }
 
     .sidebarNav,
     .employerSidebarNav {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: 1fr;
     }
 }
 
 @media (max-width: 900px) {
     .adminShell {
-        padding: 20px;
+        --portal-layout-padding: 20px;
     }
 }
 
 @media (max-width: 767.98px) {
     .adminShell {
-        padding: 14px;
-    }
-}
-
-@media (max-width: 640px) {
-
-    .sidebarNav,
-    .employerSidebarNav {
-        grid-template-columns: 1fr;
+        --portal-layout-padding: 14px;
     }
 }

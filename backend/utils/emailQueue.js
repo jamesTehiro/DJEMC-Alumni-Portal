@@ -1,6 +1,6 @@
 const db = require("../models");
 
-const enqueueEmails = async (jobs = []) => {
+const enqueueEmails = async (jobs = [], options = {}) => {
     console.log("=== [DEBUG] emailQueue.enqueueEmails ===");
     console.log("[DEBUG] Input jobs count:", jobs.length);
 
@@ -10,6 +10,7 @@ const enqueueEmails = async (jobs = []) => {
             to: job.to,
             subject: job.subject,
             message: job.message,
+            dedupe_key: job.dedupe_key || null,
             scheduled_at: job.scheduled_at || new Date(),
             attempts: 0,
             status: "pending"
@@ -25,7 +26,7 @@ const enqueueEmails = async (jobs = []) => {
     }
 
     try {
-        const result = await db.EmailQueueJob.bulkCreate(validJobs);
+        const result = await db.EmailQueueJob.bulkCreate(validJobs, { transaction: options.transaction });
         console.log("[DEBUG] EmailQueueJob.bulkCreate completed. Records created:", result ? result.length : 0);
 
         // Verify the records were actually inserted
@@ -34,6 +35,7 @@ const enqueueEmails = async (jobs = []) => {
     } catch (err) {
         console.error("[DEBUG] EmailQueueJob.bulkCreate ERROR:", err.message);
         console.error("[DEBUG] EmailQueueJob.bulkCreate ERROR stack:", err.stack);
+        if (options.transaction) throw err;
     }
 };
 

@@ -35,6 +35,9 @@ db.JobRequirementSnapshot = require("./JobRequirementSnapshot")(sequelize, Seque
 db.ApplicationDocument = require("./ApplicationDocument")(sequelize, Sequelize);
 db.ApplicationResponse = require("./ApplicationResponse")(sequelize, Sequelize);
 db.AuditLog = require("./AuditLog")(sequelize, Sequelize);
+db.AlumniProfileUpdateRequest = require("./AlumniProfileUpdateRequest")(sequelize, Sequelize);
+db.MembershipApplication = require("./MembershipApplication")(sequelize, Sequelize);
+db.MembershipAdministrator = require("./MembershipAdministrator")(sequelize, Sequelize);
 
 // Resume models
 db.Resume = require("./Resume")(sequelize, Sequelize);
@@ -69,6 +72,14 @@ db.ResumeReferences = db.ResumeReference;
 // RELATIONSHIPS
 
 db.User.hasOne(db.AlumniProfile, { foreignKey: "user_id" });
+db.User.hasOne(db.MembershipApplication, { foreignKey: "alumni_user_id", as: "membershipApplication" });
+db.MembershipApplication.belongsTo(db.User, { foreignKey: "alumni_user_id", as: "alumni" });
+db.User.hasOne(db.MembershipAdministrator, { foreignKey: "user_id", as: "membershipPermission" });
+db.MembershipAdministrator.belongsTo(db.User, { foreignKey: "user_id", as: "administrator" });
+db.User.hasMany(db.AlumniProfileUpdateRequest, { foreignKey: "alumni_user_id", as: "profileUpdateRequestsReceived" });
+db.AlumniProfileUpdateRequest.belongsTo(db.User, { foreignKey: "alumni_user_id", as: "alumni" });
+db.AlumniProfileUpdateRequest.belongsTo(db.User, { foreignKey: "requested_by", as: "requester" });
+db.AlumniProfileUpdateRequest.belongsTo(db.EmailQueueJob, { foreignKey: "email_queue_job_id", as: "emailQueueJob" });
 db.User.hasOne(db.EmployerProfile, { foreignKey: "user_id" });
 db.User.belongsTo(db.AlumniRecord, { foreignKey: "alumni_record_id", as: "AlumniRecord" });
 db.AlumniRecord.hasOne(db.User, { foreignKey: "alumni_record_id" });

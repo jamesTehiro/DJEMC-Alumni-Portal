@@ -1,0 +1,75 @@
+.applicant-print-item .applicant-document-filename {
+    display: block;
+    flex-basis: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.applicant-legacy-resume {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid #cbdccf;
+    border-radius: 10px;
+    background: #f8fbf8;
+    min-width: 0;
+}
+.applicant-legacy-resume .applicant-document-filename { display: block; overflow-wrap: anywhere; white-space: normal; }
+.applicant-legacy-resume h5 { color: #205437; margin: 0 0 .65rem; }
+.applicant-document-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-top: .65rem; }
+
+.applicant-resume-preview {
+    margin-top: 1.25rem;
+    padding: 1rem;
+    min-width: 0;
+    max-width: 100%;
+    border: 1px solid #cbdccf;
+    border-radius: 12px;
+    background: #fff;
+    color: #173d2b;
+}
+
+.applicant-resume-preview-heading,
+.applicant-resume-preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .65rem;
+}
+
+.applicant-resume-preview-heading { justify-content: space-between; align-items: flex-start; }
+.applicant-resume-preview-heading > div { flex: 1; min-width: 0; }
+.applicant-resume-preview-heading h4 { margin: 0 0 .35rem; font-size: 1.15rem; }
+.applicant-resume-preview-filename { margin: 0; overflow-wrap: anywhere; color: #485b4f; }
+.applicant-resume-preview-actions { margin: .9rem 0; }
+.applicant-resume-preview-button {
+    border: 1px solid #2d6545;
+    border-radius: 6px;
+    padding: .35rem .7rem;
+    background: #f5faf6;
+    color: #205437;
+    font: inherit;
+    cursor: pointer;
+}
+.applicant-resume-preview-button:hover { background: #e5f1e8; }
+.applicant-resume-preview-button:focus-visible,
+.applicant-resume-preview-zoom select:focus-visible { outline: 2px solid #2d6545; outline-offset: 2px; }
+.applicant-resume-preview-message { padding: 1rem; background: #f7faf7; border-radius: 6px; margin: 0; }
+.applicant-resume-preview-message p { margin: 0 0 .75rem; }
+.applicant-resume-preview-pdf { display: block; width: 100%; height: min(68vh, 760px); min-height: 320px; border: 1px solid #d9e3dc; background: #f0f3f0; }
+.applicant-resume-preview-hint { margin: .6rem 0 0; font-size: .85rem; color: #53665a; }
+.applicant-resume-preview-image-scroll { width: 100%; max-height: 68vh; overflow: auto; background: #eff3ef; border: 1px solid #d9e3dc; }
+.applicant-resume-preview-image-scroll img { display: block; height: auto; }
+.applicant-resume-preview-zoom { display: flex; align-items: center; gap: .4rem; margin-left: auto; }
+.applicant-resume-preview-zoom select { border: 1px solid #cbdccf; border-radius: 5px; background: #fff; color: inherit; padding: .3rem; }
+
+@media (max-width: 575px) {
+    .applicant-resume-preview { padding: .75rem; }
+    .applicant-resume-preview-pdf { height: 58vh; min-height: 280px; }
+    .applicant-resume-preview-heading { gap: .7rem; }
+}
+
+@media print { .applicant-resume-preview { display: none !important; } }

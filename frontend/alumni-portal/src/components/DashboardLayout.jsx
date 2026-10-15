@@ -1,10 +1,22 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { useEffect } from "react";
 import { Row, Col, Card, Button } from "react-bootstrap";
 import { FaHome, FaBriefcase, FaUsers, FaEnvelope, FaUser, FaBell, FaSignOutAlt, FaFileAlt } from "react-icons/fa";
 import { FiMenu, FiX } from "react-icons/fi";
+import usePortalDrawer from "../hooks/usePortalDrawer";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import "./DashboardLayout.css";
+import styles from "./Sidebar.module.css";
+import MembershipFlowProvider from "../context/MembershipFlowContext";
+import { useMembershipFlow } from "../context/membershipFlow";
+import { canOpenMembershipForm } from "../utils/membershipManagement";
+
+function AlumniMembershipNavigation({ onNavigate }) {
+    const flow = useMembershipFlow();
+    if (!canOpenMembershipForm(flow?.data)) return null;
+    return <button type="button" className="employer-nav-item" onClick={() => { onNavigate(); window.setTimeout(flow.openForm, 0); }}>
+        <FaFileAlt className="dash-icon" />Membership Application
+    </button>;
+}
 
 export default function DashboardLayout() {
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -19,22 +31,8 @@ export default function DashboardLayout() {
     }, []);
     const isAlumni = user?.role === "alumni";
 
-    useEffect(() => {
-        if (typeof window === "undefined") return undefined;
+    usePortalDrawer({ open: mobileNavOpen, onClose: () => setMobileNavOpen(false) });
 
-        const media = window.matchMedia("(max-width: 767.98px)");
-        const applyMobileState = (matches) => {
-            if (!matches) {
-                setMobileNavOpen(false);
-            }
-        };
-
-        applyMobileState(media.matches);
-
-        const handleChange = (event) => applyMobileState(event.matches);
-        media.addEventListener("change", handleChange);
-        return () => media.removeEventListener("change", handleChange);
-    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -55,10 +53,10 @@ export default function DashboardLayout() {
     };
 
     return (
-        <div className="dashboard-layout">
+        <MembershipFlowProvider user={user}><div className="dashboard-layout">
             {/* Overlay for mobile */}
             <div
-                className={`employer-sidebar-overlay${mobileNavOpen ? " visible" : ""}`}
+                className={`${styles.sidebarOverlay}${mobileNavOpen ? " visible" : ""}`}
                 onClick={() => setMobileNavOpen(false)}
                 aria-hidden={!mobileNavOpen}
             />
@@ -66,7 +64,7 @@ export default function DashboardLayout() {
             {/* Mobile nav toggle */}
             <button
                 type="button"
-                className="employer-mobile-nav-toggle"
+                className={styles.mobileNavToggle}
                 onClick={() => setMobileNavOpen((prev) => !prev)}
                 aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
                 aria-expanded={mobileNavOpen}
@@ -74,9 +72,9 @@ export default function DashboardLayout() {
                 {mobileNavOpen ? <FiX /> : <FiMenu />}
             </button>
 
-            <div className="employer-layout">
-                <aside className={`employer-sidebar${mobileNavOpen ? " open" : ""}`}>
-                    <div className="employer-sidebar-card">
+            <div className={styles.sidebarLayout}>
+                <aside className={`${styles.sidebar}${mobileNavOpen ? " open" : ""}`}>
+                    <div className={`employer-sidebar-card ${styles.sidebarCard}`}>
                         <div className="employer-sidebar-title">Navigation</div>
                         <div className="employer-sidebar-nav">
                             <button
@@ -137,6 +135,7 @@ export default function DashboardLayout() {
                                 <FaFileAlt className="dash-icon" />
                                 Resume Builder
                             </button>
+                            {isAlumni && <AlumniMembershipNavigation onNavigate={() => setMobileNavOpen(false)} />}
                         </div>
                         <div className="employer-sidebar-divider" />
                         <div className="employer-sidebar-nav">
@@ -155,10 +154,10 @@ export default function DashboardLayout() {
                     </div>
                 </aside>
 
-                <div className="main-content">
+                <div className={`main-content ${styles.main}`}>
                     <Outlet />
                 </div>
             </div>
-        </div>
+        </div></MembershipFlowProvider>
     );
 }

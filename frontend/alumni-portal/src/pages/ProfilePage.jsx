@@ -1,10 +1,10 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Card, Button, Form } from "react-bootstrap";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Card, Button, Form, Modal } from "react-bootstrap";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "./ProfilePage.css";
 import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
-import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
+import { fillEmptyProfileFields, membershipProfileChanges } from "../utils/membershipProfile";
 
 const blankWork = {
     company_name: "",
@@ -36,6 +36,16 @@ const normalizeEmploymentHistory = (source) => {
 export default function ProfilePage() {
     useRenderDebug("ProfilePage");
     const { userId } = useParams();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const fromMembership = searchParams.get("membership") === "1";
+    const saveLock = useRef(false);
+    const membershipPrefill = useRef("");
+    const [membership, setMembership] = useState(null);
+    const [membershipError, setMembershipError] = useState("");
+    const [membershipAttempt, setMembershipAttempt] = useState(0);
+    const [showProfileSuccess, setShowProfileSuccess] = useState(false);
+    const [showMembershipImport, setShowMembershipImport] = useState(false);
     const [profile, setProfile] = useState(null);
     const [form, setForm] = useState(null);
     const [avatarFile, setAvatarFile] = useState(null);
@@ -56,6 +66,26 @@ export default function ProfilePage() {
 
     const viewedUserId = userId ? Number(userId) : null;
     const viewingOtherProfile = !!viewedUserId && viewedUserId !== currentUser?.id;
+    useEffect(() => {
+        if (viewingOtherProfile || currentUser?.role !== "alumni") return;
+        let active = true;
+        api.get("/membership/me", true).then(data => {
+            if (!active) return;
+            if (!data || typeof data.completion?.submitted !== "boolean") throw new Error("Membership completion information is unavailable.");
+            setMembership(data);
+            setMembershipError("");
+            if (fromMembership && data.completion.submitted) setEditing(true);
+        }).catch(err => { if (active && ![401, 403].includes(err.status || err.response?.status)) setMembershipError(err.message); });
+        return () => { active = false; };
+    }, [currentUser, viewingOtherProfile, fromMembership, membershipAttempt]);
+
+    useEffect(() => {
+        const key = `${membership?.application?.id}:${profile?.id}`;
+        if (fromMembership && !viewingOtherProfile && profile?.role === "alumni" && form && membership?.completion.submitted && profile?.id && membershipPrefill.current !== key) {
+            membershipPrefill.current = key;
+            setForm(previous => fillEmptyProfileFields(previous, membership.application));
+        }
+    }, [fromMembership, membership, profile?.id, profile?.role, viewingOtherProfile, form]);
 
     const toFormState = (data) => ({
         name: data?.name || "",
@@ -79,9 +109,8 @@ export default function ProfilePage() {
         employment_history: normalizeEmploymentHistory(data?.AlumniProfile)
     });
 
-    useStrictSafeEffect(
-        `ProfilePage:init:${viewedUserId ?? "self"}`,
-        () => {
+    useEffect(() => {
+            let active = true;
             const loadProfile = async () => {
                 setLoading(true);
                 setError("");
@@ -90,22 +119,20 @@ export default function ProfilePage() {
                 try {
                     const path = viewedUserId ? `/profile/${viewedUserId}` : "/profile";
                     const data = await api.get(path, true);
+                    if (!active) return;
                     setProfile(data);
 
                     setForm(toFormState(data));
                 } catch (err) {
-                    setError(err.message);
+                    if (active) setError(err.message);
                 } finally {
-                    setLoading(false);
+                    if (active) setLoading(false);
                 }
             };
 
             loadProfile();
-            return undefined;
-        },
-        [viewedUserId],
-        { label: "ProfilePage init" }
-    );
+            return () => { active = false; };
+        }, [viewedUserId]);
 
     const alumniProfile = profile?.AlumniProfile;
     const employerProfile = profile?.EmployerProfile;
@@ -155,7 +182,8 @@ export default function ProfilePage() {
     };
 
     const handleSave = async () => {
-        if (!form || !canEdit) return;
+        if (!form || !canEdit || saveLock.current) return;
+        saveLock.current = true;
         setSaving(true);
         setError("");
         setMessage("");
@@ -183,6 +211,9 @@ export default function ProfilePage() {
                     end_year: item.end_year,
                     employment_type: item.employment_type
                 }));
+                if (membership?.completion.submitted && !membership.completion.profile_completed) {
+                    payload.membership_profile_completion = true;
+                }
             }
 
             if (isEmployer) {
@@ -198,15 +229,20 @@ export default function ProfilePage() {
                 payload.admin_avatar_url = form.admin_avatar_url || "";
             }
 
-            await api.put("/profile", payload, true);
-            const updated = await api.get("/profile", true);
+            const result = await api.put("/profile", payload, true);
+            const updated = result?.user || await api.get("/profile", true);
+            if (!updated?.id) throw new Error("The saved profile could not be loaded.");
             setProfile(updated);
             setForm((prev) => ({
                 ...toFormState(updated),
                 employment_status: updated?.AlumniProfile?.employment_status ?? prev?.employment_status
             }));
-            setMessage("Profile updated.");
+            setMessage(isAlumni ? "Profile Saved Successfully!" : "Profile updated.");
             setEditing(false);
+            if (isAlumni) {
+                setShowProfileSuccess(true);
+                if (result?.membership_profile_completed) setMembership(previous => previous ? { ...previous, completion: { ...previous.completion, profile_completed: true } } : previous);
+            }
 
             if (updated) {
                 localStorage.setItem(
@@ -223,6 +259,7 @@ export default function ProfilePage() {
         } catch (err) {
             setError(err.message);
         } finally {
+            saveLock.current = false;
             setSaving(false);
         }
     };
@@ -297,8 +334,36 @@ export default function ProfilePage() {
             {loading && <p>Loading profile...</p>}
             {error && <p className="profile-alert profile-alert-error">{error}</p>}
             {message && <p className="profile-alert profile-alert-success">{message}</p>}
+            {!viewingOtherProfile && currentUser?.role === "alumni" && membershipError && <Alert variant="warning">
+                {membershipError} <Button variant="outline-success" size="sm" onClick={() => { setMembershipError(""); setMembershipAttempt(value => value + 1); }}>Retry Membership Check</Button>
+            </Alert>}
+            {!loading && form && isAlumni && canEdit && membership?.completion.submitted && !membership.completion.profile_completed && <Alert variant="success">
+                Your membership application has been submitted. Review and save your profile to complete this step.
+                <p className="mb-2">Existing profile information is preserved. Only empty compatible fields are prefilled when you proceed from the membership form.</p>
+                <Button variant="outline-success" size="sm" disabled={saving || avatarSaving} onClick={() => { setEditing(true); setShowMembershipImport(true); }}>Use Membership Information</Button>
+            </Alert>}
+            <Modal show={showMembershipImport} onHide={() => setShowMembershipImport(false)} centered>
+                <Modal.Header closeButton><Modal.Title>Use Membership Information</Modal.Title></Modal.Header>
+                <Modal.Body>
+                    <p>Review these replacements before applying them to your profile form. They are saved only when you click Save Profile.</p>
+                    {membershipProfileChanges(form || {}, membership?.application).map(({ key, value }) => <p key={key}><strong>{({ name: "Name", phone: "Phone", address: "Address", job_title: "Job Title / Position" })[key]}:</strong> {value}</p>)}
+                    {!membershipProfileChanges(form || {}, membership?.application).length && <p>These fields already match your membership information.</p>}
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="outline-secondary" onClick={() => setShowMembershipImport(false)}>Cancel</Button>
+                    <Button variant="success" disabled={loading || saving || avatarSaving || !form} onClick={() => {
+                        setForm(previous => ({ ...previous, ...Object.fromEntries(membershipProfileChanges(previous || {}, membership?.application).map(({ key, value }) => [key, value])) }));
+                        setShowMembershipImport(false);
+                    }}>Apply to Profile Form</Button>
+                </Modal.Footer>
+            </Modal>
+            <Modal show={showProfileSuccess} onHide={() => setShowProfileSuccess(false)} centered>
+                <Modal.Header closeButton><Modal.Title>Profile Saved Successfully!</Modal.Title></Modal.Header>
+                <Modal.Body>Your alumni profile has been updated successfully. You can now continue exploring the DJEMC Alumni Tracking and Job Portal.</Modal.Body>
+                <Modal.Footer><Button variant="success" onClick={() => navigate("/dashboard")}>Continue to Dashboard →</Button></Modal.Footer>
+            </Modal>
 
-            {!loading && !error && (
+            {!loading && form && (
                 <>
                     <Card className="profile-card">
                         <Card.Body>
@@ -545,11 +610,12 @@ export default function ProfilePage() {
                                     )}
 
                                     <div className="profile-actions">
-                                        <Button className="edit-btn" onClick={handleSave} disabled={saving}>
-                                            {saving ? "Saving..." : "Save"}
+                                        <Button className="edit-btn" onClick={handleSave} disabled={saving || avatarSaving}>
+                                            {saving ? "Saving..." : isAlumni ? "Save Profile" : "Save"}
                                         </Button>
                                         <Button
                                             variant="outline-secondary"
+                                            disabled={saving || avatarSaving}
                                             onClick={() => {
                                                 setEditing(false);
                                                 setMessage("");

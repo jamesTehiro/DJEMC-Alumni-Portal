@@ -1,7 +1,6 @@
 const { Resume, ResumePersonalInfo, ResumeSummary, ResumeEducation, ResumeWorkExperience,
     ResumeSkill, ResumeProject, ResumeCertification, ResumeTraining, ResumeSeminar,
     ResumeAward, ResumeOrganization, ResumeVolunteerWork, ResumeLanguage, ResumeReference, ResumeVersion } = require("../models");
-const authMiddleware = require("../middleware/authMiddleware");
 
 // Helper to sanitize user input
 const sanitize = (str) => {
@@ -9,22 +8,6 @@ const sanitize = (str) => {
     return str.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/<[^>]*>/g, '')
         .trim();
-};
-
-// Ensure one default resume per user
-const ensureDefaultResume = async (userId, excludeId = null) => {
-    const defaultResumes = await Resume.findAll({
-        where: {
-            user_id: userId,
-            is_default: true,
-            ...(excludeId && { id: { [require('sequelize').Op.ne]: excludeId } })
-        }
-    });
-    for (const r of defaultResumes) {
-        if (defaultResumes.length === 1) break;
-        r.is_default = false;
-        await r.save();
-    }
 };
 
 exports.getResumes = async (req, res) => {
@@ -101,236 +84,88 @@ exports.getResume = async (req, res) => {
     }
 };
 
-exports.createResume = async (req, res) => {
-    try {
-        const userId = req.user?.id;
-        const { title, template_id, font_family, font_size, line_spacing, color_theme, settings, is_default } = req.body;
+const db = require('../models');
+const { Op } = require('sequelize');
+const { normalizeSections, saveSections, readSections, badRequest, normalizeTemplateId } = require('../services/resumePersistence');
 
-        console.log(`[RESUME CREATE] Timestamp: ${new Date().toISOString()}, UserID: ${userId}, Title: ${title || 'My Resume'}, IP: ${req.ip}`);
-
-        if (is_default) await ensureDefaultResume(userId);
-
-        const resume = await Resume.create({
-            user_id: userId,
-            title: sanitize(title) || 'My Resume',
-            template_id: template_id || 'modern-professional',
-            font_family: font_family || 'Inter, sans-serif',
-            font_size: font_size || 11,
-            line_spacing: line_spacing || 1.5,
-            color_theme: color_theme || '#155a43',
-            settings: settings || {},
-            is_default: is_default || false
-        });
-
-        res.status(201).json({ data: resume });
-    } catch (err) {
-        console.error("createResume error:", err);
-        res.status(500).json({ message: "Failed to create resume" });
+function mainResumeFields(body) {
+    const result = {};
+    for (const key of ['title', 'template_id', 'font_family', 'font_size', 'line_spacing', 'color_theme', 'settings', 'is_default', 'is_archived']) {
+        if (body[key] !== undefined) result[key] = body[key];
     }
+    if (result.title !== undefined) result.title = sanitize(result.title) || 'My Resume';
+    if (result.template_id !== undefined) result.template_id = normalizeTemplateId(result.template_id);
+    if (result.font_size !== undefined && (!Number.isInteger(Number(result.font_size)) || result.font_size < 8 || result.font_size > 14)) throw badRequest('Font size must be between 8 and 14 pt.');
+    if (result.line_spacing !== undefined && (!Number.isFinite(Number(result.line_spacing)) || result.line_spacing < 1.15 || result.line_spacing > 2)) throw badRequest('Line spacing must be between 1.15 and 2.');
+    if (result.settings !== undefined && (!result.settings || typeof result.settings !== 'object' || Array.isArray(result.settings))) throw badRequest('Invalid resume settings.');
+    const key = result.settings?.client_draft_id;
+    if (key !== undefined && (typeof key !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(key))) throw badRequest('Invalid resume draft identifier.');
+    return result;
+}
+
+const lockResumeOwner = async (userId, transaction) => {
+    const owner = await db.User.findByPk(userId, { attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });
+    if (!owner) throw Object.assign(new Error('Your account could not be found.'), { status: 401 });
+};
+const clearOtherDefaults = async (userId, resumeId, transaction) => {
+    await Resume.update({ is_default: false }, { where: { user_id: userId, id: { [Op.ne]: resumeId }, is_default: true }, transaction });
+};
+const saveError = (res, err, message) => {
+    console.error(message, err.message);
+    const status = err.status || (err.name === 'SequelizeValidationError' ? 400 : 500);
+    return res.status(status).json({ msg: status < 500 ? err.message : message, message: status < 500 ? err.message : message });
 };
 
-// Helper to save resume section data (personalInfo, education, workExperience, etc.)
-const saveResumeSections = async (resumeId, body) => {
-    const saveOneToOne = async (Model, data) => {
-        if (!data) return;
-        const existing = await Model.findOne({ where: { resume_id: resumeId } });
-        if (existing) {
-            await existing.update(data);
-        } else {
-            await Model.create({ resume_id: resumeId, ...data });
-        }
-    };
-
-    const saveOneToMany = async (Model, items) => {
-        if (!Array.isArray(items)) return;
-        // Delete existing records for this resume and recreate
-        await Model.destroy({ where: { resume_id: resumeId } });
-        for (const item of items) {
-            await Model.create({ resume_id: resumeId, ...item });
-        }
-    };
-
-    if (body.personalInfo) {
-        const pi = body.personalInfo;
-        await saveOneToOne(ResumePersonalInfo, {
-            full_name: pi.full_name || '',
-            email: pi.email || '',
-            phone: pi.phone || '',
-            address: pi.address || '',
-            linkedin: pi.linkedin || '',
-            website: pi.website || '',
-            profile_picture: pi.profile_picture || ''
+exports.createResume = async (req, res) => {
+    if (!req.user?.id) return res.status(401).json({ msg: 'Unauthorized' });
+    try {
+        const body = req.body || {};
+        const fields = mainResumeFields(body);
+        const normalized = normalizeSections(body);
+        const result = await db.sequelize.transaction(async (transaction) => {
+            await lockResumeOwner(req.user.id, transaction);
+            const draftId = fields.settings?.client_draft_id;
+            if (draftId) {
+                const owned = await Resume.findAll({ where: { user_id: req.user.id }, attributes: ['id', 'settings'], transaction });
+                const existing = owned.find(row => {
+                    let settings = row.settings;
+                    if (typeof settings === 'string') { try { settings = JSON.parse(settings); } catch { return false; } }
+                    return settings?.client_draft_id === draftId;
+                });
+                if (existing) return { resume: await Resume.findOne({ where: { id: existing.id, user_id: req.user.id }, transaction }), reused: true };
+            }
+            const resume = await Resume.create({ user_id: req.user.id, ...fields }, { transaction });
+            if (resume.is_default) await clearOtherDefaults(req.user.id, resume.id, transaction);
+            if (normalized.personalInfo === undefined) {
+                const owner = await db.User.findByPk(req.user.id, { attributes: ['name', 'email'], include: [{ model: db.AlumniProfile }], transaction });
+                normalized.personalInfo = { full_name: owner?.name || '', email: owner?.email || '', phone: owner?.AlumniProfile?.phone || '', address: owner?.AlumniProfile?.address || '', professional_title: owner?.AlumniProfile?.job_title || '', photo_url: owner?.AlumniProfile?.avatar_url || null };
+            }
+            await saveSections(resume.id, normalized, transaction);
+            return { resume, reused: false };
         });
-    }
-
-    if (body.summary) {
-        const sm = body.summary;
-        await saveOneToOne(ResumeSummary, {
-            content: sm.content || ''
-        });
-    }
-
-    if (body.education) {
-        await saveOneToMany(ResumeEducation, body.education.map((e, i) => ({
-            school: e.school || '',
-            degree: e.degree || '',
-            field_of_study: e.field_of_study || '',
-            start_date: e.start_date || '',
-            end_date: e.end_date || '',
-            current: e.current || false,
-            description: e.description || '',
-            sort_order: e.sort_order || i + 1
-        })));
-    }
-
-    if (body.workExperience) {
-        await saveOneToMany(ResumeWorkExperience, body.workExperience.map((w, i) => ({
-            job_title: w.job_title || '',
-            company: w.company || '',
-            location: w.location || '',
-            start_date: w.start_date || '',
-            end_date: w.end_date || '',
-            current: w.current || false,
-            description: w.description || '',
-            sort_order: w.sort_order || i + 1
-        })));
-    }
-
-    if (body.skills) {
-        await saveOneToMany(ResumeSkill, body.skills.map((s, i) => ({
-            skill_name: s.skill_name || '',
-            category: s.category || '',
-            sort_order: s.sort_order || i + 1
-        })));
-    }
-
-    if (body.projects) {
-        await saveOneToMany(ResumeProject, body.projects.map((p, i) => ({
-            name: p.name || '',
-            description: p.description || '',
-            url: p.url || '',
-            start_date: p.start_date || '',
-            end_date: p.end_date || '',
-            sort_order: p.sort_order || i + 1
-        })));
-    }
-
-    if (body.certifications) {
-        await saveOneToMany(ResumeCertification, body.certifications.map((c, i) => ({
-            name: c.name || '',
-            issuer: c.issuer || '',
-            date: c.date || '',
-            url: c.url || '',
-            sort_order: c.sort_order || i + 1
-        })));
-    }
-
-    if (body.trainings) {
-        await saveOneToMany(ResumeTraining, body.trainings.map((t, i) => ({
-            title: t.title || '',
-            provider: t.provider || '',
-            start_date: t.start_date || '',
-            end_date: t.end_date || '',
-            description: t.description || '',
-            sort_order: t.sort_order || i + 1
-        })));
-    }
-
-    if (body.seminars) {
-        await saveOneToMany(ResumeSeminar, body.seminars.map((s, i) => ({
-            title: s.title || '',
-            organizer: s.organizer || '',
-            date: s.date || '',
-            description: s.description || '',
-            sort_order: s.sort_order || i + 1
-        })));
-    }
-
-    if (body.awards) {
-        await saveOneToMany(ResumeAward, body.awards.map((a, i) => ({
-            title: a.title || '',
-            issuer: a.issuer || '',
-            date: a.date || '',
-            description: a.description || '',
-            sort_order: a.sort_order || i + 1
-        })));
-    }
-
-    if (body.organizations) {
-        await saveOneToMany(ResumeOrganization, body.organizations.map((o, i) => ({
-            name: o.name || '',
-            role: o.role || '',
-            start_date: o.start_date || '',
-            end_date: o.end_date || '',
-            description: o.description || '',
-            sort_order: o.sort_order || i + 1
-        })));
-    }
-
-    if (body.volunteerWork) {
-        await saveOneToMany(ResumeVolunteerWork, body.volunteerWork.map((v, i) => ({
-            organization: v.organization || '',
-            role: v.role || '',
-            start_date: v.start_date || '',
-            end_date: v.end_date || '',
-            description: v.description || '',
-            sort_order: v.sort_order || i + 1
-        })));
-    }
-
-    if (body.languages) {
-        await saveOneToMany(ResumeLanguage, body.languages.map((l, i) => ({
-            name: l.name || '',
-            proficiency: l.proficiency || '',
-            sort_order: l.sort_order || i + 1
-        })));
-    }
-
-    if (body.references) {
-        await saveOneToMany(ResumeReference, body.references.map((r, i) => ({
-            name: r.name || '',
-            position: r.position || '',
-            company: r.company || '',
-            email: r.email || '',
-            phone: r.phone || '',
-            sort_order: r.sort_order || i + 1
-        })));
-    }
+        return res.status(result.reused ? 200 : 201).json({ data: result.resume, reused: result.reused });
+    } catch (err) { return saveError(res, err, 'Failed to create resume. Your changes were not saved.'); }
 };
 
 exports.updateResume = async (req, res) => {
+    if (!req.user?.id) return res.status(401).json({ msg: 'Unauthorized' });
     try {
-        const userId = req.user?.id;
-        const resumeId = req.params.id;
-        const body = req.body;
-
-        const resume = await Resume.findOne({ where: { id: resumeId, user_id: userId } });
-        if (!resume) return res.status(404).json({ message: "Resume not found" });
-
-        if (body.is_default) await ensureDefaultResume(userId, resumeId);
-
-        // Update main resume fields
-        const allowed = ['title', 'template_id', 'font_family', 'font_size', 'line_spacing', 'color_theme', 'settings', 'is_default', 'is_archived'];
-        let hasMainUpdates = false;
-        allowed.forEach(field => {
-            if (body[field] !== undefined) {
-                resume[field] = body[field];
-                hasMainUpdates = true;
-            }
+        const body = req.body || {};
+        const fields = mainResumeFields(body);
+        const normalized = normalizeSections(body);
+        const resume = await db.sequelize.transaction(async (transaction) => {
+            await lockResumeOwner(req.user.id, transaction);
+            const record = await Resume.findOne({ where: { id: req.params.id, user_id: req.user.id }, transaction, lock: transaction.LOCK.UPDATE });
+            if (!record) throw Object.assign(new Error('Resume not found.'), { status: 404 });
+            // A draft key belongs to its original saved record and cannot be changed by later updates.
+            if (fields.settings && record.settings?.client_draft_id) fields.settings.client_draft_id = record.settings.client_draft_id;
+            if (fields.is_default) await clearOtherDefaults(req.user.id, record.id, transaction);
+            await record.update(fields, { transaction });
+            await saveSections(record.id, normalized, transaction);
+            return record;
         });
-
-        if (hasMainUpdates) {
-            await resume.save();
-        }
-
-        // Save section data (personalInfo, education, workExperience, etc.)
-        await saveResumeSections(resumeId, body);
-
-        res.json({ data: resume });
-    } catch (err) {
-        console.error("updateResume error:", err);
-        res.status(500).json({ message: "Failed to update resume" });
-    }
+        return res.json({ data: resume });
+    } catch (err) { return saveError(res, err, 'Failed to update resume. Your changes were not saved.'); }
 };
 
 exports.deleteResume = async (req, res) => {
@@ -350,73 +185,21 @@ exports.deleteResume = async (req, res) => {
 };
 
 exports.duplicateResume = async (req, res) => {
+    if (!req.user?.id) return res.status(401).json({ msg: 'Unauthorized' });
     try {
-        const userId = req.user?.id;
-        const resumeId = req.params.id;
-
-        const source = await Resume.findOne({
-            where: { id: resumeId, user_id: userId },
-            include: [
-                { model: ResumePersonalInfo, as: 'personalInfo' },
-                { model: ResumeSummary, as: 'summary' },
-                { model: ResumeEducation, as: 'education' },
-                { model: ResumeWorkExperience, as: 'workExperience' },
-                { model: ResumeSkill, as: 'skills' },
-                { model: ResumeProject, as: 'projects' },
-                { model: ResumeCertification, as: 'certifications' },
-                { model: ResumeTraining, as: 'trainings' },
-                { model: ResumeSeminar, as: 'seminars' },
-                { model: ResumeAward, as: 'awards' },
-                { model: ResumeOrganization, as: 'organizations' },
-                { model: ResumeVolunteerWork, as: 'volunteerWork' },
-                { model: ResumeLanguage, as: 'languages' },
-                { model: ResumeReference, as: 'references' }
-            ]
+        const copy = await db.sequelize.transaction(async (transaction) => {
+            await lockResumeOwner(req.user.id, transaction);
+            const source = await Resume.findOne({ where: { id: req.params.id, user_id: req.user.id }, transaction, lock: transaction.LOCK.UPDATE });
+            if (!source) throw Object.assign(new Error('Resume not found.'), { status: 404 });
+            const sourceSections = await readSections(source.id, transaction);
+            const settings = typeof source.settings === 'string' ? JSON.parse(source.settings) : { ...source.settings };
+            delete settings.client_draft_id;
+            const duplicate = await Resume.create({ user_id: req.user.id, title: `${source.title} (Copy)`.slice(0, 255), template_id: source.template_id, font_family: source.font_family, font_size: source.font_size, line_spacing: source.line_spacing, color_theme: source.color_theme, settings, is_default: false }, { transaction });
+            await saveSections(duplicate.id, normalizeSections(sourceSections), transaction);
+            return duplicate;
         });
-
-        if (!source) return res.status(404).json({ message: "Resume not found" });
-
-        await ensureDefaultResume(userId);
-
-        const newResume = await Resume.create({
-            user_id: userId,
-            title: `${source.title} (Copy)`,
-            template_id: source.template_id,
-            font_family: source.font_family,
-            font_size: source.font_size,
-            line_spacing: source.line_spacing,
-            color_theme: source.color_theme,
-            settings: source.settings,
-            is_default: true
-        });
-
-        const copySection = async (Model, data) => {
-            if (!data) return;
-            for (const item of data) {
-                await Model.create({ ...item.toJSON ? item.toJSON() : item, resume_id: newResume.id, id: undefined });
-            }
-        };
-
-        await copySection(ResumePersonalInfo, source.personalInfo);
-        await copySection(ResumeSummary, source.summary);
-        await copySection(ResumeEducation, source.education);
-        await copySection(ResumeWorkExperience, source.workExperience);
-        await copySection(ResumeSkill, source.skills);
-        await copySection(ResumeProject, source.projects);
-        await copySection(ResumeCertification, source.certifications);
-        await copySection(ResumeTraining, source.trainings);
-        await copySection(ResumeSeminar, source.seminars);
-        await copySection(ResumeAward, source.awards);
-        await copySection(ResumeOrganization, source.organizations);
-        await copySection(ResumeVolunteerWork, source.volunteerWork);
-        await copySection(ResumeLanguage, source.languages);
-        await copySection(ResumeReference, source.references);
-
-        res.status(201).json({ data: newResume });
-    } catch (err) {
-        console.error("duplicateResume error:", err);
-        res.status(500).json({ message: "Failed to duplicate resume" });
-    }
+        return res.status(201).json({ data: copy });
+    } catch (err) { return saveError(res, err, 'Failed to duplicate resume. No copy was saved.'); }
 };
 
 exports.getVersions = async (req, res) => {
@@ -488,6 +271,27 @@ exports.getResumePdf = async (req, res) => {
     } catch (err) {
         console.error("getResumePdf error:", err);
         res.status(500).json({ message: "Failed to generate resume" });
+    }
+};
+
+exports.exportResumePdf = async (req, res) => {
+    if (!req.user?.id) return res.status(401).json({ msg: "Unauthorized" });
+    try {
+        const resume = await Resume.findOne({ where: { id: req.params.id, user_id: req.user.id } });
+        if (!resume) return res.status(404).json({ msg: "Resume not found." });
+        const templateId = normalizeTemplateId(resume.template_id);
+        if (req.body?.template_id !== templateId) return res.status(409).json({ msg: "Save the selected template before exporting it." });
+        const pdfService = require("../services/resumePdf");
+        pdfService.validateResumeHtml(req.body.html, resume.id, templateId);
+        const pdf = await pdfService.renderResumePdf(req.body.html);
+        const filename = String(resume.title || "Resume").replace(/[^a-zA-Z0-9 _.-]/g, "_").slice(0, 100) || "Resume";
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${filename}.pdf"`);
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.send(pdf);
+    } catch (err) {
+        console.error("Resume PDF export failed:", err.message);
+        return res.status(err.status || 500).json({ msg: err.status ? err.message : "Unable to generate your PDF. Please try again or use Print Resume." });
     }
 };
 

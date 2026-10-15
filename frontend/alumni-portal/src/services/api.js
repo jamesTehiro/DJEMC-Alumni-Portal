@@ -33,7 +33,10 @@ apiClient.interceptors.response.use(
     (response) => response.data,
     (error) => {
         const message = error.response?.data?.msg || error.message || "Request failed";
-        return Promise.reject(new Error(message));
+        const failure = new Error(message);
+        failure.status = error.response?.status;
+        failure.field = error.response?.data?.field;
+        return Promise.reject(failure);
     }
 );
 
@@ -90,7 +93,19 @@ export const fetchFile = async (path, auth = false) => {
     const response = await fetch(url, { headers });
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(text || "Unable to fetch protected file.");
+        let message = text;
+        try {
+            const payload = JSON.parse(text);
+            message = payload?.msg || payload?.message || text;
+        } catch {
+            // Keep a plain-text server response when it is not JSON.
+        }
+        const statusMessage = {
+            401: "Your session has expired. Please sign in again.",
+            403: "You are not allowed to access this document.",
+            404: "The uploaded document could not be found."
+        }[response.status];
+        throw new Error(statusMessage || message || `Unable to fetch protected file (HTTP ${response.status}).`);
     }
 
     return response.blob();

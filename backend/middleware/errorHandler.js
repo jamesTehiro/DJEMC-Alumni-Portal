@@ -32,8 +32,19 @@ const mapErrorToStatus = (err) => {
 };
 
 module.exports = (err, req, res, next) => {
-    // eslint-disable-next-line no-console
-    console.error(err);
+    const isAuthRoute = req.path?.startsWith("/api/auth/");
+    if (isAuthRoute) {
+        // Do not log auth request values, SQL parameters, or raw error messages.
+        console.error("[auth-error] Request failed", {
+            route: req.path,
+            name: err?.name || "Error",
+            code: err?.original?.code || err?.parent?.code || err?.code || null,
+            sqlState: err?.original?.sqlState || err?.parent?.sqlState || null
+        });
+    } else {
+        // eslint-disable-next-line no-console
+        console.error(err);
+    }
 
     if (res.headersSent) {
         return next(err);
@@ -43,7 +54,7 @@ module.exports = (err, req, res, next) => {
     const isProduction = process.env.NODE_ENV === "production";
 
     // Sanitize message for unexpected 500s in production
-    let message = err.message || "Internal server error";
+    let message = err.publicMessage || err.message || "Internal server error";
     let code = err.code || null;
 
     // Use user-friendly messages for known upload errors
@@ -56,7 +67,7 @@ module.exports = (err, req, res, next) => {
         message = "Unsupported file type. Allowed types: PDF, DOC, DOCX, PNG, JPG, JPEG, WEBP, and GIF.";
     }
 
-    if (status >= 500 && isProduction) {
+    if (status >= 500 && isProduction && !err.publicMessage) {
         message = "Internal server error";
         code = null;
     }

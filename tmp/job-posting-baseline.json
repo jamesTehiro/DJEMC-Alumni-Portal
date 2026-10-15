@@ -1,0 +1,25 @@
+{
+  "database": "djemc_alumni_db",
+  "tables": {
+    "Jobs": {
+      "count": 4,
+      "sha256": "a746ac5e20d914e5ae919c4aacc895fc1c472bfd1e6e7a6b07e50a8dd6fd1f6d"
+    },
+    "JobRequirements": {
+      "count": 9,
+      "sha256": "3f973d8aaf32b53c568f5bd2c10476a3aaf3f64fb39af9b24cc1c6e0e6c68dc4"
+    },
+    "RequirementGroups": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "Applications": {
+      "count": 5,
+      "sha256": "680ef098641bfbdf231462c6ece583fada08b99fecc1115697ee1bd28decca60"
+    },
+    "ApplicationDocuments": {
+      "count": 8,
+      "sha256": "bd01476901af98e8b660b5d8429d3e472a4ed1a2037bee540058bc845e770414"
+    }
+  }
+}

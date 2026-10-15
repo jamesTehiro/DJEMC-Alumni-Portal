@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const db = require("../models");
 const { uploadDataUrl } = require("../services/objectStorage");
+const { validateAlumniProfile, saveAlumniProfile } = require("../services/alumniProfileSave");
 
 const uploadsDir = path.join(__dirname, "..", "uploads");
 const imageUploadsDir = path.join(uploadsDir, "images");
@@ -197,82 +198,60 @@ exports.updateProfile = async (req, res, next) => {
         const user = await db.User.findByPk(req.user.id);
         if (!user) return res.status(404).json({ msg: "User not found" });
 
-        await user.update({
-            name: name ?? user.name,
-            email: email ?? user.email
-        });
-
         if (user.role === "alumni") {
+            validateAlumniProfile(req.body, user);
             const avatarUpload = req.files?.avatar_image?.[0];
             const avatarPath = avatarUpload
                 ? avatarUpload.publicUrl || avatarUpload.path || buildCanonicalImagePath(avatarUpload.filename)
                 : await saveBase64Image(avatar_url, "avatar");
-            const [alumniProfile] = await db.AlumniProfile.findOrCreate({
-                where: { user_id: req.user.id },
-                defaults: { user_id: req.user.id }
-            });
+            const saved = await saveAlumniProfile({ user, body: req.body, avatarPath, normalizeImagePath: normalizeStoredImagePath });
 
-            const employmentStatusAllowed = ["employed", "unemployed", "self-employed"];
-
-            const rawEmploymentStatus = employment_status;
-            const normalizedEmploymentStatus = rawEmploymentStatus
-                ? String(rawEmploymentStatus).trim().toLowerCase()
-                : null;
-
-            if (
-                normalizedEmploymentStatus !== null &&
-                normalizedEmploymentStatus !== "" &&
-                !employmentStatusAllowed.includes(normalizedEmploymentStatus)
-            ) {
-                return res.status(400).json({ msg: "Invalid employment_status." });
-            }
-
-            await alumniProfile.update({
-                course: course ?? alumniProfile.course,
-                graduation_year: graduation_year ?? alumniProfile.graduation_year,
-                phone: phone ?? alumniProfile.phone,
-                address: address ?? alumniProfile.address,
-                profile_visibility: profile_visibility ?? alumniProfile.profile_visibility,
-                employment_status:
-                    normalizedEmploymentStatus === null || normalizedEmploymentStatus === ""
-                        ? null
-                        : normalizedEmploymentStatus,
-                current_company: current_company ?? alumniProfile.current_company,
-                job_title: job_title ?? alumniProfile.job_title,
-                avatar_url:
-                    avatarPath ||
-                    normalizeStoredImagePath(avatar_url) ||
-                    normalizeStoredImagePath(alumniProfile.avatar_url)
-            });
-
-            console.log("[updateProfile] employment_status saved:", {
-                rawEmploymentStatus,
-                normalizedEmploymentStatus,
-                storedEmploymentStatus: normalizedEmploymentStatus === null || normalizedEmploymentStatus === "" ? null : normalizedEmploymentStatus
-            });
-
-
-            if (Array.isArray(employment_history)) {
-                await db.EmploymentHistory.destroy({
-                    where: { alumni_id: alumniProfile.id }
-                });
-
-                const cleanHistory = employment_history
-                    .map((item) => ({
-                        alumni_id: alumniProfile.id,
-                        company_name: (item?.company_name || "").trim(),
-                        position: (item?.position || "").trim(),
-                        start_year: item?.start_year ? Number(item.start_year) : null,
-                        end_year: item?.end_year === "Present" || item?.end_year === null || item?.end_year === "" ? null : Number(item.end_year),
-                        employment_type: (item?.employment_type || "").trim() || "Full-time"
-                    }))
-                    .filter((item) => item.company_name && item.position && item.start_year);
-
-                if (cleanHistory.length > 0) {
-                    await db.EmploymentHistory.bulkCreate(cleanHistory);
+            const careerFields = ["employment_status", "current_company", "job_title", "employment_history"];
+            const updatedCareerFields = careerFields.filter((field) => Object.prototype.hasOwnProperty.call(req.body, field));
+            if (updatedCareerFields.length) {
+                const completedAt = new Date();
+                try {
+                    await db.sequelize.transaction(async (transaction) => {
+                        const openRequests = await db.AlumniProfileUpdateRequest.findAll({
+                            where: {
+                                alumni_user_id: req.user.id,
+                                status: { [db.Sequelize.Op.in]: ["pending", "sent", "responded"] }
+                            },
+                            attributes: ["id"],
+                            transaction,
+                            lock: transaction.LOCK.UPDATE
+                        });
+                        if (openRequests.length) {
+                            await db.AlumniProfileUpdateRequest.update({
+                                status: "completed",
+                                responded_at: completedAt,
+                                completed_at: completedAt
+                            }, {
+                                where: { id: openRequests.map((request) => request.id) },
+                                transaction
+                            });
+                        }
+                        await db.AuditLog.create({
+                            actor_id: req.user.id,
+                            actor_role: "alumni",
+                            action: "alumni.profile.updated",
+                            target_type: "alumni",
+                            target_id: req.user.id,
+                            metadata: {
+                                fields: updatedCareerFields,
+                                completed_request_ids: openRequests.map((request) => request.id)
+                            },
+                            ip_address: req.ip || null
+                        }, { transaction });
+                    });
+                } catch (trackingError) {
+                    console.error("[profile-tracking] Unable to record alumni profile update:", trackingError.message);
                 }
             }
+            return res.json({ msg: "Profile updated", ...saved });
         }
+
+        await user.update({ name: name ?? user.name, email: email ?? user.email });
 
         if (user.role === "employer") {
             const logoUpload = req.files?.logo_image?.[0];

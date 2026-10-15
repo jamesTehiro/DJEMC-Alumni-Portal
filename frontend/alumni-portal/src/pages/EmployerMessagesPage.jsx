@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Spinner, Modal } from "react-bootstrap";
-import { FiPaperclip, FiSend, FiSearch, FiMessageSquare, FiFile, FiArrowLeft } from "react-icons/fi";
+import { FiPaperclip, FiSend, FiSearch, FiMessageSquare, FiArrowLeft } from "react-icons/fi";
 import { api, API_BASE_URL } from "../services/api";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import useAdaptivePoll from "../hooks/useAdaptivePoll";
@@ -8,10 +8,11 @@ import { mergeUniqueById } from "../utils/list";
 import { formatMessageTimestamp, getConversationDisplayName } from "../utils/messaging";
 import ConversationListItem from "../components/ConversationListItem";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
+import MessageAttachment from "../components/MessageAttachment";
+import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
+import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB } from "../utils/messageAttachments";
 import "./MessagesPage.css";
 
-const MAX_ATTACHMENT_MB = Number(import.meta.env.VITE_MAX_ATTACHMENT_MB || import.meta.env.MAX_UPLOAD_MB || 5);
-const ALLOWED_ATTACHMENT_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif";
 
 const avatarLetter = (name = "U") => name[0]?.toUpperCase() || "U";
 
@@ -46,19 +47,6 @@ const mapLegacy = (c) => {
         legacy: c
     };
 };
-
-function Attachment({ message, openAttachment }) {
-    const mime = String(message.file_mime || "").toLowerCase();
-    const isImage = mime.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(message.file_name || "");
-    const isPdf = mime === "application/pdf" || /\.pdf$/i.test(message.file_name || "");
-    const name = message.file_name || "Shared file";
-    return (
-        <div className="message-attachment">
-            {isImage ? <button type="button" className="attachment-image-button" onClick={() => openAttachment(message)} aria-label={`Preview ${name}`}><span className="attachment-image-placeholder"><FiFile /> {name}</span></button> : null}
-            <div className="attachment-file-row"><FiFile aria-hidden="true" /><div className="attachment-file-copy"><strong>{name}</strong><small>{mime || "File"}</small></div><button type="button" className="attachment-action" onClick={() => openAttachment(message)}>{isPdf ? "View" : "Open"}</button><button type="button" className="attachment-action" onClick={() => openAttachment(message, "download")}>Download</button></div>
-        </div>
-    );
-}
 
 export default function EmployerMessagesPage() {
     const [viewerProfile, setViewerProfile] = useState(null);
@@ -151,7 +139,7 @@ export default function EmployerMessagesPage() {
             const unified = unifiedResult.status === "fulfilled" ? unifiedResult.value : [];
             const legacy = legacyResult.status === "fulfilled" ? legacyResult.value : [];
 
-            const unifiedList = Array.isArray(unified) ? unified.map(mapUnified) : [];
+            const unifiedList = Array.isArray(unified) ? unified.filter((c) => c.type !== "forum").map(mapUnified) : [];
             const legacyList = Array.isArray(legacy) ? legacy.map(mapLegacy) : [];
 
             const merged = [...unifiedList, ...legacyList].sort((a, b) => {
@@ -197,6 +185,7 @@ export default function EmployerMessagesPage() {
                     file_url: m.attachment || null,
                     file_name: m.file_name || m.attachmentName || null,
                     file_mime: m.file_mime || m.mimeType || null,
+                    file_size: m.file_size ?? null,
                     created_at: m.createdAt,
                     sender: m.senderType === "admin" ? { id: m.senderId, name: data.conversation?.admin?.name, role: "admin", admin_avatar_url: data.conversation?.admin?.admin_avatar_url } : { id: m.senderId, name: data.conversation?.employer?.name, role: "employer", avatar_url: data.conversation?.employer?.logo_url }
                 })) : [];
@@ -226,7 +215,12 @@ export default function EmployerMessagesPage() {
 
     useEffect(() => {
         activeConversationRef.current = activeConversationId;
-        if (!activeConversationId) return;
+        if (!activeConversationId) {
+            ++messageRequestRef.current;
+            setMessages([]);
+            setLoadingMessages(false);
+            return;
+        }
         loadMessages(activeConversationId);
     }, [activeConversationId, loadMessages]);
 
@@ -236,7 +230,7 @@ export default function EmployerMessagesPage() {
         const convo = conversations.find((c) => c.id === activeConversationId);
         if (!convo) return;
         if (!draft.trim() && !attachment) return;
-        if (attachment && attachment.size > MAX_ATTACHMENT_MB * 1024 * 1024) {
+        if (attachment && attachment.size > MAX_ATTACHMENT_BYTES) {
             setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`);
             return;
         }
@@ -251,7 +245,7 @@ export default function EmployerMessagesPage() {
                 const result = await api.post(`/admin-employer/messages`, form, true, { isMultipart: true });
                 const sentConversationId = activeConversationId;
                 const m = result.message;
-                if (m && activeConversationRef.current === sentConversationId) setMessages((prev) => mergeUniqueById(prev, [{ id: m.id, sender_id: m.senderId, message_text: m.message, file_url: m.attachment, file_name: m.file_name || attachment?.name || null, file_mime: m.file_mime || attachment?.type || null, created_at: m.createdAt, sender: { id: m.senderId, name: currentUserRef.current?.name, role: currentUserRef.current?.role, avatar_url: currentUserRef.current?.avatar_url, admin_avatar_url: currentUserRef.current?.admin_avatar_url } }]));
+                if (m && activeConversationRef.current === sentConversationId) setMessages((prev) => mergeUniqueById(prev, [{ id: m.id, sender_id: m.senderId, message_text: m.message, file_url: m.attachment, file_name: m.file_name || attachment?.name || null, file_mime: m.file_mime || attachment?.type || null, file_size: m.file_size ?? attachment?.size ?? null, created_at: m.createdAt, sender: { id: m.senderId, name: currentUserRef.current?.name, role: currentUserRef.current?.role, avatar_url: currentUserRef.current?.avatar_url, admin_avatar_url: currentUserRef.current?.admin_avatar_url } }]));
                 await loadConversations();
             } else {
                 const form = new FormData();
@@ -349,22 +343,24 @@ export default function EmployerMessagesPage() {
                     )}
 
                     <div className="sidebar-heading">Conversations</div>
-                    {loadingConversations && <div className="sidebar-state"><Spinner animation="border" size="sm" /> Loading conversations...</div>}
-                    {!loadingConversations && conversations.length === 0 && <div className="sidebar-state">No conversations.</div>}
-                    {!loadingConversations && conversations.map((conversation) => {
-                        const title = getConversationDisplayName(conversation, viewerProfile || currentUser);
-                        return (
-                            <ConversationListItem
-                                key={conversation.id}
-                                conversation={conversation}
-                                title={title}
-                                avatarUrl={conversation.participant_avatar_url}
-                                avatarFallback={conversation.type === "batch" ? "B" : avatarLetter(title)}
-                                active={conversation.id === activeConversationId}
-                                onSelect={() => { setOpenMessageMenuId(null); setMessages([]); setActiveConversationId(conversation.id); setMobileView("chat"); }}
-                            />
-                        );
-                    })}
+                    <div className="conversation-list">
+                        {loadingConversations && <div className="sidebar-state"><Spinner animation="border" size="sm" /> Loading conversations...</div>}
+                        {!loadingConversations && conversations.length === 0 && <div className="sidebar-state">No conversations.</div>}
+                        {!loadingConversations && conversations.map((conversation) => {
+                            const title = getConversationDisplayName(conversation, viewerProfile || currentUser);
+                            return (
+                                <ConversationListItem
+                                    key={conversation.id}
+                                    conversation={conversation}
+                                    title={title}
+                                    avatarUrl={conversation.participant_avatar_url}
+                                    avatarFallback={conversation.type === "batch" ? "B" : avatarLetter(title)}
+                                    active={conversation.id === activeConversationId}
+                                    onSelect={() => { setOpenMessageMenuId(null); setMessages([]); setActiveConversationId(conversation.id); setMobileView("chat"); }}
+                                />
+                            );
+                        })}
+                    </div>
                 </aside>
 
                 <section className="chat-panel">
@@ -372,7 +368,7 @@ export default function EmployerMessagesPage() {
 
                     <div className="chat-stream" ref={chatStreamRef}>
                         {loadingMessages && <div className="chat-state"><Spinner animation="border" size="sm" /> Loading messages...</div>}
-                        {!loadingMessages && messages.length === 0 && <div className="chat-state">No messages yet. Start the conversation.</div>}
+                        {!loadingMessages && messages.length === 0 && <div className="chat-state">{activeConversationId ? "No messages yet. Start the conversation." : "Search for a user to start a conversation."}</div>}
 
                         {!loadingMessages && messages.map((message) => {
                             const isOwnMessage = Number(message.sender_id) === Number(currentUser?.id);
@@ -402,7 +398,7 @@ export default function EmployerMessagesPage() {
                                             )}
                                         </div>
 
-                                        {message.file_url && <Attachment message={message} openAttachment={openAttachment} />}
+                                        {message.file_url && <MessageAttachment message={message} openAttachment={openAttachment} />}
                                     </div>
 
                                     {isOwnMessage && (
@@ -413,20 +409,19 @@ export default function EmployerMessagesPage() {
                         })}
                     </div>
 
-                    <div className="chat-composer">
-                        {attachment && (<div className="attachment-preview"><span>{attachment.name}</span><button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}>Remove</button></div>)}
+                    {activeConversationId && <div className="chat-composer">
+                        <AttachmentSelectionPreview file={attachment} onRemove={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
                         <div className="composer-row">
                             <button type="button" className="attach-btn" aria-label="Attach a file" onClick={() => fileInputRef.current?.click()} title="Attach a file"><FiPaperclip /></button>
-                            <input ref={fileInputRef} type="file" hidden accept={ALLOWED_ATTACHMENT_TYPES} onChange={(e) => { const selected = e.target.files?.[0] || null; if (selected && selected.size > MAX_ATTACHMENT_MB * 1024 * 1024) { setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`); e.target.value = ""; return; } setError(""); setAttachment(selected); }} />
+                            <input ref={fileInputRef} type="file" hidden accept={ALLOWED_ATTACHMENT_TYPES} onChange={(e) => { const selected = e.target.files?.[0] || null; if (selected && selected.size > MAX_ATTACHMENT_BYTES) { setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`); e.target.value = ""; return; } setError(""); setAttachment(selected); }} />
                             <Form.Control placeholder="Write a message..." value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }} />
                             <Button type="button" className="send-btn" onClick={sendMessage} disabled={sending}>{sending ? <Spinner animation="border" size="sm" /> : <FiSend />}</Button>
                         </div>
-                    </div>
+                    </div>}
                 </section>
             </div>
 
             {error && <p className="messages-error" role="alert">{error}</p>}
-            <Modal show={!!imagePreview} onHide={() => { if (imagePreview?.url) URL.revokeObjectURL(imagePreview.url); setImagePreview(null); }} centered size="lg"><Modal.Header closeButton><Modal.Title>{imagePreview?.name}</Modal.Title></Modal.Header><Modal.Body className="message-image-lightbox"><img src={imagePreview?.url} alt={imagePreview?.name || "Attachment preview"} /></Modal.Body></Modal>
             <Modal show={!!imagePreview} onHide={() => { if (imagePreview?.url) URL.revokeObjectURL(imagePreview.url); setImagePreview(null); }} centered size="lg"><Modal.Header closeButton><Modal.Title>{imagePreview?.name}</Modal.Title></Modal.Header><Modal.Body className="message-image-lightbox"><img src={imagePreview?.url} alt={imagePreview?.name || "Attachment preview"} /></Modal.Body></Modal>
         </div>
     );

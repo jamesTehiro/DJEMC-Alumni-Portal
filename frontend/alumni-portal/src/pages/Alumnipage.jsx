@@ -1,3 +1,4 @@
+import { applicationStatusLabel } from "../utils/applicationStatus";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Row, Col, Card } from "react-bootstrap";
@@ -9,6 +10,7 @@ import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import { getEmploymentTypeLabel } from "../utils/employmentTypes";
+import MembershipOnboarding from "../components/membership/MembershipOnboarding";
 
 import "./Alumnipage.css";
 
@@ -94,6 +96,7 @@ export default function AlumniPage() {
         <div className="alumni-shell">
             <main className="alumni-main">
                 <div className="alumni-layout">
+                    <MembershipOnboarding />
                     <div className="welcome-banner">
                         <div className="welcome-text">
                             <h2>Welcome back, {user?.name || "Alumni"}!</h2>
@@ -221,7 +224,7 @@ export default function AlumniPage() {
                                             </div>
                                             <div className="alu-list-item-right">
                                                 <span className={`alu-status-badge ${app.status === "verified" ? "approved" : app.status === "not_verified" ? "rejected" : "pending"}`}>
-                                                    {app.status || "pending"}
+                                                    {applicationStatusLabel(app.status)}
                                                 </span>
                                             </div>
                                         </div>

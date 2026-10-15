@@ -15,6 +15,8 @@ const sanitizeMiddleware = require("./middleware/sanitizeMiddleware");
 const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
 const fileController = require("./controllers/fileController");
+const healthController = require("./controllers/healthController");
+const { verifyAuthSchema } = require("./utils/databaseReadiness");
 
 let helmet;
 try {
@@ -153,6 +155,9 @@ app.use(sanitizeMiddleware);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+// Public, non-sensitive readiness endpoint for Render and database diagnostics.
+app.get("/api/health", healthController.getHealth);
+
 // Uploads folder for file storage instead of DB blobs
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
@@ -180,15 +185,27 @@ app.use("/api/messages", require("./routes/messageRoutes"));
 app.use("/api/admin-employer", require("./routes/adminEmployerMessageRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/resumes", require("./routes/resumeRoutes"));
+app.use("/api/membership", require("./routes/membershipRoutes"));
 
 // --- SERVE REACT BUILD ---
 const reactBuildPath = path.join(__dirname, "dist");
-app.use(express.static(reactBuildPath));
+const reactBuildIndexPath = path.join(reactBuildPath, "index.html");
+const hasReactBuild =
+    fs.existsSync(reactBuildIndexPath) && fs.statSync(reactBuildIndexPath).isFile();
 
-// Serve React build for everything except /api
-app.get(/^\/(?!api).*/, (req, res) => {
-    res.sendFile(path.join(reactBuildPath, "index.html"));
-});
+if (hasReactBuild) {
+    app.use(express.static(reactBuildPath));
+
+    // Serve React build for everything except /api
+    app.get(/^\/(?!api).*/, (req, res) => {
+        res.sendFile(reactBuildIndexPath);
+    });
+} else {
+    // The frontend is deployed separately; don't try to send a missing build.
+    app.get(/^\/(?!api).*/, (req, res) => {
+        res.status(404).json({ msg: "Not found" });
+    });
+}
 
 // Centralized error handler (keeps API responses consistent)
 app.use(errorHandler);
@@ -251,7 +268,13 @@ io.on("connection", (socket) => {
     });
 
     // Join a conversation room
-    socket.on("join-conversation", (conversationId) => {
+    socket.on("join-conversation", async (conversationId) => {
+        try {
+            await require("./controllers/messageController").authorizeConversationSubscription(userId, conversationId);
+        } catch {
+            socket.emit("conversation-error", { message: "You are not allowed to access this conversation." });
+            return;
+        }
         const room = `conversation:${conversationId}`;
         socket.join(room);
 
@@ -426,13 +449,22 @@ const alignJobSchema = async (queryInterface) => {
 };
 
 const ensureDatabaseReady = async () => {
+    if (isProduction && !process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET must be configured in production.");
+    }
+
     if (shouldSync) {
+        if (isProduction) {
+            throw new Error("ENABLE_DB_SYNC is not allowed in production. Apply reviewed migrations instead.");
+        }
         return db.sequelize.sync({ alter: true });
     }
 
     await db.sequelize.authenticate();
 
     if (isProduction) {
+        // Verify the deployed schema can serve login queries before accepting traffic.
+        await verifyAuthSchema(db);
         return null;
     }
 

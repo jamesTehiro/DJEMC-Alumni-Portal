@@ -55,6 +55,28 @@ const isResetRoleAllowed = (role) => RESET_ROLES.has(normalizeRole(role));
 const sendGenericForgotPasswordResponse = (res) =>
     res.json({ msg: "If an account exists, a reset link has been sent." });
 
+const annotateAuthDatabaseError = (err, operation) => {
+    const code = err?.original?.code || err?.parent?.code || err?.code;
+
+    if (err?.name === "SequelizeUniqueConstraintError") {
+        err.status = 409;
+        err.publicMessage = "An account with the same unique details is already registered.";
+        return err;
+    }
+
+    const unavailableCodes = new Set([
+        "ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND", "EHOSTUNREACH", "ECONNRESET",
+        "PROTOCOL_CONNECTION_LOST", "ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR",
+        "ER_NO_SUCH_TABLE", "ER_BAD_FIELD_ERROR"
+    ]);
+    if (unavailableCodes.has(code) || String(err?.name || "").startsWith("SequelizeConnection")) {
+        err.status = 503;
+        err.publicMessage = `${operation} is temporarily unavailable. Please try again later.`;
+    }
+
+    return err;
+};
+
 const isForgotPasswordRateLimited = async (req) => {
     const result = await consumeRateLimit({
         scope: "forgot-password",
@@ -173,7 +195,7 @@ exports.register = async (req, res, next) => {
             user: sanitizeUser(user)
         });
     } catch (err) {
-        return next(err);
+        return next(annotateAuthDatabaseError(err, "Registration"));
     }
 };
 
@@ -214,7 +236,7 @@ exports.login = async (req, res, next) => {
             }
         });
     } catch (err) {
-        return next(err);
+        return next(annotateAuthDatabaseError(err, "Authentication"));
     }
 };
 

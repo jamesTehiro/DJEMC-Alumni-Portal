@@ -3,28 +3,13 @@
    ============================================= */
 
 .dashboard-layout {
-    min-height: calc(100vh - 70px);
+    --portal-sidebar-width: 240px;
+    --portal-sidebar-gap: 0px;
+    --portal-layout-padding: 24px;
+    --sidebar-toggle-end: rgba(20, 138, 63, 0.92);
+    min-height: calc(100dvh - var(--portal-header-height, 0px));
     background: radial-gradient(120% 120% at 15% 10%, rgba(182, 126, 125, 0.14), transparent 40%), radial-gradient(120% 120% at 90% 20%, rgba(93, 168, 122, 0.18), transparent 45%), #f6f8f5;
     position: relative;
-}
-
-.dashboard-layout .employer-layout {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 0px;
-    align-items: start;
-    padding: 24px;
-}
-
-.dashboard-layout .employer-sidebar-overlay,
-.dashboard-layout .employer-mobile-nav-toggle {
-    display: none;
-    background: linear-gradient(135deg, rgba(21, 90, 67, 0.96), rgba(34, 197, 94, 0.92));
-}
-
-.dashboard-layout .employer-sidebar {
-    position: sticky;
-    top: 92px;
 }
 
 .dashboard-layout .employer-sidebar-card {
@@ -98,80 +83,9 @@
    Mobile & Responsive
    ============================================= */
 
-@media (max-width: 1100px) {
-    .dashboard-layout .employer-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .dashboard-layout .employer-sidebar {
-        position: relative;
-        top: 0;
-    }
-
-    .dashboard-layout .employer-sidebar-nav {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
-
 @media (max-width: 767.98px) {
-    .dashboard-layout .employer-sidebar-overlay {
-        display: block;
-        position: fixed;
-        inset: 70px 0 0 0;
-        background: rgba(15, 23, 42, 0.4);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease;
-        z-index: 30;
-    }
-
-    .dashboard-layout .employer-sidebar-overlay.visible {
-        opacity: 1;
-        pointer-events: auto;
-    }
-
-    .dashboard-layout .employer-mobile-nav-toggle {
-        display: inline-flex;
-        position: fixed;
-        top: 84px;
-        left: 12px;
-        z-index: 45;
-        width: 44px;
-        height: 44px;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid rgba(255, 255, 255, 0.22);
-        border-radius: 14px;
-        background: linear-gradient(135deg, rgba(21, 90, 67, 0.96), rgba(20, 138, 63, 0.92));
-        color: #ffffff;
-        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
-        cursor: pointer;
-    }
-
-    .dashboard-layout .employer-layout {
-        grid-template-columns: 1fr;
-        padding: 12px;
-    }
-
-    .dashboard-layout .employer-sidebar {
-        position: fixed;
-        top: 70px;
-        left: 0;
-        bottom: 0;
-        width: min(84vw, 300px);
-        z-index: 40;
-        transform: translateX(-100%);
-        transition: transform 0.25s ease;
-        padding: 12px;
-        overflow-y: auto;
-    }
-
-    .dashboard-layout .employer-sidebar.open {
-        transform: translateX(0);
-    }
-
-    .dashboard-layout .employer-sidebar-card {
-        min-height: calc(100vh - 94px);
+    .dashboard-layout {
+        --portal-layout-padding: 12px;
     }
 
     .dashboard-layout .employer-sidebar-nav {
@@ -180,9 +94,6 @@
 }
 
 @media (max-width: 575.98px) {
-    .dashboard-layout .employer-layout {
-        padding: 12px;
-    }
 
     .dashboard-layout .employer-sidebar-card {
         padding: 16px 14px;

@@ -340,6 +340,39 @@
     grid-template-columns: minmax(0, 1fr);
 }
 
+.admin-applicant-management-layout .admin-posted-jobs-search {
+    width: 100%;
+    min-width: 0;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    border: 1px solid #d9e6de;
+    border-radius: 10px;
+}
+
+.admin-applicant-management-layout .admin-posted-jobs-list {
+    min-height: 0;
+    max-height: min(65vh, 680px);
+    overflow-y: auto;
+    padding-right: 8px;
+    scrollbar-gutter: stable;
+}
+
+.admin-posted-jobs-list .emp-list-item {
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.admin-posted-jobs-list .emp-list-item-left {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .admin-posted-jobs-list .emp-list-item-right {
+        justify-content: flex-start;
+        width: 100%;
+    }
+}
+
 .admin-employer-shell:not(.admin-shell-root) > main {
     display: flex;
     flex-direction: column;
@@ -802,6 +835,22 @@
     color: var(--forest)
 }
 
+.announcement-history-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: min(70vh, 680px);
+    overflow: hidden;
+}
+
+.announcement-history-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 8px;
+}
+
 /* Form layout used by AdminSettingsPage Send Warning and other admin forms */
 .admin-employer-shell .form-stack {
     display: flex;
@@ -1002,6 +1051,10 @@
     .announcement-history-meta,
     .announcement-history-card {
         grid-template-columns: 1fr
+    }
+
+    .announcement-history-panel {
+        max-height: 58vh;
     }
 
     .announcement-history-card .danger-btn,
@@ -1584,18 +1637,34 @@
     word-break: break-word
 }
 
-.applicant-document-link {
+.applicant-document-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.applicant-document-actions > span {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-transform: none;
+    color: #334155;
+}
+
+.applicant-document-download {
     padding: 0;
     border: 0;
     background: transparent;
     color: #1f6b49;
     font: inherit;
-    text-align: left;
+    font-size: 0.82rem;
     text-decoration: underline;
     cursor: pointer;
 }
 
-.applicant-document-link:focus-visible {
+.applicant-document-download:focus-visible {
     outline: 2px solid #1f6b49;
     outline-offset: 2px;
 }
@@ -1765,6 +1834,84 @@
     gap: 12px
 }
 
+.admin-applicant-status-section {
+    margin-top: 14px;
+    padding: 16px;
+    border: 1px solid #dbe5ef;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.admin-applicant-status-section > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.admin-applicant-status-section > header h3 {
+    margin: 0;
+    color: #175b37;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.admin-applicant-status-section > header span {
+    display: inline-flex;
+    min-width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #effaf2;
+    color: #17623a;
+    font-weight: 700;
+}
+
+.admin-applicant-total {
+    margin: 0;
+    color: var(--muted);
+    text-align: right;
+    font-size: .88rem;
+}
+
+.admin-applicant-row-copy {
+    min-width: 0;
+}
+
+.admin-applicant-row-copy strong {
+    overflow-wrap: anywhere;
+}
+
+.admin-applicant-row-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.admin-interview-summary {
+    display: grid;
+    grid-template-columns: minmax(120px, .7fr) minmax(0, 1.3fr);
+    gap: 8px 14px;
+    margin: 16px 0 0;
+}
+
+.admin-interview-summary dt {
+    color: #475569;
+    font-weight: 700;
+}
+
+.admin-interview-summary dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
 /* Scrolling for the "List of Jobs" panel in AdminModerationPage (employer role).
    The audit-panel houses the SectionHeader (List of Jobs) and the admin-applicant-list
    container. By constraining the list to ~5 items with overflow-y: auto, we prevent
@@ -1808,6 +1955,20 @@
     .job-item-min {
         flex-direction: column;
         align-items: flex-start
+    }
+
+    .admin-applicant-row-actions {
+        width: 100%;
+        justify-content: flex-start
+    }
+
+    .admin-interview-summary {
+        grid-template-columns: 1fr;
+        gap: 2px
+    }
+
+    .admin-interview-summary dd {
+        margin-bottom: 8px
     }
 }
 

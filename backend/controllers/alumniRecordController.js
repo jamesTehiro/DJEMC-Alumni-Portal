@@ -1,5 +1,6 @@
 const { Op } = require("sequelize");
 const db = require("../models");
+const lockRecordWrites = require("../utils/alumniRecordsWriteLock");
 
 exports.getAlumniRecords = async (_req, res) => {
     try {
@@ -80,18 +81,23 @@ exports.searchAlumniRecords = async (req, res) => {
 
 
 exports.createAlumniRecord = async (req, res) => {
+    let transaction;
     try {
         const { full_name, student_id, course, batch_year, email } = req.body;
         if (!full_name || !course || !batch_year) {
             return res.status(400).json({ msg: "Full name, course, and batch year are required." });
         }
+        transaction = await db.sequelize.transaction();
+        await lockRecordWrites(transaction);
 
         // Duplicate prevention: Priority 1 - Check student_id (strict unique)
         if (student_id) {
             const existingByStudentId = await db.AlumniRecord.findOne({
+                transaction,
                 where: { student_id: String(student_id).trim() }
             });
             if (existingByStudentId) {
+                await transaction.rollback();
                 return res.status(409).json({
                     success: false,
                     message: "Alumni record already exists."
@@ -102,11 +108,13 @@ exports.createAlumniRecord = async (req, res) => {
         // Duplicate prevention: Priority 2 - Check email (case-insensitive unique)
         if (email) {
             const existingByEmail = await db.AlumniRecord.findOne({
+                transaction,
                 where: {
                     email: { [Op.like]: email.trim() }
                 }
             });
             if (existingByEmail) {
+                await transaction.rollback();
                 return res.status(409).json({
                     success: false,
                     message: "Alumni record already exists."
@@ -116,6 +124,7 @@ exports.createAlumniRecord = async (req, res) => {
 
         // Duplicate prevention: Priority 3 - Check full_name + course + batch_year (fallback)
         const existingByCombination = await db.AlumniRecord.findOne({
+            transaction,
             where: {
                 full_name: String(full_name).trim(),
                 course: String(course).trim(),
@@ -123,6 +132,7 @@ exports.createAlumniRecord = async (req, res) => {
             }
         });
         if (existingByCombination) {
+            await transaction.rollback();
             return res.status(409).json({
                 success: false,
                 message: "Alumni record already exists."
@@ -135,10 +145,11 @@ exports.createAlumniRecord = async (req, res) => {
             course,
             batch_year,
             email: email || null
-        });
+        }, { transaction });
 
         // Fetch the created record with overlays to match getAlumniRecords response format
         const createdWithOverlays = await db.AlumniRecord.findByPk(record.id, {
+            transaction,
             attributes: ["id", "full_name", "student_id", "course", "batch_year", "createdAt"],
             include: [
                 {
@@ -156,9 +167,11 @@ exports.createAlumniRecord = async (req, res) => {
             ]
         });
 
+        await transaction.commit();
         res.status(201).json(createdWithOverlays);
     } catch (err) {
-        res.status(500).json({ msg: err.message });
+        if (transaction && !transaction.finished) await transaction.rollback();
+        res.status(err.status || 500).json({ msg: err.message });
     }
 };
 

@@ -256,11 +256,16 @@
 .message-attachment { margin-top: 8px; max-width: min(360px, 100%); border: 1px solid #d9e4dc; border-radius: 12px; overflow: hidden; background: #fff; }
 .attachment-image-button { display: block; width: 100%; padding: 0; border: 0; background: #eef4ef; cursor: zoom-in; }
 .attachment-image-placeholder { display: flex; min-height: 72px; align-items: center; gap: 8px; padding: 14px; color: #173b2d; overflow-wrap: anywhere; }
+.attachment-image-button img { display: block; width: 100%; max-height: 280px; object-fit: cover; }
+.attachment-selection-image { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 7px; object-fit: cover; }
+.attachment-selection-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.attachment-selection-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.attachment-selection-copy small { color: #658071; font-size: 11px; }
 .attachment-file-row { display: flex; align-items: center; gap: 8px; padding: 10px; min-width: 0; color: #173b2d; }
-.attachment-file-copy { display: grid; min-width: 0; flex: 1; }
+.attachment-file-copy { display: grid; min-width: 0; flex: 1; gap: 2px; }
 .attachment-file-copy strong, .attachment-file-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.attachment-file-copy small { color: #64756a; }
-.attachment-action { border: 0; border-radius: 7px; padding: 6px 8px; background: #edf4ef; color: #173b2d; }
+.attachment-file-copy small { color: #64756a; font-size: 11px; }
+.attachment-action { display: inline-grid; place-items: center; border: 0; border-radius: 7px; padding: 6px 8px; background: #edf4ef; color: #173b2d; font-size: 12px; }
 .message-image-lightbox img { display: block; max-width: 100%; max-height: 75vh; width: auto; height: auto; margin: auto; object-fit: contain; }
 
 .conversation-item {
@@ -622,6 +627,7 @@
 }
 
 .attachment-preview {
+    min-width: 0;
     margin-bottom: 10px;
     display: flex;
     align-items: center;
@@ -633,6 +639,8 @@
 }
 
 .attachment-preview button {
+    display: inline-grid;
+    place-items: center;
     border: 0;
     background: transparent;
     color: #b91c1c;

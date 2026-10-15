@@ -1,5 +1,6 @@
 const db = require("../models");
 const notificationController = require("./notificationController");
+const auditService = require("../services/auditService");
 
 exports.getPendingAlumniUsers = async (_req, res) => {
     try {
@@ -66,9 +67,19 @@ exports.approveAlumniUser = async (req, res) => {
             return res.status(404).json({ msg: "Alumni user not found." });
         }
 
+        const previousStatus = user.account_status;
         user.account_status = "verified";
         user.alumni_record_id = record.id;
         await user.save();
+        await auditService.log({
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            action: "alumni.account_status.changed",
+            targetType: "alumni",
+            targetId: user.id,
+            metadata: { from: previousStatus, to: "verified", alumni_record_id: record.id },
+            ipAddress: req.ip
+        });
 
         await notificationController.createNotification({
             userIds: [user.id],
@@ -89,8 +100,18 @@ exports.rejectAlumniUser = async (req, res) => {
             return res.status(404).json({ msg: "Alumni user not found." });
         }
 
+        const previousStatus = user.account_status;
         user.account_status = "rejected";
         await user.save();
+        await auditService.log({
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            action: "alumni.account_status.changed",
+            targetType: "alumni",
+            targetId: user.id,
+            metadata: { from: previousStatus, to: "rejected" },
+            ipAddress: req.ip
+        });
 
         res.json({ msg: "Alumni user rejected without deleting account history.", user });
     } catch (err) {

@@ -1,3 +1,7 @@
+import ApplicantResumePreview from "../components/ApplicantResumePreview";
+import { isResumeRequirement, getApplicantDocumentFilename, getApplicantResumeDocument, getApplicantResumeFileUrl } from "../utils/applicantResume";
+import { saveApplicationDecision, updateActiveApplications } from "../utils/applicationDecision";
+import { APPROVED_LABEL, applicationStatusLabel } from "../utils/applicationStatus";
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, Form, Button, Modal, Spinner, Row, Col, Alert } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
@@ -5,21 +9,57 @@ import { api, API_BASE_URL, fetchFile } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import useAdaptivePoll from "../hooks/useAdaptivePoll";
+import usePortalDrawer from "../hooks/usePortalDrawer";
 import { mergeUniqueById, replaceUniqueById } from "../utils/list";
-import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel } from "../utils/employmentTypes";
-import { FiBell, FiMenu, FiX } from "react-icons/fi";
-import { FaHome, FaUser, FaEnvelope, FaBriefcase, FaUsers, FaSignOutAlt } from "react-icons/fa";
+import { getEmploymentTypeLabel } from "../utils/employmentTypes";
+import { FiBell, FiMenu, FiMoreHorizontal, FiX } from "react-icons/fi";
+import { FaHome, FaUser, FaEnvelope, FaBriefcase, FaUsers, FaSignOutAlt, FaCalendarAlt, FaUserCheck } from "react-icons/fa";
 import EmployerMessagesPage from "./EmployerMessagesPage";
 import "./EmployerPage.css";
 import styles from "../components/Sidebar.module.css";
 import { useUndoDelete } from "../hooks/useUndoDelete";
 import { BsTrash } from "react-icons/bs";
+import InterviewDetailsModal, { EMPTY_INTERVIEW_DETAILS } from "../components/InterviewDetailsModal";
+import JobPostingForm from "../components/jobs/JobPostingForm";
+import { createJobPostingForm, jobPostingPayload, validateJobPosting } from "../utils/jobPosting";
 
 const displayValue = (value, fallback = "N/A") => {
     if (Array.isArray(value)) {
         return value.length ? value.join(", ") : fallback;
     }
     return String(value || "").trim() || fallback;
+};
+
+const applicationStatusDisplay = (status) => {
+    switch (String(status || "pending").toLowerCase()) {
+        case "not_verified":
+            return { label: applicationStatusLabel(status), className: "rejected", icon: null };
+        case "verified":
+            return { label: APPROVED_LABEL, className: "approved", icon: <FaUserCheck aria-hidden="true" /> };
+        case "rejected":
+            return { label: "REJECTED", className: "rejected", icon: null };
+        case "pending":
+            return { label: "PENDING", className: "pending", icon: null };
+        default:
+            return {
+                label: String(status || "pending").replaceAll("_", " ").toUpperCase(),
+                className: "pending",
+                icon: null
+            };
+    }
+};
+
+const ApplicationStatusBadge = ({ status, pendingLabel, labelOverride, classNameOverride }) => {
+    const display = applicationStatusDisplay(status);
+    const label = String(status || "pending").toLowerCase() === "pending" && pendingLabel
+        ? pendingLabel
+        : labelOverride || display.label;
+    return (
+        <span className={`emp-status-badge ${classNameOverride || display.className}`}>
+            {!labelOverride && display.icon && <span className="emp-status-badge-icon">{display.icon}</span>}
+            {label}
+        </span>
+    );
 };
 
 const parseArrayField = (value) => {
@@ -58,32 +98,50 @@ const COMMON_REQUIREMENTS = [
 export default function EmployerPage({ hideRecruitmentActions = false }) {
     useRenderDebug("EmployerPage");
     const navigate = useNavigate();
+    const decisionBusy = useRef(false);
+    const [decisionSaving, setDecisionSaving] = useState(false);
     const [jobs, setJobs] = useState([]);
     const [applications, setApplications] = useState([]);
+    const [archivedApplications, setArchivedApplications] = useState([]);
+    const [archivedApplicationsLoading, setArchivedApplicationsLoading] = useState(true);
+    const [archivedApplicationsError, setArchivedApplicationsError] = useState("");
+    const [applicantSearch, setApplicantSearch] = useState("");
+    const [archivedApplicantSearch, setArchivedApplicantSearch] = useState("");
+    const [jobSearch, setJobSearch] = useState("");
+    const [archivingApplicationId, setArchivingApplicationId] = useState(null);
     const [notifications, setNotifications] = useState([]);
     const [notificationsLoading, setNotificationsLoading] = useState(false);
+    const [openWarningMenuId, setOpenWarningMenuId] = useState(null);
+    const warningMenuRef = useRef(null);
+    const dismissedWarningIdsRef = useRef(new Set());
     const [selectedApplication, setSelectedApplication] = useState(null);
+    const [inlineResume, setInlineResume] = useState(null);
+    useEffect(() => { setInlineResume(null); }, [selectedApplication?.id]);
     const [previewDocument, setPreviewDocument] = useState(null);
     const [previewDocumentError, setPreviewDocumentError] = useState("");
     const [previewDocumentLoading, setPreviewDocumentLoading] = useState(false);
-    const [verifyModalOpen, setVerifyModalOpen] = useState(false);
+    const documentPreviewUrlRef = useRef(null);
+    const documentPreviewRequestRef = useRef(0);
     const { scheduleDelete } = useUndoDelete();
     const [reviewing, setReviewing] = useState(false);
+    const [interviewDetailsModalOpen, setInterviewDetailsModalOpen] = useState(false);
+    const [interviewDetailsMode, setInterviewDetailsMode] = useState("edit");
+    const [interviewDetailsJob, setInterviewDetailsJob] = useState(null);
+    const [interviewDetailsDraft, setInterviewDetailsDraft] = useState({ ...EMPTY_INTERVIEW_DETAILS });
+    const [interviewDetailsConfigured, setInterviewDetailsConfigured] = useState(false);
+    const [interviewDetailsLoading, setInterviewDetailsLoading] = useState(false);
+    const [interviewDetailsSaving, setInterviewDetailsSaving] = useState(false);
+    const [interviewDetailsLoadError, setInterviewDetailsLoadError] = useState("");
+    const [interviewDetailsSaveError, setInterviewDetailsSaveError] = useState("");
     const [profile, setProfile] = useState(null);
     const [logoFile, setLogoFile] = useState(null);
     const [logoSaving, setLogoSaving] = useState(false);
     const [industryValue, setIndustryValue] = useState("");
     const [industrySaving, setIndustrySaving] = useState(false);
-    const [form, setForm] = useState({
-        title: "",
-        description: "",
-        location: "",
-        employment_type: "full-time",
-        course_target: "",
-        expected_salary: ""
-    });
+    const [form, setForm] = useState(createJobPostingForm);
     const [requirements, setRequirements] = useState([]);
     const [submitting, setSubmitting] = useState(false);
+    const jobSubmitInFlight = useRef(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
     const fileBaseUrl = useMemo(() => API_BASE_URL.replace(/\/api$/, ""), []);
@@ -99,17 +157,10 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     const [activeView, setActiveView] = useState("dashboard");
     const [dashboardPanel, setDashboardPanel] = useState("activity");
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    usePortalDrawer({ open: mobileNavOpen, onClose: () => setMobileNavOpen(false) });
     const [selectedJobId, setSelectedJobId] = useState(null);
     const [jobApplicants, setJobApplicants] = useState([]);
     const [applicantsLoading, setApplicantsLoading] = useState(false);
-    const [verifyForm, setVerifyForm] = useState({
-        venue: "",
-        place: "",
-        date: "",
-        time: "",
-        contact_info: "",
-        what_to_bring: ""
-    });
     const [stopConfirm, setStopConfirm] = useState({ open: false, jobId: null });
 
     const user = useMemo(() => {
@@ -139,13 +190,27 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     };
 
     const loadApplications = async () => {
+        setArchivedApplicationsLoading(true);
+        setArchivedApplicationsError("");
         try {
             const data = await api.get("/applications/employer", true);
-            const sorted = Array.isArray(data) ? data : [];
-            sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            setApplications(sorted);
+            if (!Array.isArray(data) || !data.every((item) => item && typeof item === "object" && !Array.isArray(item))) {
+                throw new Error("The server returned an invalid applicants response.");
+            }
+            setApplications(data);
         } catch {
             setApplications([]);
+        }
+        try {
+            const data = await api.get("/applications/employer?archived=true", true);
+            if (!Array.isArray(data) || !data.every((item) => item && typeof item === "object" && !Array.isArray(item))) {
+                throw new Error("The server returned an invalid archived applicants response.");
+            }
+            setArchivedApplications(data);
+        } catch (err) {
+            setArchivedApplicationsError(err.message || "Unable to load archived applicants.");
+        } finally {
+            setArchivedApplicationsLoading(false);
         }
     };
 
@@ -154,7 +219,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         try {
             const data = await api.get("/notifications", true);
             const warningNotifications = (Array.isArray(data) ? data : [])
-                .filter((item) => item?.type === "warning")
+                .filter((item) => item?.type === "warning" && !dismissedWarningIdsRef.current.has(item.id))
                 .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
             setNotifications(warningNotifications);
         } catch {
@@ -210,6 +275,22 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     }, [activeView]);
 
     useEffect(() => {
+        if (openWarningMenuId === null) return undefined;
+        const handleOutsideClick = (event) => {
+            if (!warningMenuRef.current?.contains(event.target)) setOpenWarningMenuId(null);
+        };
+        const handleEscape = (event) => {
+            if (event.key === "Escape") setOpenWarningMenuId(null);
+        };
+        document.addEventListener("pointerdown", handleOutsideClick);
+        document.addEventListener("keydown", handleEscape);
+        return () => {
+            document.removeEventListener("pointerdown", handleOutsideClick);
+            document.removeEventListener("keydown", handleEscape);
+        };
+    }, [openWarningMenuId]);
+
+    useEffect(() => {
         if (typeof window === "undefined") return undefined;
 
         const media = window.matchMedia("(max-width: 767.98px)");
@@ -234,6 +315,20 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             );
         } catch (err) {
             setError(err.message);
+        }
+    };
+
+    const deleteWarningNotification = async (item) => {
+        setOpenWarningMenuId(null);
+        if (!window.confirm("Delete this admin warning notification?")) return;
+        try {
+            await api.delete(`/notifications/${encodeURIComponent(item.id)}`, true);
+            dismissedWarningIdsRef.current.add(item.id);
+            setNotifications((prev) => prev.filter((notification) => notification.id !== item.id));
+            setMessage("Notification deleted.");
+            setError("");
+        } catch (deleteError) {
+            setError(deleteError.message || "The notification could not be deleted.");
         }
     };
 
@@ -292,12 +387,26 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                 avatar_url: profile?.EmployerProfile?.logo_url || "",
                 role: "employer"
             };
-    const employerJobs = jobs.filter((job) => job.employer_id === user?.id);
-    const selectedJob = employerJobs.find((job) => job.id === selectedJobId) || null;
-
-    const handleChange = (e) => {
-        setForm({ ...form, [e.target.name]: e.target.value });
+    const compareAlphabetically = (left, right) => {
+        const leftMissing = !String(left ?? "").trim();
+        const rightMissing = !String(right ?? "").trim();
+        if (leftMissing !== rightMissing) return leftMissing ? 1 : -1;
+        return String(left ?? "").localeCompare(String(right ?? ""), undefined, { sensitivity: "base", numeric: true });
     };
+    const applicantName = (app) => app?.alumni?.name || app?.full_name || "";
+    const sortedApplications = [...applications].sort((a, b) =>
+        compareAlphabetically(applicantName(a), applicantName(b)) || compareAlphabetically(a.id, b.id));
+    const sortedArchivedApplications = [...archivedApplications].sort((a, b) =>
+        compareAlphabetically(applicantName(a), applicantName(b)) || compareAlphabetically(a.id, b.id));
+    const matchingApplicants = sortedApplications.filter((app) =>
+        `${applicantName(app)} ${app.Job?.title || ""} ${app.status || ""}`.toLocaleLowerCase().includes(applicantSearch.trim().toLocaleLowerCase()));
+    const matchingArchivedApplicants = sortedArchivedApplications.filter((app) =>
+        `${applicantName(app)} ${app.Job?.title || ""} ${app.status || ""}`.toLocaleLowerCase().includes(archivedApplicantSearch.trim().toLocaleLowerCase()));
+    const employerJobs = jobs.filter((job) => job.employer_id === user?.id)
+        .sort((a, b) => compareAlphabetically(a.title, b.title) || compareAlphabetically(a.id, b.id));
+    const matchingEmployerJobs = employerJobs.filter((job) =>
+        `${job.title || ""} ${job.location || ""} ${job.employment_type || ""}`.toLocaleLowerCase().includes(jobSearch.trim().toLocaleLowerCase()));
+    const selectedJob = employerJobs.find((job) => job.id === selectedJobId) || null;
 
     const handleLogout = () => {
         localStorage.removeItem("token");
@@ -308,15 +417,10 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     const handleViewChange = (view) => {
         setActiveView(view);
         if (view === "post_job") {
-            setForm({
-                title: "",
-                description: "",
-                location: "",
-                employment_type: "full-time",
-                course_target: "",
-                expected_salary: ""
-            });
+            setForm(createJobPostingForm());
             setRequirements([]);
+            setInterviewDetailsDraft({ ...EMPTY_INTERVIEW_DETAILS });
+            setInterviewDetailsConfigured(false);
         }
         setMobileNavOpen(false);
     };
@@ -325,7 +429,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         setRequirements((prev) => [
             ...prev,
             {
-                requirement_code: `custom_${Date.now()}`,
+                requirement_code: `custom_${crypto.randomUUID()}`,
                 label: "",
                 requirement_type: "document_upload",
                 value_type: "file",
@@ -339,7 +443,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     const updateRequirement = (index, field, value) => {
         setRequirements((prev) => {
             const next = [...prev];
-            next[index] = { ...next[index], [field]: value };
+            next[index] = { ...next[index], [field]: value, ...(field === "requirement_type" ? { value_type: value === "document_upload" ? "file" : "text" } : {}) };
             return next;
         });
     };
@@ -351,63 +455,30 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         });
     };
 
-    const handleCreateJob = async (e) => {
-        e.preventDefault();
+    const handleCreateJob = async () => {
+        if (jobSubmitInFlight.current) return false;
         setMessage("");
         setError("");
-
-        if (!form.title || !form.location || !form.expected_salary) {
-            setError("Title, location, and expected salary are required.");
-            return;
-        }
-
-        if (requirements.length === 0) {
-            setError("Please add at least one application requirement before publishing.");
-            return;
-        }
-
+        const errors = validateJobPosting(form, requirements);
+        if (errors.length) { setError(errors.join(" ")); return false; }
+        jobSubmitInFlight.current = true;
         setSubmitting(true);
-
         try {
-            const payload = {
-                title: form.title,
-                description: form.description,
-                location: form.location,
-                employment_type: form.employment_type,
-                course_target: form.course_target,
-                expected_salary: form.expected_salary,
-                requirements: requirements.map((r) => ({
-                    requirement_code: r.requirement_code,
-                    label: r.label,
-                    requirement_type: r.requirement_type,
-                    value_type: r.value_type || (r.requirement_type === "information_field" ? "text" : "file"),
-                    required: r.required,
-                    is_custom: r.is_custom,
-                    library_code: r.library_code,
-                    allowed_types: r.allowed_types,
-                    max_file_size: r.max_file_size,
-                    sort_order: r.sort_order,
-                    group_temp_id: null
-                }))
-            };
-
-            const data = await api.post("/jobs", payload, true);
+            await api.post("/jobs", jobPostingPayload(form, requirements), true);
             setMessage("Job posted successfully.");
-            setForm({
-                title: "",
-                description: "",
-                location: "",
-                employment_type: "full-time",
-                course_target: "",
-                expected_salary: ""
-            });
+            setForm(createJobPostingForm());
             setRequirements([]);
+            setInterviewDetailsDraft({ ...EMPTY_INTERVIEW_DETAILS });
+            setInterviewDetailsConfigured(false);
             await loadJobs();
             await loadApplications();
             setActiveView("dashboard");
+            return true;
         } catch (err) {
             setError(err.message);
+            return false;
         } finally {
+            jobSubmitInFlight.current = false;
             setSubmitting(false);
         }
     };
@@ -477,55 +548,106 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         setActiveView("applicants");
     };
 
-    const reviewApplication = async (status, extraPayload = {}) => {
-        if (!selectedApplication?.id) return;
-        setReviewing(true);
+    const openJobInterviewDetails = async (job) => {
+        if (!job?.id) return;
         setError("");
         setMessage("");
-
+        setInterviewDetailsMode("edit");
+        setInterviewDetailsJob(job);
+        setInterviewDetailsDraft({ ...EMPTY_INTERVIEW_DETAILS });
+        setInterviewDetailsConfigured(false);
+        setInterviewDetailsLoadError("");
+        setInterviewDetailsSaveError("");
+        setInterviewDetailsLoading(true);
+        setInterviewDetailsModalOpen(true);
         try {
-            await api.put(`/applications/${selectedApplication.id}/review`, { status, ...extraPayload }, true);
-            setMessage(
-                status === "verified"
-                    ? "Applicant marked as verified. Interview details saved and notification sent."
-                    : "Applicant marked as not verified. Email notification sent."
-            );
-            setVerifyModalOpen(false);
-            setSelectedApplication(null);
-            setVerifyForm({
-                venue: "",
-                place: "",
-                date: "",
-                time: "",
-                contact_info: "",
-                what_to_bring: ""
-            });
-            await loadApplications();
-            if (selectedJobId) {
-                await loadJobApplicants(selectedJobId);
-            }
+            const result = await api.get(`/jobs/${job.id}/interview-details`, true);
+            setInterviewDetailsJob({ ...job, ...result.job });
+            setInterviewDetailsDraft({ ...EMPTY_INTERVIEW_DETAILS, ...(result.interview_details || {}) });
+            setInterviewDetailsConfigured(Boolean(result.configured));
         } catch (err) {
-            setError(err.message);
+            setInterviewDetailsLoadError(err.message || "Unable to load interview details.");
         } finally {
-            setReviewing(false);
+            setInterviewDetailsLoading(false);
         }
     };
 
-    const openVerifyModal = () => {
+    const saveInterviewDetails = async () => {
+        if (interviewDetailsSaving) return;
+        setInterviewDetailsSaving(true);
+        setInterviewDetailsSaveError("");
         setError("");
-        setVerifyForm({
-            venue: "",
-            place: profile?.EmployerProfile?.address || "",
-            date: "",
-            time: "",
-            contact_info: profile?.EmployerProfile?.contact_email || profile?.email || "",
-            what_to_bring: ""
-        });
-        setVerifyModalOpen(true);
+        try {
+            if (interviewDetailsJob?.id) {
+                const result = await api.put(`/jobs/${interviewDetailsJob.id}/interview-details`, {
+                    interview_details: interviewDetailsDraft
+                }, true);
+                const savedDetails = { ...EMPTY_INTERVIEW_DETAILS, ...(result.interview_details || interviewDetailsDraft) };
+                const columns = {
+                    interview_venue: savedDetails.venue,
+                    interview_place: savedDetails.place,
+                    interview_date: savedDetails.date,
+                    interview_time: savedDetails.time,
+                    interview_contact_info: savedDetails.contact_info,
+                    interview_what_to_bring: savedDetails.what_to_bring
+                };
+                setJobs((previous) => previous.map((job) => Number(job.id) === Number(interviewDetailsJob.id) ? { ...job, ...columns } : job));
+                setInterviewDetailsDraft(savedDetails);
+                setInterviewDetailsConfigured(true);
+                setMessage(result.msg || "Interview details updated.");
+            }
+            setInterviewDetailsModalOpen(false);
+        } catch (err) {
+            const message = err.message || "Unable to save interview details.";
+            setInterviewDetailsSaveError(message);
+            setError(message);
+        } finally {
+            setInterviewDetailsSaving(false);
+        }
     };
 
-    const handleVerifyFormChange = (e) => {
-        setVerifyForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const decideApplication = async (status) => {
+        if (!selectedApplication?.id || decisionBusy.current) return;
+        decisionBusy.current = true;
+        setDecisionSaving(true);
+        setError("");
+        try {
+            const result = await saveApplicationDecision(selectedApplication, status, api, message => window.confirm(message));
+            if (!result) return;
+            const update = records => updateActiveApplications(records, selectedApplication.id, status);
+            setApplications(update);
+            setJobApplicants(update);
+            setSelectedApplication(null);
+            setMessage(result.msg);
+        } catch (err) { setError(err.message || "Unable to update application."); }
+        finally { decisionBusy.current = false; setDecisionSaving(false); }
+    };
+
+    const updateApplicationArchive = async (application, archive) => {
+        if (!application?.id || archivingApplicationId) return;
+        const action = archive ? "archive" : "restore";
+        const confirmed = window.confirm(`${archive ? "Archive" : "Restore"} this application?`);
+        if (!confirmed) return;
+
+        setArchivingApplicationId(application.id);
+        setError("");
+        setMessage("");
+        try {
+            const result = await api.put(`/applications/${application.id}/${action}`, {}, true);
+            setMessage(result?.msg || (archive ? "Application archived." : "Application restored."));
+            if (archive) {
+                setApplications((current) => current.filter((item) => item.id !== application.id));
+                if (result?.application) setArchivedApplications((current) => [result.application, ...current.filter((item) => item.id !== application.id)]);
+            } else {
+                setArchivedApplications((current) => current.filter((item) => item.id !== application.id));
+                if (result?.application) setApplications((current) => [result.application, ...current.filter((item) => item.id !== application.id)]);
+            }
+            await loadApplications();
+        } catch (err) {
+            setError(err.message || `Unable to ${action} application.`);
+        } finally {
+            setArchivingApplicationId(null);
+        }
     };
 
     const handlePrintApplication = () => {
@@ -547,58 +669,29 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         };
     };
 
-    const getDocumentPreviewType = (filePath = "") => {
-        const value = String(filePath || "").toLowerCase();
-        if (/\.(png|jpe?g|gif|webp|bmp|svg)$/.test(value)) return "image";
-        if (value.endsWith(".pdf")) return "pdf";
+    const getDocumentPreviewType = (documentEntry, blob) => {
+        const fileName = String(documentEntry?.file_name || "").toLowerCase();
+        const mimeType = String(blob?.type || documentEntry?.mime_type || "").split(";")[0].trim().toLowerCase();
+        if (mimeType.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|avif)$/.test(fileName)) return "image";
+        if (mimeType === "application/pdf" || fileName.endsWith(".pdf")) return "pdf";
         return "file";
     };
 
-    const toFileUrl = (filePath) => {
-        if (!filePath) return "";
-        const value = String(filePath).trim();
-        if (value.startsWith("data:") || /^https?:\/\//i.test(value) || value.startsWith("blob:")) return value;
-        if (value.startsWith("/api/")) return `${API_BASE_URL.replace(/\/api$/, "")}${value}`;
-        if (value.startsWith("/uploads/")) {
-            const relative = value.replace(/^\/+/, "");
-            const parts = relative.split("/");
-            if (parts.length >= 3) {
-                const folder = parts[1];
-                const fileName = parts.slice(2).join("/");
-                return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${folder}/${encodeURIComponent(fileName)}`;
-            }
-            return `${API_BASE_URL.replace(/\/api$/, "")}${value}`;
+    const assertDocumentBlob = (blob) => {
+        const mimeType = String(blob?.type || "").split(";")[0].trim().toLowerCase();
+        if (!blob?.size || mimeType === "text/html" || mimeType === "application/json" || mimeType.endsWith("+json")) {
+            throw new Error("The server did not return the uploaded document. Please try again or contact support.");
         }
-        if (value.startsWith("uploads/")) {
-            const relative = value.replace(/^\/+/, "");
-            const parts = relative.split("/");
-            if (parts.length >= 2) {
-                const folder = parts[0];
-                const fileName = parts.slice(1).join("/");
-                return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${folder}/${encodeURIComponent(fileName)}`;
-            }
-            return `${API_BASE_URL.replace(/\/api$/, "")}/${value}`;
-        }
-        const match = value.match(/(?:^|[\/])uploads[\/](.+)$/i);
-        if (match) {
-            const normalized = match[1].replace(/\\/g, "/");
-            const [folder, ...rest] = normalized.split("/");
-            return `${API_BASE_URL.replace(/\/api$/, "")}/api/files/${folder}/${encodeURIComponent(rest.join("/"))}`;
-        }
-        return value;
     };
 
-    const previewDocumentFile = async (documentEntry) => {
-        if (!documentEntry?.file_path) {
-            setPreviewDocumentError("No document available to preview.");
-            setPreviewDocument(null);
-            return;
-        }
-
-        const fileUrl = toFileUrl(documentEntry.file_path);
-        if (!fileUrl) {
-            setPreviewDocumentError("This document does not have a valid preview URL.");
-            setPreviewDocument(null);
+    const previewDocumentFile = async (documentEntry, applicationId) => {
+        const requestId = ++documentPreviewRequestRef.current;
+        if (documentPreviewUrlRef.current) URL.revokeObjectURL(documentPreviewUrlRef.current);
+        documentPreviewUrlRef.current = null;
+        setPreviewDocument(null);
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+            setPreviewDocumentError("This application document is missing its file record.");
+            setPreviewDocumentLoading(false);
             return;
         }
 
@@ -606,29 +699,70 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         setPreviewDocumentError("");
 
         try {
-            const previewType = getDocumentPreviewType(fileUrl || documentEntry.file_path || "");
+            // Use the authorized application/document route. The response API may expose
+            // opaque secure-storage URLs, which do not contain a usable file extension.
+            const fileUrl = getApplicantResumeFileUrl(applicationId, documentEntry);
             const blob = await fetchFile(fileUrl, true);
+            if (requestId !== documentPreviewRequestRef.current) return;
+            assertDocumentBlob(blob);
+
             const objectUrl = URL.createObjectURL(blob);
+            documentPreviewUrlRef.current = objectUrl;
             setPreviewDocument({
                 url: objectUrl,
-                type: previewType,
-                fileName: documentEntry.file_name || "document",
-                downloadUrl: fileUrl
+                type: getDocumentPreviewType(documentEntry, blob),
+                fileName: documentEntry.file_name || "document"
             });
         } catch (error) {
-            setPreviewDocumentError(error.message || "The document could not be previewed.");
-            setPreviewDocument(null);
+            if (requestId === documentPreviewRequestRef.current) {
+                setPreviewDocumentError(error.message || "The document could not be previewed.");
+                setPreviewDocument(null);
+            }
         } finally {
-            setPreviewDocumentLoading(false);
+            if (requestId === documentPreviewRequestRef.current) setPreviewDocumentLoading(false);
         }
     };
 
     const closeDocumentPreview = () => {
-        if (previewDocument?.url?.startsWith("blob:")) {
-            URL.revokeObjectURL(previewDocument.url);
-        }
+        documentPreviewRequestRef.current += 1;
+        if (documentPreviewUrlRef.current) URL.revokeObjectURL(documentPreviewUrlRef.current);
+        documentPreviewUrlRef.current = null;
         setPreviewDocument(null);
         setPreviewDocumentError("");
+        setPreviewDocumentLoading(false);
+    };
+
+    const downloadPreviewDocument = () => {
+        if (!previewDocument?.url) return;
+        const link = document.createElement("a");
+        link.href = previewDocument.url;
+        link.download = String(previewDocument.fileName || "document").replace(/[\\/:*?"<>|\r\n]/g, "_");
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
+    const downloadApplicationDocument = async (documentEntry, applicationId) => {
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+            setPreviewDocumentError("This application document is missing its file record.");
+            setPreviewDocument(null);
+            return;
+        }
+        try {
+            const fileUrl = getApplicantResumeFileUrl(applicationId, documentEntry);
+            const blob = await fetchFile(fileUrl, true);
+            assertDocumentBlob(blob);
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = objectUrl;
+            link.download = String(documentEntry.file_name || "document").replace(/[\\/:*?"<>|\r\n]/g, "_");
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch (error) {
+            setPreviewDocumentError(error.message || "The document could not be downloaded.");
+        }
     };
 
     const openApplicationDetails = async (application) => {
@@ -755,6 +889,35 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     const selectedLanguages = parseArrayField(selectedApplication?.languages);
     const selectedOtherSkills = parseArrayField(selectedApplication?.other_skills);
     const unreadWarningCount = notifications.filter((item) => !item.isRead).length;
+    const waitingForApprovalApplicants = jobApplicants.filter((app) => String(app.status || "").toLowerCase() === "pending");
+    const readyForInterviewApplicants = jobApplicants.filter((app) => String(app.status || "").toLowerCase() === "verified");
+    const otherStatusApplicants = jobApplicants.filter((app) => !["pending", "verified"].includes(String(app.status || "").toLowerCase()));
+
+    const renderJobApplicantRows = (applicants, emptyMessage, otherStatuses = false) => applicants.length ? (
+        applicants.map((app) => {
+            const status = String(app.status || "").toLowerCase();
+            const otherLabel = status === "not_verified"
+                ? "NOT APPROVED"
+                : status.replaceAll("_", " ").toUpperCase() || "UNKNOWN STATUS";
+            return (
+                <div className="emp-list-item employer-job-applicant-row" key={`app-${app.id}`}>
+                    <div className="emp-list-item-left">
+                        <strong>{app.alumni?.name || app.full_name || "Unknown Applicant"}</strong>
+                        <p>Cycle {app.recruitment_cycle || 1} | {new Date(app.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="emp-list-item-right">
+                        <ApplicationStatusBadge
+                            status={app.status}
+                            pendingLabel="WAITING FOR APPROVAL"
+                            labelOverride={otherStatuses ? otherLabel : undefined}
+                            classNameOverride={otherStatuses && ["not_verified", "rejected"].includes(status) ? "rejected" : undefined}
+                        />
+                        <button type="button" className="emp-view-btn" onClick={() => openApplicationDetails(app)}>View</button>
+                    </div>
+                </div>
+            );
+        })
+    ) : <p className="employer-job-applicant-empty">{emptyMessage}</p>;
 
     const viewConfig = {
         dashboard: {
@@ -774,8 +937,8 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             description: "Receive admin warning notices in one place and review them when needed."
         },
         post_job: {
-            title: "Post Job",
-            description: "Create a job vacancy and keep your posting record visible beside the form."
+            title: "Create Job Posting",
+            description: "Create a professional job opportunity for DJEMC alumni."
         },
         applicants: {
             title: "Job-Specific Applicants",
@@ -793,17 +956,10 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
 
     const sortedActivity = [...employerJobs.map(job => ({ ...job, _type: "job", _label: "New Job Posted", _desc: `${job.title} - ${job.location}` })), ...applications.map(app => ({ ...app, _type: "app", _label: "New Application", _desc: `${app.alumni?.name || app.full_name || "Unknown"} applied for ${app.Job?.title || "a position"}` }))].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    const renderTextInput = (label, name) => (
-        <Form.Group className="mb-3">
-            <Form.Label>{label}</Form.Label>
-            <Form.Control name={name} value={form[name]} onChange={handleChange} required />
-        </Form.Group>
-    );
-
     const renderRequirementFields = () => (
         <div className="mt-3 application-requirements-wrapper">
             <h6>Application Requirements</h6>
-            <p className="text-muted small mb-2">Define what applicants must submit. Leave empty for legacy application (resume/transcript/certificate only).</p>
+            <p className="text-muted small mb-2">Define the documents and information applicants must submit. Add at least one requirement.</p>
 
             {requirements.map((req, idx) => (
                 <div key={idx} className="border rounded p-3 mb-2 requirement-item">
@@ -889,7 +1045,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                 </div>
             ))}
 
-            <div className="d-flex gap-2 mt-2 application-requirements-actions">
+            <div className="d-flex gap-2 mt-2 application-requirements-actions interview-requirements-actions">
                 <Button variant="outline-primary" size="sm" onClick={addRequirement}>
                     + Custom Requirement
                 </Button>
@@ -1004,15 +1160,44 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                                     <strong>Admin Warning</strong>
                                                     <p>{new Date(item.createdAt).toLocaleString()}</p>
                                                 </div>
-                                                {!item.isRead && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline-warning"
-                                                        onClick={() => markNotificationAsRead(item.id)}
+                                                <div className="employer-warning-actions">
+                                                    {!item.isRead && (
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline-warning"
+                                                            onClick={() => markNotificationAsRead(item.id)}
+                                                        >
+                                                            Mark as Read
+                                                        </Button>
+                                                    )}
+                                                    <div
+                                                        className="employer-warning-menu-wrap"
+                                                        ref={openWarningMenuId === item.id ? warningMenuRef : null}
                                                     >
-                                                        Mark as Read
-                                                    </Button>
-                                                )}
+                                                        <button
+                                                            type="button"
+                                                            className="employer-warning-menu-trigger"
+                                                            aria-label="Notification actions"
+                                                            aria-haspopup="menu"
+                                                            aria-expanded={openWarningMenuId === item.id}
+                                                            onClick={() => setOpenWarningMenuId((current) => current === item.id ? null : item.id)}
+                                                        >
+                                                            <FiMoreHorizontal aria-hidden="true" />
+                                                        </button>
+                                                        {openWarningMenuId === item.id && (
+                                                            <div className="employer-warning-menu" role="menu">
+                                                                <button
+                                                                    type="button"
+                                                                    role="menuitem"
+                                                                    onClick={() => deleteWarningNotification(item)}
+                                                                >
+                                                                    <BsTrash aria-hidden="true" />
+                                                                    Delete
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <Alert
                                                 variant={item.isRead ? "light" : "warning"}
@@ -1057,26 +1242,32 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                         <div className="text-center my-4">
                                             <Spinner animation="border" size="sm" /> Loading applicants...
                                         </div>
-                                    ) : jobApplicants.length === 0 ? (
-                                        <div className="emp-dash-empty">
-                                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
-                                            <p>No applicants for the current recruitment cycle.</p>
-                                        </div>
                                     ) : (
-                                        jobApplicants.map((app) => (
-                                            <div className="emp-list-item" key={`app-${app.id}`}>
-                                                <div className="emp-list-item-left">
-                                                    <strong>{app.alumni?.name || app.full_name || "Unknown Applicant"}</strong>
-                                                    <p>Cycle {app.recruitment_cycle || 1} | {new Date(app.createdAt).toLocaleDateString()}</p>
+                                        <div className="employer-job-applicant-sections">
+                                            <section className="employer-job-applicant-section" aria-labelledby="waiting-approval-heading">
+                                                <div className="employer-job-applicant-section-head">
+                                                    <h5 id="waiting-approval-heading">Waiting for Approval</h5>
+                                                    <span>{waitingForApprovalApplicants.length}</span>
                                                 </div>
-                                                <div className="emp-list-item-right">
-                                                    <span className={`emp-status-badge ${app.status === "verified" ? "approved" : app.status === "not_verified" ? "rejected" : "pending"}`}>
-                                                        {app.status || "pending"}
-                                                    </span>
-                                                    <button type="button" className="emp-view-btn" onClick={() => openApplicationDetails(app)}>View</button>
+                                                {renderJobApplicantRows(waitingForApprovalApplicants, "No applicants waiting for approval.")}
+                                            </section>
+                                            <section className="employer-job-applicant-section" aria-labelledby="ready-interview-heading">
+                                                <div className="employer-job-applicant-section-head">
+                                                    <h5 id="ready-interview-heading">Approved Applicants</h5>
+                                                    <span>{readyForInterviewApplicants.length}</span>
                                                 </div>
-                                            </div>
-                                        ))
+                                                {renderJobApplicantRows(readyForInterviewApplicants, "No approved applicants.")}
+                                            </section>
+                                            {otherStatusApplicants.length > 0 && (
+                                                <section className="employer-job-applicant-section employer-job-applicant-other" aria-labelledby="other-applicants-heading">
+                                                    <div className="employer-job-applicant-section-head">
+                                                        <h5 id="other-applicants-heading">Other Application Statuses</h5>
+                                                        <span>{otherStatusApplicants.length}</span>
+                                                    </div>
+                                                    {renderJobApplicantRows(otherStatusApplicants, "No other applicants.", true)}
+                                                </section>
+                                            )}
+                                        </div>
                                     )}
                                 </Card.Body>
                             </Card>
@@ -1091,11 +1282,14 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                         <h4>List of Jobs</h4>
                                         <span>{employerJobs.length} total</span>
                                     </div>
+                                    <Form.Control className="employer-record-search" type="search" value={jobSearch} onChange={(event) => setJobSearch(event.target.value)} placeholder="Search jobs by title or location" aria-label="Search posted jobs" />
                                     <div className="employer-jobs-scrollable">
                                         {employerJobs.length === 0 ? (
                                             <p className="empty-jobs">No jobs posted yet.</p>
+                                        ) : matchingEmployerJobs.length === 0 ? (
+                                            <p className="empty-jobs">No jobs match your search.</p>
                                         ) : (
-                                            employerJobs.map((job) => (
+                                            matchingEmployerJobs.map((job) => (
                                                 <div className="emp-list-item" key={job.id}>
                                                     <div className="emp-list-item-left">
                                                         <strong>{job.title}</strong>
@@ -1104,26 +1298,29 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                                             {job.expected_salary ? ` • ${job.expected_salary}` : ""}
                                                         </p>
                                                     </div>
-                                                    <div className="emp-list-item-right">
+                                                    <div className="emp-list-item-right emp-job-actions">
                                                         <span className={`emp-status-badge ${job.recruitment_status === "closed" ? "rejected" : "approved"}`}>
                                                             {job.recruitment_status === "closed" ? "Closed" : "Active"}
                                                         </span>
                                                         <span className="emp-type-tag">{getEmploymentTypeLabel(job.employment_type)}</span>
-                                                        <button type="button" className="emp-view-btn" onClick={() => openJobApplicants(job)} title="Manage Applicants">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><circle cx="23" cy="7" r="4" /></svg>
+                                                        <button type="button" className="emp-interview-details-btn" onClick={() => openJobInterviewDetails(job)}>
+                                                            Update Interview Details
+                                                        </button>
+                                                        <button type="button" className="emp-view-btn emp-manage-applicants-btn" onClick={() => openJobApplicants(job)}>
+                                                            Manage Applicants
                                                         </button>
                                                         {!hideRecruitmentActions && job.recruitment_status !== "closed" ? (
-                                                            <button type="button" className="emp-stop-btn" onClick={() => openStopConfirm(job.id)} title="Stop Recruitment">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+                                                            <button type="button" className="emp-stop-btn" onClick={() => openStopConfirm(job.id)}>
+                                                                Stop Recruitment
                                                             </button>
                                                         ) : null}
                                                         {!hideRecruitmentActions && job.recruitment_status === "closed" ? (
-                                                            <button type="button" className="emp-reactivate-btn" onClick={() => handleReactivateRecruitment(job.id)} title="Reactivate Recruitment">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 17.59 12 23 20" /><path d="M20.49 15A9 9 0 1 1 4.51 8" /></svg>
+                                                            <button type="button" className="emp-reactivate-btn" onClick={() => handleReactivateRecruitment(job.id)}>
+                                                                Reactivate Recruitment
                                                             </button>
                                                         ) : null}
-                                                        <button type="button" className="emp-delete-btn" onClick={() => handleDeleteJob(job)} title="Delete job">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                                        <button type="button" className="emp-delete-btn" onClick={() => handleDeleteJob(job)} title="Delete job" aria-label={`Delete ${job.title || "job"}`}>
+                                                            <BsTrash className="emp-delete-icon" aria-hidden="true" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1226,26 +1423,26 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                                             {job.expected_salary ? ` • ${job.expected_salary}` : ""}
                                                         </p>
                                                     </div>
-                                                    <div className="emp-list-item-right">
+                                                    <div className="emp-list-item-right emp-job-actions">
                                                         <span className={`emp-status-badge ${job.recruitment_status === "closed" ? "rejected" : "approved"}`}>
                                                             {job.recruitment_status === "closed" ? "Closed" : "Active"}
                                                         </span>
                                                         <span className="emp-type-tag">{getEmploymentTypeLabel(job.employment_type)}</span>
-                                                        <button type="button" className="emp-view-btn" onClick={() => openJobApplicants(job)} title="Manage Applicants">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><circle cx="23" cy="7" r="4" /></svg>
+                                                        <button type="button" className="emp-view-btn emp-manage-applicants-btn" onClick={() => openJobApplicants(job)}>
+                                                            Manage Applicants
                                                         </button>
                                                         {!hideRecruitmentActions && job.recruitment_status !== "closed" ? (
-                                                            <button type="button" className="emp-stop-btn" onClick={() => openStopConfirm(job.id)} title="Stop Recruitment">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /></svg>
+                                                            <button type="button" className="emp-stop-btn" onClick={() => openStopConfirm(job.id)}>
+                                                                Stop Recruitment
                                                             </button>
                                                         ) : null}
                                                         {!hideRecruitmentActions && job.recruitment_status === "closed" ? (
-                                                            <button type="button" className="emp-reactivate-btn" onClick={() => handleReactivateRecruitment(job.id)} title="Reactivate Recruitment">
-                                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 17.59 12 23 20" /><path d="M20.49 15A9 9 0 1 1 4.51 8" /></svg>
+                                                            <button type="button" className="emp-reactivate-btn" onClick={() => handleReactivateRecruitment(job.id)}>
+                                                                Reactivate Recruitment
                                                             </button>
                                                         ) : null}
-                                                        <button type="button" className="emp-delete-btn" onClick={() => handleDeleteJob(job)} title="Delete job">
-                                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                                                        <button type="button" className="emp-delete-btn" onClick={() => handleDeleteJob(job)} title="Delete job" aria-label={`Delete ${job.title || "job"}`}>
+                                                            <BsTrash className="emp-delete-icon" aria-hidden="true" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1254,31 +1451,32 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                     </div>
                                 )}
                                 {dashboardPanel === "applicants" && (
-                                    <div className="emp-dash-panel-inner fade-in">
+                                    <div className="emp-dash-panel-inner employer-record-panel fade-in">
                                         <div className="emp-dash-panel-header">
                                             <h3>Recent Applicants</h3>
                                             <span>{applications.length} total</span>
                                         </div>
+                                        <Form.Control className="employer-record-search" type="search" value={applicantSearch} onChange={(event) => setApplicantSearch(event.target.value)} placeholder="Search applicants by name, job, or status" aria-label="Search applicants" />
                                         {applications.length === 0 ? (
                                             <div className="emp-dash-empty">
                                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
                                                 <p>No applications yet.</p>
                                             </div>
+                                        ) : matchingApplicants.length === 0 ? (
+                                            <div className="emp-dash-empty"><p>No applicants match your search.</p></div>
                                         ) : (
-                                            applications.map((app) => (
-                                                <div className="emp-list-item" key={`app-${app.id}`}>
+                                            <div className="employer-record-list">{matchingApplicants.map((app) => (
+                                                <div className="emp-list-item employer-record-item" key={`app-${app.id}`}>
                                                     <div className="emp-list-item-left">
                                                         <strong>{app.alumni?.name || app.full_name || "Unknown Applicant"}</strong>
-                                                        <p>{app.Job?.title || "Job"} | {new Date(app.createdAt).toLocaleDateString()}</p>
+                                                        <p>{app.Job?.title || "Job"} | Applied {new Date(app.createdAt).toLocaleDateString()}</p>
                                                     </div>
                                                     <div className="emp-list-item-right">
-                                                        <span className={`emp-status-badge ${app.status === "verified" ? "approved" : app.status === "not_verified" ? "rejected" : "pending"}`}>
-                                                            {app.status || "pending"}
-                                                        </span>
+                                                        <ApplicationStatusBadge status={app.status} />
                                                         <button type="button" className="emp-view-btn" onClick={() => openApplicationDetails(app)}>View</button>
                                                     </div>
                                                 </div>
-                                            ))
+                                            ))}</div>
                                         )}
                                     </div>
                                 )}
@@ -1410,54 +1608,19 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                     )}
 
                     {activeView === "post_job" && (
-                        <div className="employer-job-management-grid">
+                        <div className="employer-job-management-grid employer-job-posting-grid">
                             <div className="employer-post-job-panel">
                                 <Card className="employer-card">
                                     <Card.Body>
-                                        <h4>Create Job Posting</h4>
-                                        <p className="form-note">Publish an opportunity for alumni applicants.</p>
-                                        <Form onSubmit={handleCreateJob}>
-                                            <Row>
-                                                <Col md={6}>{renderTextInput("Job Title", "title")}</Col>
-                                                <Col md={6}>{renderTextInput("Location", "location")}</Col>
-                                            </Row>
-                                            <Row>
-                                                <Col md={6}>
-                                                    <Form.Group className="mb-3">
-                                                        <Form.Label>Employment Type</Form.Label>
-                                                        <Form.Select name="employment_type" value={form.employment_type} onChange={handleChange} required>
-                                                            {EMPLOYMENT_TYPE_OPTIONS.map(({ value, label }) => (
-                                                                <option key={value} value={value}>{label}</option>
-                                                            ))}
-                                                        </Form.Select>
-                                                    </Form.Group>
-                                                </Col>
-                                                <Col md={6}>{renderTextInput("Expected Salary", "expected_salary")}</Col>
-                                            </Row>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Description</Form.Label>
-                                                <Form.Control
-                                                    as="textarea"
-                                                    rows={3}
-                                                    name="description"
-                                                    value={form.description}
-                                                    onChange={handleChange}
-                                                    required
-                                                />
-                                            </Form.Group>
-                                            <Form.Group className="mb-3">
-                                                <Form.Label>Qualification</Form.Label>
-                                                <Form.Control name="course_target" value={form.course_target} onChange={handleChange} />
-                                            </Form.Group>
-
-                                            {renderRequirementFields()}
-
-                                            <div className="mt-3 d-flex justify-content-end gap-2">
-                                                <Button type="submit" className="publish-btn" disabled={submitting || requirements.length === 0}>
-                                                    {submitting ? "Saving..." : "Publish Job"}
-                                                </Button>
-                                            </div>
-                                        </Form>
+                                        <JobPostingForm
+                                            value={form}
+                                            onChange={setForm}
+                                            profile={profile || user}
+                                            requirements={requirements}
+                                            requirementsEditor={renderRequirementFields()}
+                                            submitting={submitting}
+                                            onPublish={handleCreateJob}
+                                        />
                                     </Card.Body>
                                 </Card>
                             </div>
@@ -1469,7 +1632,6 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             <Modal
                 show={!!selectedApplication}
                 onHide={() => {
-                    setVerifyModalOpen(false);
                     setSelectedApplication(null);
                 }}
                 centered
@@ -1483,6 +1645,19 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                     <Modal.Title>Applicant Details</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
+                    {getApplicantResumeDocument(selectedApplication)?.isLegacyResume && (() => {
+                        const resume = getApplicantResumeDocument(selectedApplication);
+                        return <section className="applicant-legacy-resume" aria-label="Submitted resume">
+                            <h5>Resume / CV</h5>
+                            <span className="applicant-document-filename" title={getApplicantDocumentFilename(resume)}>{getApplicantDocumentFilename(resume)}</span>
+                            <div className="applicant-document-actions">
+                                <button type="button" className="emp-view-btn" onClick={() => previewDocumentFile(resume, selectedApplication.id)}>View</button>
+                                <button type="button" className="applicant-document-download" onClick={() => downloadApplicationDocument(resume, selectedApplication.id)}>Download</button>
+                                <button type="button" className="emp-view-btn" onClick={() => setInlineResume({ applicationId: selectedApplication.id, document: resume })}>Preview Resume</button>
+                            </div>
+                        </section>;
+                    })()}
+
                     {(() => {
                         const app = selectedApplication || {};
                         const snapshot = app?.JobRequirementSnapshot;
@@ -1555,15 +1730,16 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                                                             <button
                                                                                 type="button"
                                                                                 className="emp-view-btn"
-                                                                                onClick={() => previewDocumentFile(doc)}
+                                                                                onClick={() => previewDocumentFile(doc, app.id)}
                                                                                 style={{ padding: "4px 8px", minWidth: 0 }}
                                                                             >
                                                                                 View
                                                                             </button>
-                                                                            <a href={toFileUrl(doc.file_path)} target="_blank" rel="noopener noreferrer" download={doc.file_name} style={{ fontSize: 12 }}>
+                                                                            <button type="button" className="applicant-document-download" onClick={() => downloadApplicationDocument(doc, app.id)}>
                                                                                 Download
-                                                                            </a>
-                                                                            <span title={doc.file_name || "Document"}>{doc.file_name || "Document"}</span>
+                                                                            </button>
+                                                                            {isResumeRequirement(req, doc) && <button type="button" className="emp-view-btn" onClick={() => setInlineResume({ applicationId: app.id, document: doc })}>Preview Resume</button>}
+                                                                            <span className="applicant-document-filename" title={getApplicantDocumentFilename(doc)}>{getApplicantDocumentFilename(doc)}</span>
                                                                         </div>
                                                                     ) : (
                                                                         "Not submitted"
@@ -1597,15 +1773,16 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                                                             <button
                                                                                 type="button"
                                                                                 className="emp-view-btn"
-                                                                                onClick={() => previewDocumentFile(doc)}
+                                                                                onClick={() => previewDocumentFile(doc, app.id)}
                                                                                 style={{ padding: "4px 8px", minWidth: 0 }}
                                                                             >
                                                                                 View
                                                                             </button>
-                                                                            <a href={toFileUrl(doc.file_path)} target="_blank" rel="noopener noreferrer" download={doc.file_name} style={{ fontSize: 12 }}>
+                                                                            <button type="button" className="applicant-document-download" onClick={() => downloadApplicationDocument(doc, app.id)}>
                                                                                 Download
-                                                                            </a>
-                                                                            <span title={doc.file_name || "Document"}>{doc.file_name || "Document"}</span>
+                                                                            </button>
+                                                                            {isResumeRequirement(req, doc) && <button type="button" className="emp-view-btn" onClick={() => setInlineResume({ applicationId: app.id, document: doc })}>Preview Resume</button>}
+                                                                            <span className="applicant-document-filename" title={getApplicantDocumentFilename(doc)}>{getApplicantDocumentFilename(doc)}</span>
                                                                         </div>
                                                                     ) : (
                                                                         "Not submitted"
@@ -1853,6 +2030,11 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                             </div>
                         );
                     })()}
+                    {inlineResume && Number(inlineResume.applicationId) === Number(selectedApplication?.id) && <ApplicantResumePreview
+                        key={String(selectedApplication.id)} applicationId={selectedApplication.id} document={inlineResume.document}
+                        onClose={() => setInlineResume(null)}
+                        onView={() => previewDocumentFile(inlineResume.document, selectedApplication.id)}
+                        onDownload={() => downloadApplicationDocument(inlineResume.document, selectedApplication.id)} />}
                 </Modal.Body>
 
                 <Modal.Footer className="applicant-modal-footer">
@@ -1864,20 +2046,8 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                         Print Application
                     </Button>
                     <div className="applicant-modal-actions">
-                        <Button
-                            variant="success"
-                            onClick={openVerifyModal}
-                            disabled={reviewing}
-                        >
-                            Verify
-                        </Button>
-                        <Button
-                            variant="outline-danger"
-                            onClick={() => reviewApplication("not_verified")}
-                            disabled={reviewing}
-                        >
-                            Not Verify
-                        </Button>
+                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={decisionSaving || selectedApplication?.status === "verified"}>Approve</Button>
+                        <Button variant="outline-danger" onClick={() => decideApplication("not_verified")} disabled={decisionSaving}>Decline</Button>
                     </div>
                 </Modal.Footer>
             </Modal>
@@ -1907,6 +2077,10 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                             <img
                                 src={previewDocument.url}
                                 alt={previewDocument.fileName}
+                                onError={() => {
+                                    setPreviewDocumentError("The uploaded image could not be displayed. Try downloading the file.");
+                                    setPreviewDocument(null);
+                                }}
                                 style={{ maxWidth: "100%", maxHeight: "72vh", objectFit: "contain", borderRadius: 12, boxShadow: "0 8px 18px rgba(15, 23, 42, 0.12)" }}
                             />
                         ) : previewDocument.type === "pdf" ? (
@@ -1918,7 +2092,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                         ) : (
                             <div style={{ textAlign: "center", width: "100%" }}>
                                 <p style={{ marginBottom: 12 }}>This file type cannot be displayed inline.</p>
-                                <a href={previewDocument.downloadUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                                <a href={previewDocument.url} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
                                     Open file in new tab
                                 </a>
                             </div>
@@ -1927,106 +2101,27 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                 </Modal.Body>
                 <Modal.Footer>
                     <Button variant="secondary" onClick={closeDocumentPreview}>Close</Button>
-                    {previewDocument?.downloadUrl && (
-                        <Button variant="primary" onClick={() => window.open(previewDocument.downloadUrl, "_blank", "noopener,noreferrer")}>Download</Button>
+                    {previewDocument && (
+                        <Button variant="primary" onClick={downloadPreviewDocument}>Download</Button>
                     )}
                 </Modal.Footer>
             </Modal>
 
-            <Modal
-                show={verifyModalOpen}
-                onHide={() => !reviewing && setVerifyModalOpen(false)}
-                centered
-            >
-                <Modal.Header closeButton>
-                    <Modal.Title>Verify Applicant</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Venue</Form.Label>
-                            <Form.Control
-                                name="venue"
-                                value={verifyForm.venue}
-                                onChange={handleVerifyFormChange}
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Place / Address</Form.Label>
-                            <Form.Control
-                                name="place"
-                                value={verifyForm.place}
-                                onChange={handleVerifyFormChange}
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Interview Date</Form.Label>
-                            <Form.Control
-                                type="date"
-                                name="date"
-                                value={verifyForm.date}
-                                onChange={handleVerifyFormChange}
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group className="mb-3">
-                            <Form.Label>Interview Time</Form.Label>
-                            <Form.Control
-                                type="time"
-                                name="time"
-                                value={verifyForm.time}
-                                onChange={handleVerifyFormChange}
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group>
-                            <Form.Label>Contact Information (Email or Phone)</Form.Label>
-                            <Form.Control
-                                name="contact_info"
-                                value={verifyForm.contact_info}
-                                onChange={handleVerifyFormChange}
-                                required
-                            />
-                        </Form.Group>
-                        <Form.Group className="mt-3">
-                            <Form.Label>What to Bring</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                name="what_to_bring"
-                                value={verifyForm.what_to_bring}
-                                onChange={handleVerifyFormChange}
-                                placeholder="Optional: resume, valid ID, portfolio, transcript, or other interview requirements."
-                            />
-                        </Form.Group>
-                    </Form>
-                </Modal.Body>
-                <Modal.Footer className="applicant-modal-footer">
-                    <Button
-                        variant="outline-secondary"
-                        onClick={() => setVerifyModalOpen(false)}
-                        disabled={reviewing}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="success"
-                        onClick={() => reviewApplication("verified", verifyForm)}
-                        disabled={
-                            reviewing ||
-                            !verifyForm.venue.trim() ||
-                            !verifyForm.place.trim() ||
-                            !verifyForm.date ||
-                            !verifyForm.time ||
-                            !verifyForm.contact_info.trim()
-                        }
-                    >
-                        Done
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+            <InterviewDetailsModal
+                show={interviewDetailsModalOpen}
+                onHide={() => setInterviewDetailsModalOpen(false)}
+                jobTitle={interviewDetailsJob?.title}
+                values={interviewDetailsDraft}
+                onChange={(key, value) => setInterviewDetailsDraft((previous) => ({ ...previous, [key]: value }))}
+                onSave={saveInterviewDetails}
+                mode={interviewDetailsMode}
+                configured={interviewDetailsConfigured}
+                loading={interviewDetailsLoading}
+                saving={interviewDetailsSaving}
+                loadError={interviewDetailsLoadError}
+                saveError={interviewDetailsSaveError}
+                onRetry={interviewDetailsJob ? () => openJobInterviewDetails(interviewDetailsJob) : undefined}
+            />
 
             <Modal
                 show={stopConfirm.open}
