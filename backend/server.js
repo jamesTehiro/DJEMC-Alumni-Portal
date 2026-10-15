@@ -550,7 +550,10 @@ const startEmailWorker = () => {
     console.log("Email queue worker started (PID: " + worker.pid + ").");
 };
 
-const startup = ensureDatabaseReady();
+const startup = (async () => {
+    await require("./utils/jobTableDiagnostics").logJobTableDiagnostics(db);
+    return ensureDatabaseReady();
+})();
 startup
     .then(() => {
         if (process.env.LIST_ROUTES === "true") {
