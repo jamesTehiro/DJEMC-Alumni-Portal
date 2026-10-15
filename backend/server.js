@@ -38,6 +38,7 @@ if (trustProxyHops) {
 // --- MIDDLEWARE ---
 // Configure CORS explicitly per environment
 const defaultAllowedOrigins = [
+    "https://djemc-alumni-portal.web.app", // Firebase production frontend
     "http://localhost:5173", // React dev server
     "http://localhost:5000" // backend admin panel
 ];
