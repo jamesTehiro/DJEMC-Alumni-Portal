@@ -1,9 +1,13 @@
+
 module.exports = (sequelize, DataTypes) => {
     return sequelize.define(
         "User",
         {
             name: DataTypes.STRING,
-            email: { type: DataTypes.STRING, unique: true },
+            email: {
+                type: DataTypes.STRING,
+                unique: true
+            },
             password: DataTypes.STRING,
             role: DataTypes.STRING,
             admin_scope: DataTypes.STRING,
@@ -19,6 +23,7 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         {
+            tableName: "users",
             indexes: [
                 { unique: true, fields: ["email"] },
                 { unique: true, fields: ["role", "admin_scope"] }
