@@ -33,7 +33,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: true
         }
     }, {
-        tableName: "AuditLogs",
+        tableName: "auditlogs",
         timestamps: true,
         createdAt: "created_at",
         updatedAt: false

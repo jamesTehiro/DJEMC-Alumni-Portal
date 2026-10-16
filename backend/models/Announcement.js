@@ -9,6 +9,6 @@ module.exports = (sequelize, DataTypes) => {
         time: DataTypes.STRING,
         location: DataTypes.STRING
 
-    })
+    }, { tableName: "announcements" })
 
 }

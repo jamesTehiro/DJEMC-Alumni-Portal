@@ -21,10 +21,11 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         {
+            tableName: "conversationparticipants",
             indexes: [
-                { unique: true, fields: ["conversation_id", "user_id"] },
-                { fields: ["user_id"] },
-                { fields: ["conversation_id"] }
+                { unique: true, fields: ["conversation_id", "user_id"], name: "conversation_participants_conversation_id_user_id" },
+                { fields: ["user_id"], name: "conversation_participants_user_id" },
+                { fields: ["conversation_id"], name: "conversation_participants_conversation_id" }
             ]
         }
     );

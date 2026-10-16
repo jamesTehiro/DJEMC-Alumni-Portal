@@ -87,6 +87,6 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         }
 
-    });
+    }, { tableName: "applications" });
 
 };

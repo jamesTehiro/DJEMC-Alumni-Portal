@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: 0
         }
     }, {
-        tableName: "RequirementGroups",
+        tableName: "requirementgroups",
         timestamps: true,
         createdAt: "created_at",
         updatedAt: false

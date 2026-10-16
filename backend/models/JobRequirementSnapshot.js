@@ -29,7 +29,7 @@ module.exports = (sequelize, DataTypes) => {
             }
         }
     }, {
-        tableName: "JobRequirementSnapshots",
+        tableName: "jobrequirementsnapshots",
         timestamps: true,
         createdAt: "created_at",
         updatedAt: false

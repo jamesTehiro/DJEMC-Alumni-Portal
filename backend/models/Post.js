@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
             image_url: DataTypes.TEXT
         },
         {
+            tableName: "posts",
             indexes: [
                 { fields: ["createdAt"], name: "posts_created_at_idx" }
             ]

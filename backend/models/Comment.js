@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             comment: DataTypes.TEXT
         },
         {
+            tableName: "comments",
             indexes: [
                 { fields: ["post_id", "createdAt"], name: "comments_post_id_created_at_idx" }
             ]

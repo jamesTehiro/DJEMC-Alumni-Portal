@@ -9,6 +9,6 @@ module.exports = (sequelize, DataTypes) => {
         end_year: DataTypes.INTEGER,
         employment_type: DataTypes.STRING
 
-    })
+    }, { tableName: "employmenthistories" })
 
 }

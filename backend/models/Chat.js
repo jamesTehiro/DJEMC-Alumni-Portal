@@ -5,7 +5,7 @@ module.exports = (sequelize, DataTypes) => {
         user1_id: DataTypes.INTEGER,
         user2_id: DataTypes.INTEGER
 
-    })
+    }, { tableName: "conversations" })
 
 }
 
@@ -17,6 +17,6 @@ module.exports = (sequelize, DataTypes) => {
         sender_id: DataTypes.INTEGER,
         message: DataTypes.TEXT
 
-    })
+    }, { tableName: "messages" })
 
 }

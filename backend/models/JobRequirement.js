@@ -79,7 +79,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: 0
         }
     }, {
-        tableName: "JobRequirements",
+        tableName: "jobrequirements",
         timestamps: true,
         createdAt: "created_at",
         updatedAt: false

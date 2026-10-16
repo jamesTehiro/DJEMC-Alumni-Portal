@@ -46,6 +46,7 @@ module.exports = (sequelize, Sequelize) => {
             }
         },
         {
+            tableName: "conversations",
             indexes: [
                 { unique: true, fields: ["conversation_key"] },
                 { fields: ["type"] },

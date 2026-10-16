@@ -36,9 +36,10 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         {
+            tableName: "employermessages",
             indexes: [
-                { fields: ["conversationId", "createdAt"] },
-                { fields: ["senderId"] }
+                { fields: ["conversationId", "createdAt"], name: "employer_messages_conversation_id_created_at" },
+                { fields: ["senderId"], name: "employer_messages_sender_id" }
             ]
         }
     );

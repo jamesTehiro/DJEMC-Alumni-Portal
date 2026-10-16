@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: 1
         }
     }, {
-        tableName: "ApplicationResponses",
+        tableName: "applicationresponses",
         timestamps: true,
         createdAt: "created_at",
         updatedAt: "updated_at"

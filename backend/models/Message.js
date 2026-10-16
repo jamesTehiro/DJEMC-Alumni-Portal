@@ -42,6 +42,7 @@ module.exports = (sequelize, Sequelize) => {
             }
         },
         {
+            tableName: "messages",
             indexes: [
                 { fields: ["conversation_id", "createdAt"] },
                 { fields: ["sender_id"] },

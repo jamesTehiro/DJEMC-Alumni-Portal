@@ -47,6 +47,6 @@ module.exports = (sequelize, DataTypes) => {
             }
         }
 
-    })
+    }, { tableName: "jobs" })
 
 }

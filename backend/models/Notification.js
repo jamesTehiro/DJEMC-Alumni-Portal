@@ -23,7 +23,7 @@ module.exports = (sequelize, Sequelize) => {
             type: Sequelize.BOOLEAN,
             defaultValue: false
         }
-    });
+    }, { tableName: "notifications" });
 
     return Notification;
 };

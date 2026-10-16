@@ -3,4 +3,4 @@ module.exports = (sequelize, DataTypes) => sequelize.define("MembershipAdministr
     granted_by: { type: DataTypes.INTEGER, allowNull: true },
     grant_reason: { type: DataTypes.STRING(255), allowNull: false },
     revoked_at: { type: DataTypes.DATE, allowNull: true }
-}, { tableName: "MembershipAdministrators", createdAt: "created_at", updatedAt: "updated_at" });
+}, { tableName: "membershipadministrators", createdAt: "created_at", updatedAt: "updated_at" });

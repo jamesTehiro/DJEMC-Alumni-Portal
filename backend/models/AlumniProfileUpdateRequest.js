@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => sequelize.define("AlumniProfileUpdate
     responded_at: { type: DataTypes.DATE, allowNull: true },
     completed_at: { type: DataTypes.DATE, allowNull: true }
 }, {
-    tableName: "AlumniProfileUpdateRequests",
+    tableName: "alumniprofileupdaterequests",
     indexes: [
         { fields: ["alumni_user_id", "status"], name: "alumni_profile_update_requests_user_status_idx" },
         { fields: ["requested_by", "createdAt"], name: "alumni_profile_update_requests_actor_created_idx" },

@@ -18,7 +18,7 @@ module.exports = (sequelize, DataTypes) => sequelize.define("MembershipApplicati
     submitted_at: { type: DataTypes.DATE, allowNull: true },
     profile_completed_at: { type: DataTypes.DATE, allowNull: true }
 }, {
-    tableName: "MembershipApplications", createdAt: "created_at", updatedAt: "updated_at",
+    tableName: "membershipapplications", createdAt: "created_at", updatedAt: "updated_at",
     indexes: [{ unique: true, fields: ["alumni_user_id"], name: "membership_application_alumni_uq" },
         { fields: ["application_status", "submitted_at"], name: "membership_application_status_date_idx" }]
 });
