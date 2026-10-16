@@ -1,5 +1,5 @@
 .employer-page {
-    padding: 24px;
+    --portal-layout-padding: 24px;
     background: #f5f7fb;
     min-height: calc(100vh - 70px);
 }
@@ -508,7 +508,7 @@
 
 @media (max-width: 640px) {
     .employer-page {
-        padding: 14px;
+        --portal-layout-padding: 14px;
     }
 
     .employer-header {
@@ -2095,7 +2095,7 @@
 
 @media (max-width: 900px) {
     .employer-page {
-        padding: 18px;
+        --portal-layout-padding: 18px;
     }
 
     .employer-header {
@@ -2286,7 +2286,7 @@
 
 @media (max-width: 575.98px) {
     .employer-page {
-        padding: 12px;
+        --portal-layout-padding: 12px;
     }
 
     .employer-header h2 {

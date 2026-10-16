@@ -465,3 +465,17 @@
         margin-bottom: 10px;
     }
 }
+
+@media (max-width: 1024px) {
+    .alumni-profile-drawer { height: 100dvh; }
+    .alumni-profile-drawer-header, .alumni-profile-drawer-actions, .alumni-profile-tabs { flex-shrink: 0; }
+    .alumni-profile-drawer-person > div { min-width: 0; overflow-wrap: anywhere; }
+    .alumni-profile-drawer-header > button { flex: 0 0 36px; }
+    .alumni-profile-drawer-actions .primary-btn { white-space: normal; min-height: 44px; }
+    .alumni-profile-drawer-content { overscroll-behavior: contain; overflow-wrap: anywhere; }
+    .alumni-tracking-pagination > div { flex-wrap: wrap; }
+}
+@media (max-height: 500px) and (max-width: 1024px) {
+    .alumni-profile-drawer { overflow-y: auto; }
+    .alumni-profile-drawer-content { flex: 0 0 auto; overflow-y: visible; }
+}

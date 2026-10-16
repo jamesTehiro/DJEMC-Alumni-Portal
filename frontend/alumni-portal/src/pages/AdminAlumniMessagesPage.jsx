@@ -1,6 +1,7 @@
+import useChatViewport from "../hooks/useChatViewport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
-import { FiPaperclip, FiSend } from "react-icons/fi";
+import { FiArrowLeft, FiPaperclip, FiSend } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { api, API_BASE_URL } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
@@ -30,6 +31,7 @@ const avatarLetter = (name = "U") => name[0]?.toUpperCase() || "U";
 export default function AdminAlumniMessagesPage() {
     useRenderDebug("AdminAlumniMessagesPage");
     const navigate = useNavigate();
+    useChatViewport();
     const [forumConversation, setForumConversation] = useState(null);
 
     const handleLogout = () => {
@@ -38,6 +40,7 @@ export default function AdminAlumniMessagesPage() {
         navigate("/");
     };
 
+    const [mobileView, setMobileView] = useState("list");
     const [messages, setMessages] = useState([]);
     const [openMessageMenuId, setOpenMessageMenuId] = useState(null);
     const [hasMore, setHasMore] = useState(false);
@@ -288,7 +291,7 @@ export default function AdminAlumniMessagesPage() {
             subtitle="Forum messaging for alumni administration."
             onLogout={handleLogout}
         >
-            <div className="messages-page admin-employer-messages-page">
+            <div className={`messages-page admin-employer-messages-page mobile-mode mobile-view-${mobileView}`}>
                 <div className="messages-shell">
                     <aside className="conversation-sidebar">
                         <div className="sidebar-heading">Forum</div>
@@ -304,6 +307,7 @@ export default function AdminAlumniMessagesPage() {
                             <button
                                 type="button"
                                 className="conversation-item active"
+                                onClick={() => setMobileView("chat")}
                             >
                                 <div className="conversation-avatar">
                                     <span className="conversation-avatar-letter">F</span>
@@ -326,6 +330,7 @@ export default function AdminAlumniMessagesPage() {
 
                     <section className="chat-panel">
                         <div className="chat-header">
+                            <button type="button" className="mobile-back-btn" onClick={() => setMobileView("list")} aria-label="Back to conversations"><FiArrowLeft /></button>
                             <div>
                                 <h3>{forumConversation?.name || "Forum"}</h3>
                                 <p>Shared forum for authorized users.</p>

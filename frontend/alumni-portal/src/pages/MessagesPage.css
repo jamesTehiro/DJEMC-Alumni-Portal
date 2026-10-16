@@ -252,7 +252,7 @@
 .attach-btn svg { width: 20px; height: 20px; }
 .attach-btn:hover { background: #dcebe1; }
 .attach-btn:focus-visible, .send-btn:focus-visible, .attachment-action:focus-visible, .attachment-image-button:focus-visible { outline: 3px solid #72a889; outline-offset: 2px; }
-.employer-mobile-back { display: none; }
+.mobile-back-btn { display: none; }
 .message-attachment { margin-top: 8px; max-width: min(360px, 100%); border: 1px solid #d9e4dc; border-radius: 12px; overflow: hidden; background: #fff; }
 .attachment-image-button { display: block; width: 100%; padding: 0; border: 0; background: #eef4ef; cursor: zoom-in; }
 .attachment-image-placeholder { display: flex; min-height: 72px; align-items: center; gap: 8px; padding: 14px; color: #173b2d; overflow-wrap: anywhere; }
@@ -842,7 +842,7 @@
     }
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 1024px) {
     .messages-page {
         padding: 12px;
         gap: 12px;
@@ -881,7 +881,7 @@
     .conversation-sidebar {
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 150px);
+        height: calc(100dvh - var(--portal-header-height, 70px) - 180px);
         min-height: 0;
         padding: 12px 10px;
     }
@@ -999,7 +999,7 @@
     .messages-page.mobile-mode.mobile-view-chat .chat-panel {
         position: relative;
         width: 100%;
-        height: calc(100vh - 140px);
+        height: 100%;
         display: flex;
         flex-direction: column;
     }
@@ -1056,12 +1056,12 @@
     }
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 1024px) {
     .employer-messages-page .messages-shell { position: relative; overflow: hidden; }
     .employer-messages-page .conversation-sidebar, .employer-messages-page .chat-panel { width: 100%; min-width: 0; }
     .employer-messages-page.mobile-view-chat .conversation-sidebar { display: none; }
     .employer-messages-page:not(.mobile-view-chat) .chat-panel { display: none; }
-    .employer-messages-page.mobile-view-chat .chat-panel { display: flex; height: calc(100dvh - 130px); min-height: 420px; }
+    .employer-messages-page.mobile-view-chat .chat-panel { display: flex; height: 100%; min-height: 0; }
     .employer-mobile-back { display: inline-grid; place-items: center; flex: 0 0 40px; border: 0; background: transparent; color: #173b2d; min-height: 40px; }
     .employer-messages-page .composer-row { grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 8px; }
     .employer-messages-page .chat-stream { min-width: 0; overflow-x: hidden; }
@@ -1129,4 +1129,47 @@
     width: 16px;
     height: 16px;
     flex: 0 0 16px;
+}
+
+/* Keep the selected chat above page chrome and inside the keyboard viewport. */
+@media (max-width: 1024px) {
+    .messages-page.mobile-view-chat {
+        position: fixed;
+        top: var(--portal-header-height, 0px);
+        left: 0;
+        right: 0;
+        z-index: 46;
+        height: calc(var(--chat-viewport-height, 100dvh) - var(--portal-header-height, 0px));
+        min-height: 0;
+        padding: 0;
+        gap: 0;
+        background: #f7faf8;
+    }
+    .messages-page.mobile-view-chat .messages-topbar { display: none; }
+    .messages-page.mobile-view-chat .messages-shell {
+        flex: 1;
+        height: 100%;
+        min-height: 0;
+    }
+    .messages-page.mobile-view-chat .chat-panel {
+        height: 100%;
+        min-height: 0;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .messages-page.mobile-view-chat .chat-stream {
+        flex: 1 1 0;
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+    }
+    .messages-page .chat-header, .messages-page .chat-composer { flex: 0 0 auto; }
+    .messages-page .chat-composer { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+    .messages-page .chat-header h3, .messages-page .chat-header p,
+    .messages-page .message-body, .messages-page .attachment-name { overflow-wrap: anywhere; }
+    .messages-page .message-content, .messages-page .message-body { min-width: 0; }
+    .messages-page .attachment-preview { max-height: 24dvh; overflow-y: auto; }
+    .message-options-trigger { width: 40px; height: 40px; flex-basis: 40px; }
+    .messages-page .mobile-back-btn { min-width: 44px; min-height: 44px; }
 }

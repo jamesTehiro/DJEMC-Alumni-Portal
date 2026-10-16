@@ -57,7 +57,7 @@ function createDrawerEnvironment({ mobile = true, scrollbarWidth = 0, computedPa
     const drawerWindow = {
         innerWidth: 390,
         matchMedia: (query) => {
-            assert.equal(query, "(max-width: 767.98px)");
+            assert.equal(query, "(max-width: 1024px)");
             return media;
         },
         getComputedStyle: () => ({ paddingRight: computedPadding })

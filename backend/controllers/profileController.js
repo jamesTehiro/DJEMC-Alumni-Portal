@@ -1,8 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 const db = require("../models");
-const { uploadDataUrl } = require("../services/objectStorage");
+const { uploadDataUrl, isObjectStorageEnabled } = require("../services/objectStorage");
 const { validateAlumniProfile, saveAlumniProfile } = require("../services/alumniProfileSave");
+const sanitizeValue = require("../middleware/sanitizeMiddleware").sanitizeValue;
 
 const uploadsDir = path.join(__dirname, "..", "uploads");
 const imageUploadsDir = path.join(uploadsDir, "images");
@@ -17,12 +18,27 @@ const buildCanonicalImagePath = (fileName) => {
 
 const normalizeStoredImagePath = (value) => {
     if (!value || typeof value !== "string") return null;
-    if (value.startsWith("data:")) return value;
+    if (/^(?:data:|blob:|file:)/i.test(value) || /^[a-z]:[\\/]/i.test(value)) {
+        const err = new Error("Upload a profile image instead of saving a temporary or local file path.");
+        err.status = 400;
+        throw err;
+    }
     if (/^https?:\/\//i.test(value)) return value;
 
     const match = value.match(profileImagePathPattern);
     if (!match) return value;
     return buildCanonicalImagePath(match[1]);
+};
+
+const parseProfilePayload = (body) => {
+    if (typeof body?.payload !== "string") return body || {};
+    let payload;
+    try { payload = JSON.parse(body.payload); }
+    catch { throw Object.assign(new Error("Invalid profile upload data."), { status: 400 }); }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+        throw Object.assign(new Error("Invalid profile upload data."), { status: 400 });
+    }
+    return sanitizeValue(payload);
 };
 
 const saveBase64Image = async (dataUrl, prefix = "file") => {
@@ -35,10 +51,6 @@ const saveBase64Image = async (dataUrl, prefix = "file") => {
         throw err;
     }
 
-    if (!fs.existsSync(imageUploadsDir)) {
-        fs.mkdirSync(imageUploadsDir, { recursive: true });
-    }
-
     const buffer = Buffer.from(matches[2], "base64");
     if (buffer.byteLength > maxBase64UploadBytes) {
         const err = new Error("Image exceeds allowed size.");
@@ -46,13 +58,30 @@ const saveBase64Image = async (dataUrl, prefix = "file") => {
         throw err;
     }
 
-    const uploadedUrl = await uploadDataUrl({
-        dataUrl,
-        folder: "uploads/images",
-        prefix
-    }).catch(() => null);
+    if (process.env.NODE_ENV === "production" && !isObjectStorageEnabled()) {
+        const err = new Error("Profile photo storage is not configured. Please try again later.");
+        err.status = 503;
+        err.publicMessage = err.message;
+        throw err;
+    }
 
-    if (uploadedUrl) return uploadedUrl;
+    if (isObjectStorageEnabled()) {
+        let uploadedUrl;
+        try {
+            uploadedUrl = await uploadDataUrl({ dataUrl, folder: "uploads/images", prefix });
+        } catch {
+            const err = new Error("Profile photo storage is unavailable. Please try again later.");
+            err.status = 502;
+            err.publicMessage = err.message;
+            throw err;
+        }
+        if (!uploadedUrl) {
+            const err = new Error("The profile photo could not be stored. Please try again.");
+            err.status = 502;
+            throw err;
+        }
+        return uploadedUrl;
+    }
 
     if (!fs.existsSync(imageUploadsDir)) {
         fs.mkdirSync(imageUploadsDir, { recursive: true });
@@ -127,6 +156,10 @@ exports.getProfile = async (req, res) => {
     }
 };
 
+exports.normalizeStoredImagePath = normalizeStoredImagePath;
+exports.buildCanonicalImagePath = buildCanonicalImagePath;
+exports.parseProfilePayload = parseProfilePayload;
+
 // GET a user's profile with access rules
 exports.getUserProfileById = async (req, res) => {
     try {
@@ -174,6 +207,7 @@ exports.getUserProfileById = async (req, res) => {
 // UPDATE profile
 exports.updateProfile = async (req, res, next) => {
     try {
+        req.body = parseProfilePayload(req.body);
         const {
             name,
             email,
@@ -202,8 +236,14 @@ exports.updateProfile = async (req, res, next) => {
             validateAlumniProfile(req.body, user);
             const avatarUpload = req.files?.avatar_image?.[0];
             const avatarPath = avatarUpload
-                ? avatarUpload.publicUrl || avatarUpload.path || buildCanonicalImagePath(avatarUpload.filename)
+                ? avatarUpload.publicUrl || buildCanonicalImagePath(avatarUpload.filename)
                 : await saveBase64Image(avatar_url, "avatar");
+            if (avatarUpload && process.env.NODE_ENV === "production" && !avatarUpload.publicUrl) {
+                const err = new Error("Profile photo storage is unavailable. Please try again later.");
+                err.status = 503;
+                err.publicMessage = err.message;
+                throw err;
+            }
             const saved = await saveAlumniProfile({ user, body: req.body, avatarPath, normalizeImagePath: normalizeStoredImagePath });
 
             const careerFields = ["employment_status", "current_company", "job_title", "employment_history"];
@@ -256,7 +296,7 @@ exports.updateProfile = async (req, res, next) => {
         if (user.role === "employer") {
             const logoUpload = req.files?.logo_image?.[0];
             const logoPath = logoUpload
-                ? logoUpload.publicUrl || logoUpload.path || buildCanonicalImagePath(logoUpload.filename)
+                ? logoUpload.publicUrl || buildCanonicalImagePath(logoUpload.filename)
                 : await saveBase64Image(logo_url, "logo");
             const [employerProfile] = await db.EmployerProfile.findOrCreate({
                 where: { user_id: req.user.id },

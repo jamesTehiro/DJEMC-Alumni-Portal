@@ -61,6 +61,11 @@ module.exports = (err, req, res, next) => {
     if (code && MULTER_USER_FRIENDLY_MESSAGES[code]) {
         message = MULTER_USER_FRIENDLY_MESSAGES[code];
     }
+    if (code === "LIMIT_FILE_SIZE" && req.path === "/api/profile") {
+        const configuredProfileMb = Number(process.env.MAX_PROFILE_UPLOAD_MB || 5);
+        const profileMb = Number.isFinite(configuredProfileMb) && configuredProfileMb > 0 ? configuredProfileMb : 5;
+        message = `Profile photos must be ${profileMb} MB or smaller.`;
+    }
 
     // Handle invalid file type message
     if (message && (message.includes("Invalid file type") || message.includes("Unsupported file type"))) {

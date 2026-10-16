@@ -1,7 +1,8 @@
+import useChatViewport from "../hooks/useChatViewport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
-import { FiPaperclip, FiSearch, FiSend } from "react-icons/fi";
+import { FiArrowLeft, FiPaperclip, FiSearch, FiSend } from "react-icons/fi";
 import { api, fetchFile } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
@@ -59,6 +60,7 @@ const formatTimestamp = (value) => {
 export default function AdminEmployerMessagesPage() {
     useRenderDebug("AdminEmployerMessagesPage");
     const navigate = useNavigate();
+    useChatViewport();
     const [forumConversations, setForumConversations] = useState([]);
 
     const handleLogout = () => {
@@ -69,6 +71,7 @@ export default function AdminEmployerMessagesPage() {
 
     const [conversations, setConversations] = useState([]);
     const [activeThread, setActiveThread] = useState(null);
+    const [mobileView, setMobileView] = useState("list");
     const [messages, setMessages] = useState([]);
     const [openMessageMenuId, setOpenMessageMenuId] = useState(null);
     const [draft, setDraft] = useState("");
@@ -419,7 +422,7 @@ export default function AdminEmployerMessagesPage() {
             subtitle="Private one-on-one conversations with employers."
             onLogout={handleLogout}
         >
-            <div className="messages-page admin-employer-messages-page">
+            <div className={`messages-page admin-employer-messages-page mobile-mode mobile-view-${mobileView}`}>
                 <div className="messages-shell">
                     <aside className="conversation-sidebar">
                         <div className="sidebar-heading">Employer Conversations</div>
@@ -461,7 +464,7 @@ export default function AdminEmployerMessagesPage() {
                                     type="button"
                                     key={conversation.threadKey}
                                     className={`conversation-item ${conversation.threadKey === activeThread ? "active" : ""}`}
-                                    onClick={() => setActiveThread(conversation.threadKey)}
+                                    onClick={() => { setActiveThread(conversation.threadKey); setMobileView("chat"); }}
                                 >
                                     <div className="conversation-avatar">
                                         {avatarUrl ? (
@@ -493,6 +496,7 @@ export default function AdminEmployerMessagesPage() {
 
                     <section className="chat-panel">
                         <div className="chat-header">
+                            <button type="button" className="mobile-back-btn" onClick={() => setMobileView("list")} aria-label="Back to conversations"><FiArrowLeft /></button>
                             <div>
                                 <h3>
                                     {activeConversation?.threadType === "forum"

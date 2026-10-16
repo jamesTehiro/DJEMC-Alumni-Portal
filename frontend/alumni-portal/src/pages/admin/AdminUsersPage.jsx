@@ -7,6 +7,7 @@ import useStrictSafeEffect from "../../hooks/useStrictSafeEffect";
 import AdminShell from "../../components/AdminShell";
 import SectionHeader from "../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "./adminUtils";
+import { resolveFileUrl } from "../../services/api";
 import "../AdminEmployerPage.css";
 import "../FeedPage.css";
 import "../AdminAlumniPage.css";
@@ -124,8 +125,8 @@ export default function AdminUsersPage({ role }) {
 
     const getProfileImage = (profile) => {
         if (!profile) return "";
-        if (profile.role === "admin" || profile.admin_scope) return profile.admin_avatar_url || "";
-        return profile.AlumniProfile?.avatar_url || profile.EmployerProfile?.logo_url || "";
+        if (profile.role === "admin" || profile.admin_scope) return resolveFileUrl(profile.admin_avatar_url || "");
+        return resolveFileUrl(profile.AlumniProfile?.avatar_url || profile.EmployerProfile?.logo_url || "");
     };
 
     const openProfilePreview = async (item) => {
@@ -349,7 +350,7 @@ export default function AdminUsersPage({ role }) {
                             {requestRecent && <small>Another request can be sent after the seven-day cooldown.</small>}
                         </div>
                         <nav className="alumni-profile-tabs" aria-label="Alumni profile sections">
-                            {["overview", "employment", "tracking", "notes"].map((tab) => <button key={tab} type="button" className={profileTab === tab ? "active" : ""} onClick={() => setProfileTab(tab)}>{tab === "employment" ? "Employment History" : tab === "tracking" ? "Tracking Activity" : tab[0].toUpperCase() + tab.slice(1)}</button>)}
+                            {["overview", "employment", "tracking"].map((tab) => <button key={tab} type="button" className={profileTab === tab ? "active" : ""} onClick={() => setProfileTab(tab)}>{tab === "employment" ? "Employment History" : tab === "tracking" ? "Tracking Activity" : "Overview"}</button>)}
                         </nav>
                         <div className="alumni-profile-drawer-content">
                             {profileLoading && <p className="alumni-tracking-muted">Loading permitted profile and tracking details…</p>}
@@ -362,7 +363,6 @@ export default function AdminUsersPage({ role }) {
                             </div>}
                             {!profileLoading && profileTab === "employment" && <div><h3>Employment History</h3>{profileIsPrivate ? <p className="alumni-tracking-muted">Employment details are hidden by this alumnus's profile visibility setting.</p> : employmentHistory.length ? employmentHistory.map((job) => <article className="alumni-profile-history-item" key={job.id}><strong>{job.position || "Position not listed"}</strong><span>{job.company_name || "Company not listed"}</span><small>{[job.start_year, job.end_year || (job.is_current ? "Present" : "")].filter(Boolean).join(" – ") || "Dates not recorded"}{job.employment_type ? ` · ${job.employment_type}` : ""}</small></article>) : <p className="alumni-tracking-muted">No employment history available.</p>}</div>}
                             {!profileLoading && profileTab === "tracking" && <div><div className="alumni-profile-tab-heading"><h3>Tracking Activity</h3><button type="button" onClick={refreshTracking}>Refresh</button></div>{timeline.length ? <ol className="alumni-tracking-timeline">{timeline.map((event) => <li key={event.id}><strong>{event.title}</strong><time>{event.date ? new Date(event.date).toLocaleString() : "Date unavailable"}</time>{event.detail && <p>{event.detail}</p>}</li>)}</ol> : <p className="alumni-tracking-muted">No tracking activity recorded yet.</p>}</div>}
-                            {!profileLoading && profileTab === "notes" && <div><h3>Notes</h3><p className="alumni-tracking-muted">Administrative notes are not enabled for this record.</p></div>}
                         </div>
                     </aside>
                 </div>}

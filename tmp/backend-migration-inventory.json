@@ -1,0 +1,1393 @@
+[
+  {
+    "file": "backend/migrations/20260324-add-admin-profile-columns.js",
+    "upReferences": [
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(\"Users\", \"admin_department\", {"
+      },
+      {
+        "line": 15,
+        "source": "await queryInterface.addColumn(\"Users\", \"admin_avatar_url\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Users"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260327-add-expected-salary-to-jobs.js",
+    "upReferences": [
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(\"Jobs\", \"expected_salary\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Jobs"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260328-add-schedule-columns-to-announcements.js",
+    "upReferences": [
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(\"Announcements\", \"day\", {"
+      },
+      {
+        "line": 15,
+        "source": "await queryInterface.addColumn(\"Announcements\", \"time\", {"
+      },
+      {
+        "line": 22,
+        "source": "await queryInterface.addColumn(\"Announcements\", \"location\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Announcements"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260413-create-email-queue-and-rate-limit-tables.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 8,
+        "source": "return table.toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 11,
+        "source": "if (table?.tableName) {"
+      },
+      {
+        "line": 12,
+        "source": "return String(table.tableName).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 16,
+        "source": "return String(table.TABLE_NAME).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 19,
+        "source": "return String(table).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.createTable(\"email_queue_jobs\", {"
+      },
+      {
+        "line": 84,
+        "source": "await queryInterface.addIndex(\"email_queue_jobs\", [\"status\", \"available_at\"], {"
+      },
+      {
+        "line": 87,
+        "source": "await queryInterface.addIndex(\"email_queue_jobs\", [\"reserved_at\"], {"
+      },
+      {
+        "line": 93,
+        "source": "await queryInterface.createTable(\"rate_limit_entries\", {"
+      },
+      {
+        "line": 128,
+        "source": "await queryInterface.addIndex(\"rate_limit_entries\", [\"scope\", \"key\", \"window_start\"], {"
+      },
+      {
+        "line": 132,
+        "source": "await queryInterface.addIndex(\"rate_limit_entries\", [\"expires_at\"], {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": []
+  },
+  {
+    "file": "backend/migrations/20260414-unify-messaging-and-harden-infra.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 7,
+        "source": "if (typeof table === \"string\") return table.toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 8,
+        "source": "if (table?.tableName) return String(table.tableName).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 9,
+        "source": "if (table?.TABLE_NAME) return String(table.TABLE_NAME).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 10,
+        "source": "return String(table).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 14,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 15,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 19,
+        "source": "const hasIndex = async (queryInterface, tableName, indexName) => {"
+      },
+      {
+        "line": 20,
+        "source": "const indexes = await queryInterface.showIndex(tableName);"
+      },
+      {
+        "line": 31,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 44,
+        "source": "`UPDATE Conversations"
+      },
+      {
+        "line": 53,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 54,
+        "source": "`UPDATE Conversations"
+      },
+      {
+        "line": 63,
+        "source": "await queryInterface.addIndex(\"Conversations\", [\"type\", \"last_message_at\"], {"
+      },
+      {
+        "line": 72,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 84,
+        "source": "await queryInterface.addIndex(\"Messages\", [\"conversation_id\", \"id\"], {"
+      },
+      {
+        "line": 92,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 93,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 98,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 104,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 105,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 110,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 117,
+        "source": "await queryInterface.addIndex(\"ConversationParticipants\", [\"conversation_id\", \"user_id\"], {"
+      },
+      {
+        "line": 126,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 127,
+        "source": "`INSERT INTO Conversations (conversation_key, name, type, last_message_text, last_message_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 140,
+        "source": "SELECT 1 FROM Conversations c"
+      },
+      {
+        "line": 146,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 147,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 153,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 159,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 160,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 166,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 173,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 174,
+        "source": "`INSERT INTO Messages ("
+      },
+      {
+        "line": 201,
+        "source": "SELECT 1 FROM Messages m"
+      },
+      {
+        "line": 215,
+        "source": "await queryInterface.renameColumn(\"email_queue_jobs\", \"available_at\", \"scheduled_at\", { transaction });"
+      },
+      {
+        "line": 219,
+        "source": "await queryInterface.renameColumn(\"email_queue_jobs\", \"reserved_at\", \"processing_started_at\", { transaction });"
+      },
+      {
+        "line": 223,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 238,
+        "source": "await queryInterface.addIndex(\"Users\", [\"email\"], {"
+      },
+      {
+        "line": 246,
+        "source": "await queryInterface.addIndex(\"Users\", [\"role\", \"admin_scope\"], {"
+      },
+      {
+        "line": 257,
+        "source": "await queryInterface.dropTable(\"EmployerMessages\");"
+      },
+      {
+        "line": 261,
+        "source": "await queryInterface.dropTable(\"EmployerConversations\");"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": true,
+    "mixedCaseLiterals": [
+      "Conversations",
+      "Messages",
+      "ConversationParticipants",
+      "EmployerConversations",
+      "EmployerMessages",
+      "Users"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260518-add-missing-application-identity-columns.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 11,
+        "source": "await queryInterface.addColumn(\"Applications\", \"full_name\", {"
+      },
+      {
+        "line": 18,
+        "source": "await queryInterface.addColumn(\"Applications\", \"email\", {"
+      },
+      {
+        "line": 25,
+        "source": "await queryInterface.addColumn(\"Applications\", \"dob\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Applications"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260526-add-feed-indexes.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 7,
+        "source": "if (typeof table === \"string\") return table.toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 8,
+        "source": "if (table?.tableName) return String(table.tableName).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 9,
+        "source": "if (table?.TABLE_NAME) return String(table.TABLE_NAME).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 10,
+        "source": "return String(table).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 14,
+        "source": "const hasIndex = async (queryInterface, tableName, indexName) => {"
+      },
+      {
+        "line": 15,
+        "source": "const indexes = await queryInterface.showIndex(tableName);"
+      },
+      {
+        "line": 23,
+        "source": "await queryInterface.addIndex(\"Posts\", [\"createdAt\"], {"
+      },
+      {
+        "line": 31,
+        "source": "await queryInterface.addIndex(\"Comments\", [\"post_id\", \"createdAt\"], {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Posts",
+      "Comments"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260616-add-employment-status-to-alumni-profiles.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 15,
+        "source": "const tableName = \"AlumniProfiles\";"
+      },
+      {
+        "line": 19,
+        "source": "const exists = tables.some((t) => normalizeTableName(t).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 25,
+        "source": "if (!(await hasColumn(queryInterface, tableName, \"employment_status\"))) {"
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 27,
+        "source": "tableName,"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "AlumniProfile",
+      "AlumniProfiles"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260618-add-alumni-record-id-to-users.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 14,
+        "source": "const tableName = \"Users\";"
+      },
+      {
+        "line": 16,
+        "source": "const exists = tables.some((t) => normalizeTableName(t).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 22,
+        "source": "if (!(await hasColumn(queryInterface, tableName, \"alumni_record_id\"))) {"
+      },
+      {
+        "line": 23,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 24,
+        "source": "tableName,"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Users"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-add-requirement-fields-to-jobs.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 25,
+        "source": "await queryInterface.addColumn("
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Jobs"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-application-documents.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 40,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 46,
+        "source": "await queryInterface.addIndex(\"ApplicationDocuments\", [\"application_id\"], { transaction });"
+      },
+      {
+        "line": 47,
+        "source": "await queryInterface.addIndex(\"ApplicationDocuments\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 48,
+        "source": "await queryInterface.addIndex(\"ApplicationDocuments\", [\"review_status\"], { transaction });"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "ApplicationDocuments"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-application-responses.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 36,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 42,
+        "source": "await queryInterface.addIndex(\"ApplicationResponses\", [\"application_id\"], { transaction });"
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.addIndex(\"ApplicationResponses\", [\"requirement_code\"], { transaction });"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "ApplicationResponses"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-audit-logs.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 34,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"actor_id\"], { transaction });"
+      },
+      {
+        "line": 35,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"action\"], { transaction });"
+      },
+      {
+        "line": 36,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"target_type\", \"target_id\"], { transaction });"
+      },
+      {
+        "line": 37,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 38,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"created_at\"], { transaction });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "AuditLogs"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-job-requirement-snapshots.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 30,
+        "source": "await queryInterface.addIndex(\"JobRequirementSnapshots\", [\"application_id\"], { transaction });"
+      },
+      {
+        "line": 31,
+        "source": "await queryInterface.addIndex(\"JobRequirementSnapshots\", [\"job_id\", \"version\"], { transaction });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "JobRequirementSnapshots"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-job-requirements.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 49,
+        "source": "await queryInterface.addIndex(\"JobRequirements\", [\"job_id\", \"version\"], { transaction });"
+      },
+      {
+        "line": 50,
+        "source": "await queryInterface.addIndex(\"JobRequirements\", [\"requirement_code\"], { transaction });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "JobRequirements"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-requirement-groups.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 30,
+        "source": "await queryInterface.addIndex(\"RequirementGroups\", [\"job_id\", \"version\"], { transaction });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "RequirementGroups"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-requirement-library.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 67,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 73,
+        "source": "await queryInterface.addIndex(\"RequirementLibrary\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 74,
+        "source": "await queryInterface.addIndex(\"RequirementLibrary\", [\"category\"], { transaction });"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "RequirementLibrary"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260719-add-recruitment-lifecycle.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.addColumn("
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Jobs",
+      "Applications"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260720-create-resume-system.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 15,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 37,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.addIndex(\"Resumes\", [\"user_id\"], { transaction });"
+      },
+      {
+        "line": 44,
+        "source": "await queryInterface.addIndex(\"Resumes\", [\"user_id\", \"is_archived\"], { transaction });"
+      },
+      {
+        "line": 49,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 72,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 78,
+        "source": "await queryInterface.addIndex(\"ResumePersonalInfo\", [\"resume_id\"], { unique: true, transaction });"
+      },
+      {
+        "line": 83,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 97,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 103,
+        "source": "await queryInterface.addIndex(\"ResumeSummaries\", [\"resume_id\"], { unique: true, transaction });"
+      },
+      {
+        "line": 108,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 130,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 136,
+        "source": "await queryInterface.addIndex(\"ResumeEducation\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 137,
+        "source": "await queryInterface.addIndex(\"ResumeEducation\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 142,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 163,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 169,
+        "source": "await queryInterface.addIndex(\"ResumeWorkExperience\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 170,
+        "source": "await queryInterface.addIndex(\"ResumeWorkExperience\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 175,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 191,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 197,
+        "source": "await queryInterface.addIndex(\"ResumeSkills\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 198,
+        "source": "await queryInterface.addIndex(\"ResumeSkills\", [\"resume_id\", \"category\"], { transaction });"
+      },
+      {
+        "line": 203,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 224,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 230,
+        "source": "await queryInterface.addIndex(\"ResumeProjects\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 231,
+        "source": "await queryInterface.addIndex(\"ResumeProjects\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 236,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 256,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 262,
+        "source": "await queryInterface.addIndex(\"ResumeCertifications\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 263,
+        "source": "await queryInterface.addIndex(\"ResumeCertifications\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 268,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 286,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 292,
+        "source": "await queryInterface.addIndex(\"ResumeTrainings\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 293,
+        "source": "await queryInterface.addIndex(\"ResumeTrainings\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 298,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 317,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 323,
+        "source": "await queryInterface.addIndex(\"ResumeSeminars\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 324,
+        "source": "await queryInterface.addIndex(\"ResumeSeminars\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 329,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 347,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 353,
+        "source": "await queryInterface.addIndex(\"ResumeAwards\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 354,
+        "source": "await queryInterface.addIndex(\"ResumeAwards\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 359,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 379,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 385,
+        "source": "await queryInterface.addIndex(\"ResumeOrganizations\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 386,
+        "source": "await queryInterface.addIndex(\"ResumeOrganizations\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 391,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 411,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 417,
+        "source": "await queryInterface.addIndex(\"ResumeVolunteerWork\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 418,
+        "source": "await queryInterface.addIndex(\"ResumeVolunteerWork\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 423,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 439,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 445,
+        "source": "await queryInterface.addIndex(\"ResumeLanguages\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 446,
+        "source": "await queryInterface.addIndex(\"ResumeLanguages\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 451,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 470,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 476,
+        "source": "await queryInterface.addIndex(\"ResumeReferences\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 477,
+        "source": "await queryInterface.addIndex(\"ResumeReferences\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 482,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 499,
+        "source": "await queryInterface.addIndex(\"ResumeVersions\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 500,
+        "source": "await queryInterface.addIndex(\"ResumeVersions\", [\"resume_id\", \"version_number\"], { unique: true, transaction });"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Resumes",
+      "ResumePersonalInfo",
+      "ResumeSummaries",
+      "ResumeEducation",
+      "ResumeWorkExperience",
+      "ResumeSkills",
+      "ResumeProjects",
+      "ResumeCertifications",
+      "ResumeTrainings",
+      "ResumeSeminars",
+      "ResumeAwards",
+      "ResumeOrganizations",
+      "ResumeVolunteerWork",
+      "ResumeLanguages",
+      "ResumeReferences",
+      "ResumeVersions"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260724-add-missing-timestamps-to-resume-tables.js",
+    "upReferences": [
+      {
+        "line": 29,
+        "source": "for (const tableName of tablesToFix) {"
+      },
+      {
+        "line": 30,
+        "source": "if (!existingLower.includes(tableName.toLowerCase())) {"
+      },
+      {
+        "line": 34,
+        "source": "const columns = await queryInterface.describeTable(tableName, { transaction });"
+      },
+      {
+        "line": 37,
+        "source": "await queryInterface.addColumn(tableName, 'created_at', {"
+      },
+      {
+        "line": 45,
+        "source": "await queryInterface.addColumn(tableName, 'updated_at', {"
+      },
+      {
+        "line": 48,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "ResumePersonalInfo",
+      "ResumeSummaries",
+      "ResumeEducation",
+      "ResumeWorkExperience",
+      "ResumeSkills",
+      "ResumeProjects",
+      "ResumeCertifications",
+      "ResumeTrainings",
+      "ResumeSeminars",
+      "ResumeAwards",
+      "ResumeOrganizations",
+      "ResumeVolunteerWork",
+      "ResumeLanguages",
+      "ResumeReferences",
+      "ResumeVersions"
+    ]
+  },
+  {
+    "file": "backend/migrations/20260725-add-proof-document-to-alumni-profiles.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 14,
+        "source": "const tableName = \"AlumniProfiles\";"
+      },
+      {
+        "line": 16,
+        "source": "const exists = tables.some((table) => normalizeTableName(table).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 23,
+        "source": "if (!(await hasColumn(queryInterface, tableName, \"proof_document_path\"))) {"
+      },
+      {
+        "line": 24,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 25,
+        "source": "tableName,"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "AlumniProfiles"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261009-add-employer-message-file-metadata.js",
+    "upReferences": [
+      {
+        "line": 6,
+        "source": "if (!table.file_name) await queryInterface.addColumn(\"EmployerMessages\", \"file_name\", { type: Sequelize.STRING, allowNull: true });"
+      },
+      {
+        "line": 7,
+        "source": "if (!table.file_mime) await queryInterface.addColumn(\"EmployerMessages\", \"file_mime\", { type: Sequelize.STRING, allowNull: true });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "EmployerMessages"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261011-add-message-file-sizes.js",
+    "upReferences": [
+      {
+        "line": 5,
+        "source": "for (const tableName of [\"Messages\", \"EmployerMessages\"]) {"
+      },
+      {
+        "line": 6,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(tableName, \"file_size\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Messages",
+      "EmployerMessages"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261012-add-application-archive-flag.js",
+    "upReferences": [
+      {
+        "line": 7,
+        "source": "await queryInterface.addColumn(\"Applications\", \"is_archived\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Applications"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261012-add-job-interview-invitations.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const addColumnIfMissing = async (queryInterface, Sequelize, tableName, name, definition) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 5,
+        "source": "if (!columns[name]) await queryInterface.addColumn(tableName, name, definition);"
+      },
+      {
+        "line": 19,
+        "source": "await addColumnIfMissing(queryInterface, Sequelize, \"Jobs\", name, definition);"
+      },
+      {
+        "line": 22,
+        "source": "await addColumnIfMissing(queryInterface, Sequelize, \"email_queue_jobs\", \"dedupe_key\", {"
+      },
+      {
+        "line": 28,
+        "source": "await queryInterface.addIndex(\"email_queue_jobs\", [\"dedupe_key\"], {"
+      },
+      {
+        "line": 36,
+        "source": "await queryInterface.changeColumn(\"Notifications\", \"message\", {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Jobs",
+      "Notifications"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261013-create-alumni-profile-update-requests.js",
+    "upReferences": [
+      {
+        "line": 3,
+        "source": "const tableExists = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((table) => String(table).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 12,
+        "source": "await queryInterface.createTable(\"AlumniProfileUpdateRequests\", {"
+      },
+      {
+        "line": 17,
+        "source": "references: { model: \"Users\", key: \"id\" },"
+      },
+      {
+        "line": 24,
+        "source": "references: { model: \"Users\", key: \"id\" },"
+      },
+      {
+        "line": 31,
+        "source": "references: { model: \"Notifications\", key: \"id\" },"
+      },
+      {
+        "line": 38,
+        "source": "references: { model: \"email_queue_jobs\", key: \"id\" },"
+      },
+      {
+        "line": 48,
+        "source": "updatedAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\") }"
+      },
+      {
+        "line": 51,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"alumni_user_id\", \"status\"], { name: \"alumni_profile_update_requests_user_status_idx\" });"
+      },
+      {
+        "line": 52,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"requested_by\", \"createdAt\"], { name: \"alumni_profile_update_requests_actor_created_idx\" });"
+      },
+      {
+        "line": 53,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"notification_id\"], { name: \"alumni_profile_update_requests_notification_uq\", unique: true });"
+      },
+      {
+        "line": 54,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"email_queue_job_id\"], { name: \"alumni_profile_update_requests_email_job_uq\", unique: true });"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "AlumniProfileUpdateRequests",
+      "Users",
+      "Notifications"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261013-expand-application-document-file-path.js",
+    "upReferences": [
+      {
+        "line": 8,
+        "source": "return tables.some((table) => String(typeof table === \"object\" ? table.tableName : table).toLowerCase() === TABLE_NAME.toLowerCase());"
+      },
+      {
+        "line": 17,
+        "source": "await queryInterface.changeColumn(TABLE_NAME, COLUMN_NAME, {"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "ApplicationDocuments"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-add-job-posting-details.js",
+    "upReferences": [
+      {
+        "line": 7,
+        "source": "await queryInterface.addColumn(\"Jobs\", \"posting_details\", { type: Sequelize.JSON, allowNull: true, defaultValue: null });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Jobs"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-create-membership-applications.js",
+    "upReferences": [
+      {
+        "line": 6,
+        "source": "updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\") }"
+      },
+      {
+        "line": 8,
+        "source": "const userReference = Sequelize => ({ type: Sequelize.INTEGER, allowNull: false, references: { model: \"Users\", key: \"id\" }, onUpdate: \"CASCADE\", onDelete: \"RESTRICT\" });"
+      },
+      {
+        "line": 13,
+        "source": "await qi.addIndex(table, [field], { name, unique: true });"
+      },
+      {
+        "line": 20,
+        "source": "await qi.createTable(\"MembershipApplications\", {"
+      },
+      {
+        "line": 38,
+        "source": "await qi.addIndex(\"MembershipApplications\", [\"application_status\", \"submitted_at\"], { name: \"membership_application_status_date_idx\" });"
+      },
+      {
+        "line": 41,
+        "source": "await qi.createTable(\"MembershipAdministrators\", {"
+      },
+      {
+        "line": 44,
+        "source": "granted_by: { type: Sequelize.INTEGER, allowNull: true, references: { model: \"Users\", key: \"id\" }, onUpdate: \"CASCADE\", onDelete: \"SET NULL\" },"
+      },
+      {
+        "line": 52,
+        "source": "await qi.sequelize.query(\"INSERT INTO MembershipAdministrators (user_id, granted_by, grant_reason, created_at, updated_at) SELECT id, NULL, 'Initial verified Employer Admin designated by membership deployment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM Users u WHERE u.role = 'admin' AND u.admin_scope = 'employer' AND u.account_status = 'verified' AND NOT EXISTS (SELECT 1 FROM MembershipAdministrators m WHERE m.user_id = u.id)\");"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": [
+      "Users",
+      "MembershipApplications",
+      "MembershipAdministrators"
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-grant-registrar-membership-access.js",
+    "upReferences": [
+      {
+        "line": 6,
+        "source": "await queryInterface.sequelize.query(\"INSERT INTO MembershipAdministrators (user_id, granted_by, grant_reason, created_at, updated_at) SELECT id, NULL, 'Registrar read-only membership review designated by deployment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM Users u WHERE u.role = 'admin' AND u.admin_scope = 'registrar' AND u.account_status = 'verified' AND NOT EXISTS (SELECT 1 FROM MembershipAdministrators m WHERE m.user_id = u.id)\");"
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": []
+  },
+  {
+    "file": "backend/migrations/20261014-transfer-membership-access-to-admin-alumni.js",
+    "upReferences": [
+      {
+        "line": 8,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 9,
+        "source": "\"UPDATE MembershipAdministrators m JOIN Users u ON u.id = m.user_id SET m.revoked_at = CURRENT_TIMESTAMP, m.updated_at = CURRENT_TIMESTAMP WHERE m.revoked_at IS NULL AND u.role = 'admin' AND u.admin_scope IN ('registrar', 'employer')\","
+      },
+      {
+        "line": 12,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 13,
+        "source": "\"INSERT INTO MembershipAdministrators (user_id, granted_by, grant_reason, created_at, updated_at) SELECT id, NULL, 'Admin Alumni read-only membership access designated by feature transfer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM Users u WHERE u.role = 'admin' AND u.admin_scope = 'alumni' AND u.account_status = 'verified' AND NOT EXISTS (SELECT 1 FROM MembershipAdministrators m WHERE m.user_id = u.id)\","
+      }
+    ],
+    "upDataChanges": true,
+    "upDrops": false,
+    "mixedCaseLiterals": []
+  },
+  {
+    "file": "backend/migrations/20261016-repair-email-queue-dedupe-key.js",
+    "upReferences": [
+      {
+        "line": 6,
+        "source": "if (!tables.some(t => (typeof t === 'string' ? t : t.tableName) === table)) throw new Error('The exact lowercase email_queue_jobs table is missing. Check the database connection; no table will be created.');"
+      },
+      {
+        "line": 17,
+        "source": "const [result] = await qi.sequelize.query('SELECT COUNT(*) AS duplicate_groups FROM (SELECT 1 FROM `email_queue_jobs` WHERE `dedupe_key` IS NOT NULL GROUP BY `dedupe_key` HAVING COUNT(*) > 1) AS duplicate_keys', { type: Sequelize.QueryTypes.SELECT });"
+      },
+      {
+        "line": 28,
+        "source": "if (!before.columnPresent) await qi.addColumn(table, 'dedupe_key', { type: Sequelize.STRING(191), allowNull: true, defaultValue: null });"
+      },
+      {
+        "line": 31,
+        "source": "if (!ready.uniqueIndexPresent) await qi.addIndex(table, ['dedupe_key'], { name: indexName, unique: true });"
+      }
+    ],
+    "upDataChanges": false,
+    "upDrops": false,
+    "mixedCaseLiterals": []
+  }
+]

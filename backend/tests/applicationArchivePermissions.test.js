@@ -90,6 +90,7 @@ test("approving an application does not set its independent archive flag", async
         transaction: db.sequelize.transaction,
         findJob: db.Job.findByPk,
         maxCycle: db.Application.max,
+        updateApplication: db.Application.update,
         notification: db.Notification.create,
         audit: db.AuditLog.create,
         findByPk: db.Application.findByPk,
@@ -114,6 +115,11 @@ test("approving an application does not set its independent archive flag", async
     db.sequelize.transaction = async fn => fn({ LOCK: { UPDATE: "UPDATE" } });
     db.Job.findByPk = async () => application.Job;
     db.Application.max = async () => 1;
+    db.Application.update = async (values, options) => {
+        assert.equal(options.where.is_archived, false);
+        assert.equal(Object.hasOwn(values, "is_archived"), false);
+        return [1];
+    };
     db.Notification.create = async () => ({});
     db.AuditLog.create = async () => ({});
     db.Interview.findOne = async () => null;
@@ -145,6 +151,7 @@ test("approving an application does not set its independent archive flag", async
         db.sequelize.transaction = originals.transaction;
         db.Job.findByPk = originals.findJob;
         db.Application.max = originals.maxCycle;
+        db.Application.update = originals.updateApplication;
         db.Notification.create = originals.notification;
         db.AuditLog.create = originals.audit;
         db.Application.findByPk = originals.findByPk;

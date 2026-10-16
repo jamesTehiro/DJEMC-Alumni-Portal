@@ -1,0 +1,106 @@
+/* Portal-only containment. Wide records scroll in their existing table wrappers. */
+@media (max-width: 1024px) {
+    :is(.admin-shell-root, .dashboard-layout, .employer-page) :is(
+        .content-grid, .queue-panel, .audit-panel, .metric-card, .emp-dash-panel,
+        .alu-dash-panel, .emp-list-item-left, .alu-job-meta, .alu-announce-content,
+        .comment-body, .comment-box input, .job-card, .settings-card,
+        .master-records-card, .master-records-metric > div
+    ) {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .admin-shell-root .admin-settings-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    }
+
+    .admin-shell-root .overview-queue-panel .queue-row-simple {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    :is(.admin-shell-root, .dashboard-layout, .employer-page) :is(
+        .alumni-tracking-table-wrap, .membership-management-table-scroll,
+        .master-records-table-scroll, .table-responsive
+    ) {
+        min-width: 0;
+        max-width: 100%;
+        overscroll-behavior-x: contain;
+    }
+
+    :is(.admin-shell-root, .dashboard-layout, .employer-page) :is(
+        .panel-header, .emp-dash-panel-header, .alu-dash-panel-header,
+        .emp-list-item-right, .comment-meta
+    ) {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    /* Bootstrap portals are mounted under body, outside the page's layout. */
+    body:has(:is(.admin-shell-root, .dashboard-layout, .employer-page)) .modal {
+        --bs-modal-margin: 8px;
+    }
+
+    body:has(:is(.admin-shell-root, .dashboard-layout, .employer-page)) .modal-content {
+        max-height: calc(100dvh - 16px);
+        min-width: 0;
+    }
+
+    body:has(:is(.admin-shell-root, .dashboard-layout, .employer-page)) .modal-body {
+        min-height: 0;
+        overflow-y: auto;
+        overflow-wrap: anywhere;
+        overscroll-behavior: contain;
+    }
+
+    body:has(:is(.admin-shell-root, .dashboard-layout, .employer-page)) :is(.modal-header, .modal-footer) {
+        flex-shrink: 0;
+        gap: 8px;
+    }
+
+    body:has(:is(.admin-shell-root, .dashboard-layout, .employer-page)) :is(.modal-title, .form-control, .form-select) {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    body:has(:is(.admin-shell-root, .dashboard-layout, .employer-page)) .modal-footer button {
+        white-space: normal;
+        min-height: 44px;
+    }
+
+    .profile-preview-modal { max-height: calc(100dvh - 24px); overflow-wrap: anywhere; }
+}
+
+@media (max-width: 600px) {
+    .dashboard-layout :is(.alumni-shell, .alumni-layout, .jobs-page, .feed-container, .profile-page, .notification-page) {
+        padding-inline: 0;
+    }
+
+    .dashboard-layout .alumni-shell { padding-block: 0; }
+
+    .dashboard-layout :is(.alu-dash-panel-inner, .emp-dash-panel-inner) { padding: 16px 12px; }
+    .dashboard-layout .comment-box { flex-wrap: wrap; }
+    .dashboard-layout .comment-box input { flex: 1 1 140px; }
+    .dashboard-layout .comment-box button { min-height: 44px; }
+    .dashboard-layout :is(.notification-message, .notification-interview-message, .job-preview-block) { overflow-wrap: anywhere; }
+
+    .admin-shell-root .metric-card { min-width: 0; }
+    .admin-shell-root .settings-profile-meta { overflow-wrap: anywhere; }
+    .admin-shell-root .membership-management-pagination > div { flex-wrap: wrap; gap: 8px; }
+    .admin-shell-root .alumni-tracking-heading > strong { white-space: normal; }
+    .admin-shell-root .alumni-tracking-summary { grid-template-columns: minmax(0, 1fr); }
+
+    :is(.admin-shell-root, .employer-page) .emp-list-item { flex-wrap: wrap; }
+    :is(.admin-shell-root, .employer-page) .emp-list-item-right { width: 100%; justify-content: flex-start; }
+    :is(.admin-shell-root, .employer-page) .emp-list-item-right > button {
+        min-width: 0;
+        max-width: 100%;
+        min-height: 44px;
+        height: auto;
+        white-space: normal;
+    }
+
+    .profile-preview-modal-body { padding: 18px; }
+    .profile-preview-modal-header { padding: 16px; gap: 10px; }
+    .profile-preview-modal-close { flex: 0 0 44px; height: 44px; }
+}

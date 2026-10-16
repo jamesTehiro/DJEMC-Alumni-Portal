@@ -865,10 +865,21 @@ exports.reviewApplication = async (req, res, next) => {
             if (Number(application.job_id) !== Number(job.id) || Number(application.recruitment_cycle) !== Number(recruitment_cycle) || Number(cycle) !== Number(recruitment_cycle)) fail(409, "Application does not belong to the selected job and current recruitment cycle.");
             if (application.is_archived) fail(409, "Restore this application before reviewing it.");
             if (application.status === status) return { application };
-            if (application.status === "not_verified") fail(409, "This application has already been declined.");
+            if (!["pending", "pending_review", "submitted"].includes(application.status)) fail(409, "This application already has a final decision or is processing.");
             const previousStatus = application.status;
+            // Compare-and-set inside the transaction: only the winner emits side effects.
+            const [changed] = await db.Application.update({ status }, {
+                where: {
+                    id: application.id,
+                    job_id: job.id,
+                    recruitment_cycle: Number(recruitment_cycle),
+                    is_archived: false,
+                    status: { [Op.in]: ["pending", "pending_review", "submitted"] }
+                },
+                transaction
+            });
+            if (changed !== 1) fail(409, "This application has already been decided or changed. Refresh before continuing.");
             application.status = status;
-            await application.save({ transaction });
             const message = status === "verified"
                 ? "Your application for " + (job.title || "the job") + " has been approved. Please await further instructions from the employer."
                 : "Your application for " + (job.title || "the job") + " was not selected for the current recruitment process.";
@@ -950,6 +961,9 @@ exports.sendInterviewInvitation = async (req, res, next) => {
             });
             if (application.status === "verified" || priorInterview) {
                 const error = new Error("This application already has an interview invitation."); error.status = 409; throw error;
+            }
+            if (!["pending", "pending_review", "submitted"].includes(application.status)) {
+                const error = new Error("This application already has a final decision or is processing."); error.status = 409; throw error;
             }
 
             const details = getJobInvitationDetails(application.Job);

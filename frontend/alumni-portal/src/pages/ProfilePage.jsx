@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Card, Button, Form, Modal } from "react-bootstrap";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import "./ProfilePage.css";
-import { api } from "../services/api";
+import { api, resolveFileUrl } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import { fillEmptyProfileFields, membershipProfileChanges } from "../utils/membershipProfile";
+import { createProfilePhotoFormData, validateProfilePhoto } from "../utils/profilePhotoUpload";
 
 const blankWork = {
     company_name: "",
@@ -49,6 +50,7 @@ export default function ProfilePage() {
     const [profile, setProfile] = useState(null);
     const [form, setForm] = useState(null);
     const [avatarFile, setAvatarFile] = useState(null);
+    const [avatarPreview, setAvatarPreview] = useState(null);
     const [avatarSaving, setAvatarSaving] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);
@@ -66,6 +68,9 @@ export default function ProfilePage() {
 
     const viewedUserId = userId ? Number(userId) : null;
     const viewingOtherProfile = !!viewedUserId && viewedUserId !== currentUser?.id;
+    useEffect(() => () => {
+        if (avatarPreview?.url?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview.url);
+    }, [avatarPreview]);
     useEffect(() => {
         if (viewingOtherProfile || currentUser?.role !== "alumni") return;
         let active = true;
@@ -141,11 +146,15 @@ export default function ProfilePage() {
     const isAdmin = profile?.role === "admin";
     const canEdit = !viewingOtherProfile;
     const resumeHistory = normalizeEmploymentHistory(alumniProfile);
-    const profileImage = isAdmin
+    const profileImageField = isAdmin ? "admin_avatar_url" : isEmployer ? "logo_url" : "avatar_url";
+    const storedProfileImage = isAdmin
         ? (form?.admin_avatar_url || profile?.admin_avatar_url)
         : isEmployer
             ? (form?.logo_url || employerProfile?.logo_url)
             : (form?.avatar_url || alumniProfile?.avatar_url);
+    const profileImage = avatarPreview?.field === profileImageField
+        ? avatarPreview.url
+        : resolveFileUrl(storedProfileImage || "");
 
     const profileRoleLabel = isAdmin
         ? `Admin${profile?.admin_scope ? ` · ${profile.admin_scope}` : ""}`
@@ -229,7 +238,13 @@ export default function ProfilePage() {
                 payload.admin_avatar_url = form.admin_avatar_url || "";
             }
 
-            const result = await api.put("/profile", payload, true);
+            let result;
+            if (isAlumni && avatarFile) {
+                setAvatarSaving(true);
+                result = await api.put("/profile", createProfilePhotoFormData(payload, avatarFile), true);
+            } else {
+                result = await api.put("/profile", payload, true);
+            }
             const updated = result?.user || await api.get("/profile", true);
             if (!updated?.id) throw new Error("The saved profile could not be loaded.");
             setProfile(updated);
@@ -237,7 +252,10 @@ export default function ProfilePage() {
                 ...toFormState(updated),
                 employment_status: updated?.AlumniProfile?.employment_status ?? prev?.employment_status
             }));
-            setMessage(isAlumni ? "Profile Saved Successfully!" : "Profile updated.");
+            if (avatarPreview?.url?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview.url);
+            setAvatarPreview(null);
+            setAvatarFile(null);
+            setMessage(avatarFile ? "Profile photo saved successfully." : isAlumni ? "Profile Saved Successfully!" : "Profile updated.");
             setEditing(false);
             if (isAlumni) {
                 setShowProfileSuccess(true);
@@ -245,22 +263,24 @@ export default function ProfilePage() {
             }
 
             if (updated) {
-                localStorage.setItem(
-                    "user",
-                    JSON.stringify({
-                        ...(JSON.parse(localStorage.getItem("user") || "{}")),
-                        name: updated.name,
-                        email: updated.email,
-                        role: updated.role,
-                        id: updated.id
-                    })
-                );
+                const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+                localStorage.setItem("user", JSON.stringify({
+                    ...storedUser,
+                    name: updated.name,
+                    email: updated.email,
+                    role: updated.role,
+                    id: updated.id,
+                    ...(updated.admin_avatar_url !== undefined && { admin_avatar_url: updated.admin_avatar_url }),
+                    ...(updated.AlumniProfile && { AlumniProfile: { ...storedUser.AlumniProfile, avatar_url: updated.AlumniProfile.avatar_url } }),
+                    ...(updated.EmployerProfile && { EmployerProfile: { ...storedUser.EmployerProfile, logo_url: updated.EmployerProfile.logo_url } })
+                }));
             }
         } catch (err) {
             setError(err.message);
         } finally {
             saveLock.current = false;
             setSaving(false);
+            setAvatarSaving(false);
         }
     };
 
@@ -286,12 +306,33 @@ export default function ProfilePage() {
             const field = isAdmin ? "admin_avatar_url" : isEmployer ? "logo_url" : "avatar_url";
             setForm((prev) => ({ ...prev, [field]: avatarUrl }));
             setAvatarFile(null);
-            setMessage("Profile photo ready. Click Save to apply.");
+            if (avatarPreview?.url?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview.url);
+            setAvatarPreview(null);
+            setMessage("");
         } catch (err) {
             setError(err.message || "Failed to read image.");
         } finally {
             setAvatarSaving(false);
         }
+    };
+
+    const handleAvatarSelection = (event) => {
+        const file = event.target.files?.[0] || null;
+        setError("");
+        setMessage("");
+        if (!file) return;
+        const validationError = validateProfilePhoto(file);
+        if (validationError) {
+            event.target.value = "";
+            setAvatarFile(null);
+            setAvatarPreview(null);
+            setError(validationError);
+            return;
+        }
+        if (avatarPreview?.url?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview.url);
+        const field = isAdmin ? "admin_avatar_url" : isEmployer ? "logo_url" : "avatar_url";
+        setAvatarFile(file);
+        setAvatarPreview({ field, url: URL.createObjectURL(file) });
     };
 
     if (!loading && !error && viewingOtherProfile) {
@@ -450,17 +491,18 @@ export default function ProfilePage() {
                                                 <div className="avatar-upload-row">
                                                     <Form.Control
                                                         type="file"
-                                                        accept="image/*"
-                                                        onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                                                        accept=".png,.jpg,.jpeg,.webp,.gif"
+                                                        onChange={handleAvatarSelection}
                                                     />
-                                                    <Button
+                                                    {!isAlumni && <Button
                                                         variant="outline-success"
                                                         onClick={handleAvatarUpload}
                                                         disabled={avatarSaving}
                                                     >
                                                         {avatarSaving ? "Uploading..." : "Upload"}
-                                                    </Button>
+                                                    </Button>}
                                                 </div>
+                                                {(avatarFile || String(form?.avatar_url || "").startsWith("data:image/")) && <small role="status">Photo preview selected. Save Profile to upload and save it.</small>}
                                             </Form.Group>
 
                                             <h6 className="form-section-title">Employment Status</h6>
@@ -567,8 +609,8 @@ export default function ProfilePage() {
                                                 <div className="avatar-upload-row">
                                                     <Form.Control
                                                         type="file"
-                                                        accept="image/*"
-                                                        onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                                                        accept=".png,.jpg,.jpeg,.webp,.gif"
+                                                        onChange={handleAvatarSelection}
                                                     />
                                                     <Button
                                                         variant="outline-success"
@@ -578,6 +620,7 @@ export default function ProfilePage() {
                                                         {avatarSaving ? "Uploading..." : "Upload"}
                                                     </Button>
                                                 </div>
+                                                {(avatarFile || String(form?.logo_url || "").startsWith("data:image/")) && <small role="status">Photo preview selected. Save to upload and save it.</small>}
                                             </Form.Group>
                                         </>
                                     )}
@@ -594,8 +637,8 @@ export default function ProfilePage() {
                                                 <div className="avatar-upload-row">
                                                     <Form.Control
                                                         type="file"
-                                                        accept="image/*"
-                                                        onChange={(e) => setAvatarFile(e.target.files?.[0] || null)}
+                                                        accept=".png,.jpg,.jpeg,.webp,.gif"
+                                                        onChange={handleAvatarSelection}
                                                     />
                                                     <Button
                                                         variant="outline-success"
@@ -605,6 +648,7 @@ export default function ProfilePage() {
                                                         {avatarSaving ? "Uploading..." : "Upload"}
                                                     </Button>
                                                 </div>
+                                                {(avatarFile || String(form?.admin_avatar_url || "").startsWith("data:image/")) && <small role="status">Photo preview selected. Save to upload and save it.</small>}
                                             </Form.Group>
                                         </>
                                     )}
@@ -617,6 +661,9 @@ export default function ProfilePage() {
                                             variant="outline-secondary"
                                             disabled={saving || avatarSaving}
                                             onClick={() => {
+                                                if (avatarPreview?.url?.startsWith("blob:")) URL.revokeObjectURL(avatarPreview.url);
+                                                setAvatarPreview(null);
+                                                setAvatarFile(null);
                                                 setEditing(false);
                                                 setMessage("");
                                                 setError("");

@@ -7,24 +7,20 @@
 
 /* Layout container - 300px sidebar width matching Employer design */
 .sidebarLayout,
-.employerLayout {
+.employerLayout,
+.adminShell {
     display: grid;
     grid-template-columns: var(--portal-sidebar-width, 300px) minmax(0, 1fr);
-    gap: var(--portal-sidebar-gap, 28px);
+    gap: 0;
     align-items: start;
-    padding: var(--portal-layout-padding, 24px);
+    padding: 0;
+    min-width: 0;
+    min-height: calc(100dvh - var(--portal-header-height, 0px));
+    box-sizing: border-box;
 }
 
 .adminShell {
     --portal-layout-padding: 32px;
-    display: grid;
-    grid-template-columns: var(--portal-sidebar-width, 300px) minmax(0, 1fr);
-    gap: var(--portal-sidebar-gap, 28px);
-    align-items: start;
-    min-height: calc(100dvh - var(--portal-header-height, 0px));
-    min-width: 0;
-    padding: var(--portal-layout-padding);
-    box-sizing: border-box;
     background:
         radial-gradient(120% 120% at 15% 10%, rgba(182, 126, 125, .14), transparent 40%),
         radial-gradient(120% 120% at 90% 20%, rgba(93, 168, 122, .18), transparent 45%),
@@ -59,10 +55,11 @@
 .sidebar,
 .employerSidebar {
     position: fixed;
-    top: calc(var(--portal-header-height, 0px) + var(--portal-layout-padding, 24px));
-    left: var(--portal-layout-padding, 24px);
+    top: var(--portal-header-height, 0px);
+    left: 0;
+    bottom: 0;
     width: var(--portal-sidebar-width, 300px);
-    max-height: calc(100dvh - var(--portal-header-height, 0px) - 2 * var(--portal-layout-padding, 24px));
+    height: calc(100dvh - var(--portal-header-height, 0px));
     overflow-y: auto;
     overflow-x: hidden;
     overscroll-behavior-y: contain;
@@ -71,14 +68,15 @@
     align-self: start;
 }
 
-/* Sidebar card - exact match from Employer design */
+/* Full-height sidebar surface shared by every portal. */
 .sidebarCard,
 .employerSidebarCard,
 .adminEmployerSidebarCard {
     background: var(--sidebar-gradient);
-    border-radius: 24px;
+    border-radius: 0;
+    min-height: 100%;
     padding: 26px;
-    box-shadow: 0 12px 30px rgba(23, 64, 42, 0.14);
+    box-shadow: none;
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     display: flex;
@@ -159,16 +157,17 @@
 .employerMain {
     min-width: 0;
     grid-column: 2;
+    padding: var(--portal-layout-padding, 24px);
 }
 
 .main {
     display: flex;
     flex-direction: column;
-    min-height: calc(100dvh - var(--portal-header-height, 0px) - 2 * var(--portal-layout-padding, 24px));
+    min-height: calc(100dvh - var(--portal-header-height, 0px));
 }
 
 /* Mobile styles - exact match from Employer design */
-@media (max-width: 767.98px) {
+@media (max-width: 1024px) {
     .sidebarOverlay {
         display: block;
     }
@@ -207,7 +206,7 @@
         visibility: hidden;
         pointer-events: none;
         transition: transform 0.25s ease, visibility 0.25s ease;
-        padding: 12px;
+        padding: 0;
         overflow-y: auto;
     }
 
@@ -218,26 +217,28 @@
         pointer-events: auto;
     }
 
-    .sidebarCard,
-    .employerSidebarCard {
-        min-height: calc(100dvh - var(--portal-header-height, 0px) - 24px);
-    }
-
     .sidebarLayout,
     .employerLayout,
     .adminShell {
         grid-template-columns: minmax(0, 1fr);
-        padding-top: 72px;
     }
 
     .main,
     .employerMain {
         grid-column: 1;
+        padding-top: 72px;
     }
 
     .sidebarNav,
     .employerSidebarNav {
         grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 600px) {
+    .sidebarLayout,
+    .employerLayout {
+        --portal-layout-padding: 12px;
     }
 }
 
@@ -247,7 +248,7 @@
     }
 }
 
-@media (max-width: 767.98px) {
+@media (max-width: 1024px) {
     .adminShell {
         --portal-layout-padding: 14px;
     }

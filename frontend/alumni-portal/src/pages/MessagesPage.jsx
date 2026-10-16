@@ -1,3 +1,4 @@
+import useChatViewport from "../hooks/useChatViewport";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner, Row, Col } from "react-bootstrap";
 import { FiPaperclip, FiSend, FiUser, FiSearch, FiMessageSquare, FiArrowLeft } from "react-icons/fi";
@@ -23,6 +24,7 @@ const avatarLetter = (name = "U") => name[0]?.toUpperCase() || "U";
 
 export default function MessagesPage() {
     useRenderDebug("MessagesPage");
+    useChatViewport();
     const [viewerProfile, setViewerProfile] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [activeConversationId, setActiveConversationId] = useState(null);
@@ -68,18 +70,14 @@ export default function MessagesPage() {
 
     // Track viewport to enable mobile-friendly view switching
     useEffect(() => {
-        const mq = () => window.matchMedia && window.matchMedia('(max-width: 767.98px)').matches;
+        const media = window.matchMedia('(max-width: 1024px)');
         const update = () => {
-            const mobile = mq();
-            setIsMobile(mobile);
-            // default mobile view: show list first
-            if (mobile) setMobileView('list');
-            else setMobileView('chat'); // on desktop keep chat visible
+            setIsMobile(media.matches);
+            setMobileView(media.matches ? 'list' : 'chat');
         };
         update();
-        const onResize = () => update();
-        window.addEventListener('resize', onResize);
-        return () => window.removeEventListener('resize', onResize);
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
     }, []);
 
     const openMobileChat = () => setMobileView('chat');

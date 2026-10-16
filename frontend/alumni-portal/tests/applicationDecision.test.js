@@ -1,9 +1,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { saveApplicationDecision, updateActiveApplications } from "../src/utils/applicationDecision.js";
+import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../src/utils/applicationDecision.js";
 import { applicationStatusLabel } from "../src/utils/applicationStatus.js";
 
 const application = { id: 8, job_id: 12, recruitment_cycle: 3, status: "pending", ApplicationDocuments: [{ id: 7 }] };
+test("both decision controls allow only pending applications and lock while processing", () => {
+    for (const status of ["pending", "pending_review", "submitted"]) {
+        assert.equal(canDecideApplication({ ...application, status }), true);
+        assert.equal(canDecideApplication({ ...application, status }, true), false);
+    }
+    for (const status of ["verified", "approved", "ready_for_interview", "not_verified", "declined", "rejected", "processing", "", null, "unknown"]) {
+        assert.equal(canDecideApplication({ ...application, status }), false);
+    }
+    assert.equal(canDecideApplication(null), false);
+});
+test("saved final decisions cannot submit another request or confirmation", async () => {
+    for (const status of ["verified", "not_verified", "approved", "declined", "processing"]) {
+        const unexpected = () => { throw Error("Locked decision must not be submitted"); };
+        assert.equal(await saveApplicationDecision({ ...application, status }, "not_verified", { put: unexpected }, unexpected), null);
+    }
+});
 test("canceling decline sends no request and leaves all records unchanged", async () => {
     const original = structuredClone(application);
     let calls = 0;

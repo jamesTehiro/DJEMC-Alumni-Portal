@@ -2,7 +2,7 @@
     max-height: min(68vh, 720px);
     min-height: 0;
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
 }

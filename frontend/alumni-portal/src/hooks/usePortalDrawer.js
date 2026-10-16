@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
-const MOBILE_QUERY = "(max-width: 767.98px)";
+const MOBILE_QUERY = "(max-width: 1024px)";
 
 export function attachPortalDrawerEffects(drawerWindow, drawerDocument, onClose) {
     const media = drawerWindow.matchMedia(MOBILE_QUERY);

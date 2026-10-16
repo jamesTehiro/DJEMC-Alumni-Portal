@@ -1,0 +1,3976 @@
+{
+  "User": {
+    "table": "users",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "name": {
+        "field": "name",
+        "type": "STRING{}"
+      },
+      "email": {
+        "field": "email",
+        "type": "STRING{}"
+      },
+      "password": {
+        "field": "password",
+        "type": "STRING{}"
+      },
+      "role": {
+        "field": "role",
+        "type": "STRING{}"
+      },
+      "admin_scope": {
+        "field": "admin_scope",
+        "type": "STRING{}"
+      },
+      "admin_department": {
+        "field": "admin_department",
+        "type": "STRING{}"
+      },
+      "admin_avatar_url": {
+        "field": "admin_avatar_url",
+        "type": "TEXT{\"length\":\"long\"}"
+      },
+      "account_status": {
+        "field": "account_status",
+        "type": "STRING{}"
+      },
+      "alumni_record_id": {
+        "field": "alumni_record_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "AlumniRecords",
+          "key": "id"
+        }
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "unique": true,
+        "fields": [
+          "email"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "users_email"
+      },
+      {
+        "unique": true,
+        "fields": [
+          "role",
+          "admin_scope"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "users_role_admin_scope"
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "AlumniProfile": {
+        "target": "AlumniProfile",
+        "foreignKey": "user_id",
+        "as": "AlumniProfile"
+      },
+      "membershipApplication": {
+        "target": "MembershipApplication",
+        "foreignKey": "alumni_user_id",
+        "as": "membershipApplication"
+      },
+      "membershipPermission": {
+        "target": "MembershipAdministrator",
+        "foreignKey": "user_id",
+        "as": "membershipPermission"
+      },
+      "profileUpdateRequestsReceived": {
+        "target": "AlumniProfileUpdateRequest",
+        "foreignKey": "alumni_user_id",
+        "as": "profileUpdateRequestsReceived"
+      },
+      "EmployerProfile": {
+        "target": "EmployerProfile",
+        "foreignKey": "user_id",
+        "as": "EmployerProfile"
+      },
+      "AlumniRecord": {
+        "target": "AlumniRecord",
+        "foreignKey": "alumni_record_id",
+        "as": "AlumniRecord"
+      },
+      "sentMessages": {
+        "target": "Message",
+        "foreignKey": "sender_id",
+        "as": "sentMessages"
+      },
+      "conversations": {
+        "target": "Conversation",
+        "foreignKey": "user_id",
+        "as": "conversations"
+      },
+      "ConversationParticipants": {
+        "target": "ConversationParticipant",
+        "foreignKey": "user_id",
+        "as": "ConversationParticipants"
+      },
+      "Jobs": {
+        "target": "Job",
+        "foreignKey": "employer_id",
+        "as": "Jobs"
+      },
+      "Applications": {
+        "target": "Application",
+        "foreignKey": "alumni_id",
+        "as": "Applications"
+      },
+      "Posts": {
+        "target": "Post",
+        "foreignKey": "user_id",
+        "as": "Posts"
+      },
+      "employerConversation": {
+        "target": "EmployerConversation",
+        "foreignKey": "employerId",
+        "as": "employerConversation"
+      },
+      "adminEmployerConversations": {
+        "target": "EmployerConversation",
+        "foreignKey": "adminId",
+        "as": "adminEmployerConversations"
+      },
+      "PasswordResetTokens": {
+        "target": "PasswordResetToken",
+        "foreignKey": "user_id",
+        "as": "PasswordResetTokens"
+      },
+      "Announcements": {
+        "target": "Announcement",
+        "foreignKey": "admin_id",
+        "as": "Announcements"
+      },
+      "Comments": {
+        "target": "Comment",
+        "foreignKey": "user_id",
+        "as": "Comments"
+      },
+      "AuditLogs": {
+        "target": "AuditLog",
+        "foreignKey": "actor_id",
+        "as": "AuditLogs"
+      },
+      "documentReviews": {
+        "target": "ApplicationDocument",
+        "foreignKey": "reviewed_by",
+        "as": "documentReviews"
+      },
+      "responseReviews": {
+        "target": "ApplicationResponse",
+        "foreignKey": "reviewed_by",
+        "as": "responseReviews"
+      },
+      "Resumes": {
+        "target": "Resume",
+        "foreignKey": "user_id",
+        "as": "Resumes"
+      }
+    }
+  },
+  "AlumniProfile": {
+    "table": "alumniprofiles",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "course": {
+        "field": "course",
+        "type": "STRING{}"
+      },
+      "graduation_year": {
+        "field": "graduation_year",
+        "type": "INTEGER{}"
+      },
+      "phone": {
+        "field": "phone",
+        "type": "STRING{}"
+      },
+      "address": {
+        "field": "address",
+        "type": "STRING{}"
+      },
+      "profile_visibility": {
+        "field": "profile_visibility",
+        "type": "STRING{}"
+      },
+      "avatar_url": {
+        "field": "avatar_url",
+        "type": "TEXT{}"
+      },
+      "proof_document_path": {
+        "field": "proof_document_path",
+        "type": "TEXT{}"
+      },
+      "employment_status": {
+        "field": "employment_status",
+        "type": "STRING{\"length\":30}"
+      },
+      "current_company": {
+        "field": "current_company",
+        "type": "STRING{}"
+      },
+      "job_title": {
+        "field": "job_title",
+        "type": "STRING{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "EmploymentHistories": {
+        "target": "EmploymentHistory",
+        "foreignKey": "alumni_id",
+        "as": "EmploymentHistories"
+      }
+    }
+  },
+  "EmployerProfile": {
+    "table": "employerprofiles",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "organization_name": {
+        "field": "organization_name",
+        "type": "STRING{}"
+      },
+      "industry": {
+        "field": "industry",
+        "type": "STRING{}"
+      },
+      "website_url": {
+        "field": "website_url",
+        "type": "STRING{}"
+      },
+      "business_permit_path": {
+        "field": "business_permit_path",
+        "type": "STRING{}"
+      },
+      "address": {
+        "field": "address",
+        "type": "STRING{}"
+      },
+      "contact_email": {
+        "field": "contact_email",
+        "type": "STRING{}"
+      },
+      "logo_url": {
+        "field": "logo_url",
+        "type": "TEXT{\"length\":\"long\"}"
+      },
+      "verified": {
+        "field": "verified",
+        "type": "BOOLEANundefined"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {}
+  },
+  "EmploymentHistory": {
+    "table": "EmploymentHistories",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "alumni_id": {
+        "field": "alumni_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "alumniprofiles",
+          "key": "id"
+        }
+      },
+      "company_name": {
+        "field": "company_name",
+        "type": "STRING{}"
+      },
+      "position": {
+        "field": "position",
+        "type": "STRING{}"
+      },
+      "start_year": {
+        "field": "start_year",
+        "type": "INTEGER{}"
+      },
+      "end_year": {
+        "field": "end_year",
+        "type": "INTEGER{}"
+      },
+      "employment_type": {
+        "field": "employment_type",
+        "type": "STRING{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "AlumniProfile": {
+        "target": "AlumniProfile",
+        "foreignKey": "alumni_id",
+        "as": "AlumniProfile"
+      }
+    }
+  },
+  "Job": {
+    "table": "Jobs",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "title": {
+        "field": "title",
+        "type": "STRING{}"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "location": {
+        "field": "location",
+        "type": "STRING{}"
+      },
+      "employment_type": {
+        "field": "employment_type",
+        "type": "STRING{}"
+      },
+      "course_target": {
+        "field": "course_target",
+        "type": "STRING{}"
+      },
+      "expected_salary": {
+        "field": "expected_salary",
+        "type": "STRING{}"
+      },
+      "posting_details": {
+        "field": "posting_details",
+        "type": "JSONundefined",
+        "allowNull": true
+      },
+      "interview_venue": {
+        "field": "interview_venue",
+        "type": "STRING{}"
+      },
+      "interview_place": {
+        "field": "interview_place",
+        "type": "TEXT{}"
+      },
+      "interview_date": {
+        "field": "interview_date",
+        "type": "DATEONLYundefined"
+      },
+      "interview_time": {
+        "field": "interview_time",
+        "type": "STRING{}"
+      },
+      "interview_contact_info": {
+        "field": "interview_contact_info",
+        "type": "STRING{}"
+      },
+      "interview_what_to_bring": {
+        "field": "interview_what_to_bring",
+        "type": "TEXT{}"
+      },
+      "employer_id": {
+        "field": "employer_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "current_requirement_version": {
+        "field": "current_requirement_version",
+        "type": "INTEGER{}"
+      },
+      "has_requirements": {
+        "field": "has_requirements",
+        "type": "BOOLEANundefined"
+      },
+      "recruitment_status": {
+        "field": "recruitment_status",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "User": {
+        "target": "User",
+        "foreignKey": "employer_id",
+        "as": "User"
+      },
+      "Applications": {
+        "target": "Application",
+        "foreignKey": "job_id",
+        "as": "Applications"
+      },
+      "RequirementGroups": {
+        "target": "RequirementGroup",
+        "foreignKey": "job_id",
+        "as": "RequirementGroups"
+      },
+      "JobRequirements": {
+        "target": "JobRequirement",
+        "foreignKey": "job_id",
+        "as": "JobRequirements"
+      }
+    }
+  },
+  "Application": {
+    "table": "Applications",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "job_id": {
+        "field": "job_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "Jobs",
+          "key": "id"
+        }
+      },
+      "alumni_id": {
+        "field": "alumni_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "position_applied_for": {
+        "field": "position_applied_for",
+        "type": "STRING{}"
+      },
+      "department_office": {
+        "field": "department_office",
+        "type": "STRING{}"
+      },
+      "employment_type": {
+        "field": "employment_type",
+        "type": "STRING{}"
+      },
+      "preferred_work_location": {
+        "field": "preferred_work_location",
+        "type": "STRING{}"
+      },
+      "expected_salary": {
+        "field": "expected_salary",
+        "type": "STRING{}"
+      },
+      "start_date": {
+        "field": "start_date",
+        "type": "DATEONLYundefined"
+      },
+      "full_name": {
+        "field": "full_name",
+        "type": "STRING{}"
+      },
+      "email": {
+        "field": "email",
+        "type": "STRING{}"
+      },
+      "dob": {
+        "field": "dob",
+        "type": "DATEONLYundefined"
+      },
+      "place_of_birth": {
+        "field": "place_of_birth",
+        "type": "STRING{}"
+      },
+      "gender": {
+        "field": "gender",
+        "type": "STRING{}"
+      },
+      "contact_number": {
+        "field": "contact_number",
+        "type": "STRING{}"
+      },
+      "nationality": {
+        "field": "nationality",
+        "type": "STRING{}"
+      },
+      "address": {
+        "field": "address",
+        "type": "TEXT{}"
+      },
+      "professional_summary": {
+        "field": "professional_summary",
+        "type": "TEXT{}"
+      },
+      "civil_service_eligibility": {
+        "field": "civil_service_eligibility",
+        "type": "STRING{}"
+      },
+      "rating": {
+        "field": "rating",
+        "type": "STRING{}"
+      },
+      "license_number": {
+        "field": "license_number",
+        "type": "STRING{}"
+      },
+      "validity": {
+        "field": "validity",
+        "type": "DATEONLYundefined"
+      },
+      "education": {
+        "field": "education",
+        "type": "STRING{}"
+      },
+      "school": {
+        "field": "school",
+        "type": "STRING{}"
+      },
+      "degree": {
+        "field": "degree",
+        "type": "STRING{}"
+      },
+      "years_attended": {
+        "field": "years_attended",
+        "type": "STRING{}"
+      },
+      "honors": {
+        "field": "honors",
+        "type": "STRING{}"
+      },
+      "company": {
+        "field": "company",
+        "type": "STRING{}"
+      },
+      "position": {
+        "field": "position",
+        "type": "STRING{}"
+      },
+      "employment_period": {
+        "field": "employment_period",
+        "type": "STRING{}"
+      },
+      "responsibilities": {
+        "field": "responsibilities",
+        "type": "TEXT{}"
+      },
+      "achievements": {
+        "field": "achievements",
+        "type": "TEXT{}"
+      },
+      "reason_for_leaving": {
+        "field": "reason_for_leaving",
+        "type": "TEXT{}"
+      },
+      "skills": {
+        "field": "skills",
+        "type": "TEXT{}"
+      },
+      "soft_skills": {
+        "field": "soft_skills",
+        "type": "TEXT{}"
+      },
+      "certifications": {
+        "field": "certifications",
+        "type": "TEXT{}"
+      },
+      "leadership_role": {
+        "field": "leadership_role",
+        "type": "STRING{}"
+      },
+      "people_managed": {
+        "field": "people_managed",
+        "type": "STRING{}"
+      },
+      "leadership_achievements": {
+        "field": "leadership_achievements",
+        "type": "TEXT{}"
+      },
+      "training_title": {
+        "field": "training_title",
+        "type": "STRING{}"
+      },
+      "training_organization": {
+        "field": "training_organization",
+        "type": "STRING{}"
+      },
+      "training_duration": {
+        "field": "training_duration",
+        "type": "STRING{}"
+      },
+      "training_date": {
+        "field": "training_date",
+        "type": "DATEONLYundefined"
+      },
+      "reference_name": {
+        "field": "reference_name",
+        "type": "STRING{}"
+      },
+      "reference_position": {
+        "field": "reference_position",
+        "type": "STRING{}"
+      },
+      "reference_company": {
+        "field": "reference_company",
+        "type": "STRING{}"
+      },
+      "reference_contact": {
+        "field": "reference_contact",
+        "type": "STRING{}"
+      },
+      "civil_status": {
+        "field": "civil_status",
+        "type": "STRING{}"
+      },
+      "disability": {
+        "field": "disability",
+        "type": "TEXT{}"
+      },
+      "disability_other": {
+        "field": "disability_other",
+        "type": "STRING{}"
+      },
+      "employment_status": {
+        "field": "employment_status",
+        "type": "STRING{}"
+      },
+      "employment_type_detail": {
+        "field": "employment_type_detail",
+        "type": "TEXT{}"
+      },
+      "ofw": {
+        "field": "ofw",
+        "type": "STRING{}"
+      },
+      "former_ofw": {
+        "field": "former_ofw",
+        "type": "STRING{}"
+      },
+      "four_ps": {
+        "field": "four_ps",
+        "type": "STRING{}"
+      },
+      "preferred_occupation": {
+        "field": "preferred_occupation",
+        "type": "STRING{}"
+      },
+      "preferred_work_type": {
+        "field": "preferred_work_type",
+        "type": "STRING{}"
+      },
+      "preferred_location_type": {
+        "field": "preferred_location_type",
+        "type": "STRING{}"
+      },
+      "preferred_location_detail": {
+        "field": "preferred_location_detail",
+        "type": "STRING{}"
+      },
+      "languages": {
+        "field": "languages",
+        "type": "TEXT{}"
+      },
+      "currently_in_school": {
+        "field": "currently_in_school",
+        "type": "STRING{}"
+      },
+      "education_level": {
+        "field": "education_level",
+        "type": "STRING{}"
+      },
+      "work_status": {
+        "field": "work_status",
+        "type": "STRING{}"
+      },
+      "other_skills": {
+        "field": "other_skills",
+        "type": "TEXT{}"
+      },
+      "other_skills_other": {
+        "field": "other_skills_other",
+        "type": "STRING{}"
+      },
+      "convicted_of_crime": {
+        "field": "convicted_of_crime",
+        "type": "STRING{}"
+      },
+      "dismissed_from_service": {
+        "field": "dismissed_from_service",
+        "type": "STRING{}"
+      },
+      "currently_employed": {
+        "field": "currently_employed",
+        "type": "STRING{}"
+      },
+      "can_work_overtime": {
+        "field": "can_work_overtime",
+        "type": "STRING{}"
+      },
+      "why_join": {
+        "field": "why_join",
+        "type": "TEXT{}"
+      },
+      "good_fit": {
+        "field": "good_fit",
+        "type": "TEXT{}"
+      },
+      "career_goals": {
+        "field": "career_goals",
+        "type": "TEXT{}"
+      },
+      "declaration_confirmed": {
+        "field": "declaration_confirmed",
+        "type": "STRING{}"
+      },
+      "notes": {
+        "field": "notes",
+        "type": "TEXT{}"
+      },
+      "resume_path": {
+        "field": "resume_path",
+        "type": "STRING{}"
+      },
+      "resume_snapshot": {
+        "field": "resume_snapshot",
+        "type": "JSONundefined"
+      },
+      "transcript_path": {
+        "field": "transcript_path",
+        "type": "STRING{}"
+      },
+      "certificate_path": {
+        "field": "certificate_path",
+        "type": "STRING{}"
+      },
+      "status": {
+        "field": "status",
+        "type": "STRING{}"
+      },
+      "is_archived": {
+        "field": "is_archived",
+        "type": "BOOLEANundefined",
+        "allowNull": false
+      },
+      "recruitment_cycle": {
+        "field": "recruitment_cycle",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Job": {
+        "target": "Job",
+        "foreignKey": "job_id",
+        "as": "Job"
+      },
+      "alumni": {
+        "target": "User",
+        "foreignKey": "alumni_id",
+        "as": "alumni"
+      },
+      "Interviews": {
+        "target": "Interview",
+        "foreignKey": "application_id",
+        "as": "Interviews"
+      },
+      "JobRequirementSnapshot": {
+        "target": "JobRequirementSnapshot",
+        "foreignKey": "application_id",
+        "as": "JobRequirementSnapshot"
+      },
+      "ApplicationDocuments": {
+        "target": "ApplicationDocument",
+        "foreignKey": "application_id",
+        "as": "ApplicationDocuments"
+      },
+      "ApplicationResponses": {
+        "target": "ApplicationResponse",
+        "foreignKey": "application_id",
+        "as": "ApplicationResponses"
+      }
+    }
+  },
+  "Announcement": {
+    "table": "Announcements",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "title": {
+        "field": "title",
+        "type": "STRING{}"
+      },
+      "content": {
+        "field": "content",
+        "type": "TEXT{}"
+      },
+      "admin_id": {
+        "field": "admin_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "day": {
+        "field": "day",
+        "type": "DATEONLYundefined"
+      },
+      "time": {
+        "field": "time",
+        "type": "STRING{}"
+      },
+      "location": {
+        "field": "location",
+        "type": "STRING{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "admin": {
+        "target": "User",
+        "foreignKey": "admin_id",
+        "as": "admin"
+      },
+      "Comments": {
+        "target": "Comment",
+        "foreignKey": "announcement_id",
+        "as": "Comments"
+      }
+    }
+  },
+  "Comment": {
+    "table": "Comments",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "announcement_id": {
+        "field": "announcement_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "Announcements",
+          "key": "id"
+        }
+      },
+      "post_id": {
+        "field": "post_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "Posts",
+          "key": "id"
+        }
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "comment": {
+        "field": "comment",
+        "type": "TEXT{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "fields": [
+          "post_id",
+          "createdAt"
+        ],
+        "name": "comments_post_id_created_at_idx",
+        "type": "",
+        "parser": null
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "Post": {
+        "target": "Post",
+        "foreignKey": "post_id",
+        "as": "Post"
+      },
+      "User": {
+        "target": "User",
+        "foreignKey": "user_id",
+        "as": "User"
+      }
+    }
+  },
+  "Conversation": {
+    "table": "Conversations",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "user1Id": {
+        "field": "user1Id",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "user2Id": {
+        "field": "user2Id",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "conversation_key": {
+        "field": "conversation_key",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "name": {
+        "field": "name",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "type": {
+        "field": "type",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "batch_year": {
+        "field": "batch_year",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "course": {
+        "field": "course",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "last_message_text": {
+        "field": "last_message_text",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "last_message_at": {
+        "field": "last_message_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "unique": true,
+        "fields": [
+          "conversation_key"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "conversations_conversation_key"
+      },
+      {
+        "fields": [
+          "type"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "conversations_type"
+      },
+      {
+        "fields": [
+          "batch_year",
+          "course"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "conversations_batch_year_course"
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "Messages": {
+        "target": "Message",
+        "foreignKey": "conversation_id",
+        "as": "Messages"
+      },
+      "participants": {
+        "target": "User",
+        "foreignKey": "conversation_id",
+        "as": "participants"
+      },
+      "ConversationParticipants": {
+        "target": "ConversationParticipant",
+        "foreignKey": "conversation_id",
+        "as": "ConversationParticipants"
+      }
+    }
+  },
+  "ConversationParticipant": {
+    "table": "ConversationParticipants",
+    "attributes": {
+      "conversation_id": {
+        "field": "conversation_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true,
+        "references": {
+          "model": "Conversations",
+          "key": "id"
+        }
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "unread_count": {
+        "field": "unread_count",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "last_read_at": {
+        "field": "last_read_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "unique": true,
+        "fields": [
+          "conversation_id",
+          "user_id"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "conversation_participants_conversation_id_user_id"
+      },
+      {
+        "fields": [
+          "user_id"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "conversation_participants_user_id"
+      },
+      {
+        "fields": [
+          "conversation_id"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "conversation_participants_conversation_id"
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "Conversation": {
+        "target": "Conversation",
+        "foreignKey": "conversation_id",
+        "as": "Conversation"
+      },
+      "User": {
+        "target": "User",
+        "foreignKey": "user_id",
+        "as": "User"
+      }
+    }
+  },
+  "Message": {
+    "table": "Messages",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "conversation_id": {
+        "field": "conversation_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Conversations",
+          "key": "id"
+        }
+      },
+      "sender_id": {
+        "field": "sender_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "message_text": {
+        "field": "message_text",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "file_url": {
+        "field": "file_url",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "file_name": {
+        "field": "file_name",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "file_mime": {
+        "field": "file_mime",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "file_size": {
+        "field": "file_size",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "is_read": {
+        "field": "is_read",
+        "type": "BOOLEANundefined",
+        "allowNull": false
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "fields": [
+          "conversation_id",
+          "createdAt"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "messages_conversation_id_created_at"
+      },
+      {
+        "fields": [
+          "sender_id"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "messages_sender_id"
+      },
+      {
+        "fields": [
+          "is_read"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "messages_is_read"
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "sender": {
+        "target": "User",
+        "foreignKey": "sender_id",
+        "as": "sender"
+      },
+      "Conversation": {
+        "target": "Conversation",
+        "foreignKey": "conversation_id",
+        "as": "Conversation"
+      }
+    }
+  },
+  "Notification": {
+    "table": "Notifications",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "userId": {
+        "field": "userId",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "type": {
+        "field": "type",
+        "type": "STRING{}"
+      },
+      "interview_id": {
+        "field": "interview_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "Interviews",
+          "key": "id"
+        }
+      },
+      "message": {
+        "field": "message",
+        "type": "TEXT{}"
+      },
+      "isRead": {
+        "field": "isRead",
+        "type": "BOOLEANundefined"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Interview": {
+        "target": "Interview",
+        "foreignKey": "interview_id",
+        "as": "Interview"
+      }
+    }
+  },
+  "Interview": {
+    "table": "Interviews",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "application_id": {
+        "field": "application_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Applications",
+          "key": "id"
+        }
+      },
+      "venue": {
+        "field": "venue",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "place": {
+        "field": "place",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "date": {
+        "field": "date",
+        "type": "DATEONLYundefined",
+        "allowNull": false
+      },
+      "time": {
+        "field": "time",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "contact_info": {
+        "field": "contact_info",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "what_to_bring": {
+        "field": "what_to_bring",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Application": {
+        "target": "Application",
+        "foreignKey": "application_id",
+        "as": "Application"
+      },
+      "Notifications": {
+        "target": "Notification",
+        "foreignKey": "interview_id",
+        "as": "Notifications"
+      }
+    }
+  },
+  "AlumniRecord": {
+    "table": "AlumniRecords",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "full_name": {
+        "field": "full_name",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "student_id": {
+        "field": "student_id",
+        "type": "STRING{}"
+      },
+      "course": {
+        "field": "course",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "batch_year": {
+        "field": "batch_year",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "email": {
+        "field": "email",
+        "type": "STRING{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "User": {
+        "target": "User",
+        "foreignKey": "alumni_record_id",
+        "as": "User"
+      }
+    }
+  },
+  "Post": {
+    "table": "Posts",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "text": {
+        "field": "text",
+        "type": "TEXT{}"
+      },
+      "image_url": {
+        "field": "image_url",
+        "type": "TEXT{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "fields": [
+          "createdAt"
+        ],
+        "name": "posts_created_at_idx",
+        "type": "",
+        "parser": null
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "User": {
+        "target": "User",
+        "foreignKey": "user_id",
+        "as": "User"
+      },
+      "Comments": {
+        "target": "Comment",
+        "foreignKey": "post_id",
+        "as": "Comments"
+      }
+    }
+  },
+  "EmployerConversation": {
+    "table": "EmployerConversations",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "employerId": {
+        "field": "employerId",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "adminId": {
+        "field": "adminId",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "last_message_text": {
+        "field": "last_message_text",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "last_message_at": {
+        "field": "last_message_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "employer": {
+        "target": "User",
+        "foreignKey": "employerId",
+        "as": "employer"
+      },
+      "admin": {
+        "target": "User",
+        "foreignKey": "adminId",
+        "as": "admin"
+      },
+      "messages": {
+        "target": "EmployerMessage",
+        "foreignKey": "conversationId",
+        "as": "messages"
+      }
+    }
+  },
+  "EmployerMessage": {
+    "table": "EmployerMessages",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "conversationId": {
+        "field": "conversationId",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "EmployerConversations",
+          "key": "id"
+        }
+      },
+      "senderType": {
+        "field": "senderType",
+        "type": "ENUM{\"values\":[\"employer\",\"admin\"]}",
+        "allowNull": false
+      },
+      "senderId": {
+        "field": "senderId",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "message": {
+        "field": "message",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "attachment": {
+        "field": "attachment",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "file_name": {
+        "field": "file_name",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "file_mime": {
+        "field": "file_mime",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "file_size": {
+        "field": "file_size",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "fields": [
+          "conversationId",
+          "createdAt"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "employer_messages_conversation_id_created_at"
+      },
+      {
+        "fields": [
+          "senderId"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "employer_messages_sender_id"
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "conversation": {
+        "target": "EmployerConversation",
+        "foreignKey": "conversationId",
+        "as": "conversation"
+      }
+    }
+  },
+  "PasswordResetToken": {
+    "table": "password_reset_tokens",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "role": {
+        "field": "role",
+        "type": "STRING{}"
+      },
+      "token": {
+        "field": "token",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "expires_at": {
+        "field": "expires_at",
+        "type": "DATE{}"
+      }
+    },
+    "indexes": [],
+    "timestamps": false,
+    "associations": {
+      "User": {
+        "target": "User",
+        "foreignKey": "user_id",
+        "as": "User"
+      }
+    }
+  },
+  "EmailQueueJob": {
+    "table": "email_queue_jobs",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "to": {
+        "field": "to",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "subject": {
+        "field": "subject",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "message": {
+        "field": "message",
+        "type": "TEXT{\"length\":\"long\"}",
+        "allowNull": false
+      },
+      "dedupe_key": {
+        "field": "dedupe_key",
+        "type": "STRING{\"length\":191}",
+        "allowNull": true
+      },
+      "status": {
+        "field": "status",
+        "type": "ENUM{\"values\":[\"pending\",\"processing\",\"sent\",\"failed\"]}",
+        "allowNull": false
+      },
+      "attempts": {
+        "field": "attempts",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "max_attempts": {
+        "field": "max_attempts",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "last_error": {
+        "field": "last_error",
+        "type": "TEXT{\"length\":\"long\"}",
+        "allowNull": true
+      },
+      "scheduled_at": {
+        "field": "scheduled_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "processing_started_at": {
+        "field": "processing_started_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "sent_at": {
+        "field": "sent_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "unique": true,
+        "fields": [
+          "dedupe_key"
+        ],
+        "name": "email_queue_jobs_dedupe_key_uq",
+        "type": "",
+        "parser": null
+      },
+      {
+        "fields": [
+          "status",
+          "scheduled_at"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "email_queue_jobs_status_scheduled_at"
+      },
+      {
+        "fields": [
+          "status",
+          "processing_started_at"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "email_queue_jobs_status_processing_started_at"
+      }
+    ],
+    "timestamps": true,
+    "associations": {}
+  },
+  "RateLimitEntry": {
+    "table": "rate_limit_entries",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "scope": {
+        "field": "scope",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "key": {
+        "field": "key",
+        "type": "STRING{}",
+        "allowNull": false
+      },
+      "window_start": {
+        "field": "window_start",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "count": {
+        "field": "count",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "expires_at": {
+        "field": "expires_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "unique": true,
+        "fields": [
+          "scope",
+          "key",
+          "window_start"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "rate_limit_entries_scope_key_window_start"
+      },
+      {
+        "fields": [
+          "expires_at"
+        ],
+        "type": "",
+        "parser": null,
+        "name": "rate_limit_entries_expires_at"
+      }
+    ],
+    "timestamps": true,
+    "updatedAt": false,
+    "associations": {}
+  },
+  "RequirementLibrary": {
+    "table": "RequirementLibrary",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "requirement_code": {
+        "field": "requirement_code",
+        "type": "STRING{\"length\":100}",
+        "allowNull": false
+      },
+      "category": {
+        "field": "category",
+        "type": "STRING{\"length\":100}",
+        "allowNull": false
+      },
+      "label": {
+        "field": "label",
+        "type": "STRING{\"length\":255}",
+        "allowNull": false
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "requirement_type": {
+        "field": "requirement_type",
+        "type": "ENUM{\"values\":[\"document_upload\",\"information_field\"]}",
+        "allowNull": false
+      },
+      "value_type": {
+        "field": "value_type",
+        "type": "STRING{\"length\":50}",
+        "allowNull": true
+      },
+      "value_options": {
+        "field": "value_options",
+        "type": "JSONundefined",
+        "allowNull": true
+      },
+      "is_active": {
+        "field": "is_active",
+        "type": "BOOLEANundefined"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updated_at": {
+        "field": "updated_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": "updated_at",
+    "associations": {
+      "JobRequirements": {
+        "target": "JobRequirement",
+        "foreignKey": "library_id",
+        "as": "JobRequirements"
+      }
+    }
+  },
+  "RequirementGroup": {
+    "table": "RequirementGroups",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "job_id": {
+        "field": "job_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Jobs",
+          "key": "id"
+        }
+      },
+      "version": {
+        "field": "version",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "group_label": {
+        "field": "group_label",
+        "type": "STRING{\"length\":255}",
+        "allowNull": false
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": false,
+    "associations": {
+      "Job": {
+        "target": "Job",
+        "foreignKey": "job_id",
+        "as": "Job"
+      },
+      "JobRequirements": {
+        "target": "JobRequirement",
+        "foreignKey": "group_id",
+        "as": "JobRequirements"
+      }
+    }
+  },
+  "JobRequirement": {
+    "table": "JobRequirements",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "job_id": {
+        "field": "job_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Jobs",
+          "key": "id"
+        }
+      },
+      "version": {
+        "field": "version",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "group_id": {
+        "field": "group_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "RequirementGroups",
+          "key": "id"
+        }
+      },
+      "library_id": {
+        "field": "library_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "RequirementLibrary",
+          "key": "id"
+        }
+      },
+      "requirement_code": {
+        "field": "requirement_code",
+        "type": "STRING{\"length\":100}",
+        "allowNull": false
+      },
+      "label": {
+        "field": "label",
+        "type": "STRING{\"length\":255}",
+        "allowNull": false
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "requirement_type": {
+        "field": "requirement_type",
+        "type": "ENUM{\"values\":[\"document_upload\",\"information_field\"]}",
+        "allowNull": false
+      },
+      "value_type": {
+        "field": "value_type",
+        "type": "STRING{\"length\":50}",
+        "allowNull": true
+      },
+      "value_options": {
+        "field": "value_options",
+        "type": "JSONundefined",
+        "allowNull": true
+      },
+      "required": {
+        "field": "required",
+        "type": "BOOLEANundefined"
+      },
+      "is_custom": {
+        "field": "is_custom",
+        "type": "BOOLEANundefined"
+      },
+      "condition_enabled": {
+        "field": "condition_enabled",
+        "type": "BOOLEANundefined"
+      },
+      "condition_field": {
+        "field": "condition_field",
+        "type": "STRING{\"length\":100}",
+        "allowNull": true
+      },
+      "condition_operator": {
+        "field": "condition_operator",
+        "type": "STRING{\"length\":20}",
+        "allowNull": true
+      },
+      "condition_value": {
+        "field": "condition_value",
+        "type": "STRING{\"length\":500}",
+        "allowNull": true
+      },
+      "allowed_types": {
+        "field": "allowed_types",
+        "type": "STRING{\"length\":500}",
+        "allowNull": true
+      },
+      "max_file_size": {
+        "field": "max_file_size",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": false,
+    "associations": {
+      "Job": {
+        "target": "Job",
+        "foreignKey": "job_id",
+        "as": "Job"
+      },
+      "RequirementGroup": {
+        "target": "RequirementGroup",
+        "foreignKey": "group_id",
+        "as": "RequirementGroup"
+      },
+      "RequirementLibrary": {
+        "target": "RequirementLibrary",
+        "foreignKey": "library_id",
+        "as": "RequirementLibrary"
+      }
+    }
+  },
+  "JobRequirementSnapshot": {
+    "table": "JobRequirementSnapshots",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "application_id": {
+        "field": "application_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Applications",
+          "key": "id"
+        }
+      },
+      "job_id": {
+        "field": "job_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Jobs",
+          "key": "id"
+        }
+      },
+      "version": {
+        "field": "version",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "snapshot_data": {
+        "field": "snapshot_data",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": false,
+    "associations": {
+      "Application": {
+        "target": "Application",
+        "foreignKey": "application_id",
+        "as": "Application"
+      },
+      "Job": {
+        "target": "Job",
+        "foreignKey": "job_id",
+        "as": "Job"
+      }
+    }
+  },
+  "ApplicationDocument": {
+    "table": "ApplicationDocuments",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "application_id": {
+        "field": "application_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Applications",
+          "key": "id"
+        }
+      },
+      "requirement_code": {
+        "field": "requirement_code",
+        "type": "STRING{\"length\":100}",
+        "allowNull": false
+      },
+      "file_path": {
+        "field": "file_path",
+        "type": "TEXT{}",
+        "allowNull": false
+      },
+      "file_name": {
+        "field": "file_name",
+        "type": "STRING{\"length\":255}",
+        "allowNull": false
+      },
+      "file_size": {
+        "field": "file_size",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "mime_type": {
+        "field": "mime_type",
+        "type": "STRING{\"length\":100}",
+        "allowNull": true
+      },
+      "review_status": {
+        "field": "review_status",
+        "type": "ENUM{\"values\":[\"pending_review\",\"approved\",\"rejected\",\"needs_revision\"]}"
+      },
+      "review_notes": {
+        "field": "review_notes",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "reviewed_by": {
+        "field": "reviewed_by",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "reviewed_at": {
+        "field": "reviewed_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "original_document_id": {
+        "field": "original_document_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "ApplicationDocuments",
+          "key": "id"
+        }
+      },
+      "version": {
+        "field": "version",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updated_at": {
+        "field": "updated_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": "updated_at",
+    "associations": {
+      "Application": {
+        "target": "Application",
+        "foreignKey": "application_id",
+        "as": "Application"
+      },
+      "originalDocument": {
+        "target": "ApplicationDocument",
+        "foreignKey": "original_document_id",
+        "as": "originalDocument"
+      },
+      "revisions": {
+        "target": "ApplicationDocument",
+        "foreignKey": "original_document_id",
+        "as": "revisions"
+      },
+      "reviewer": {
+        "target": "User",
+        "foreignKey": "reviewed_by",
+        "as": "reviewer"
+      }
+    }
+  },
+  "ApplicationResponse": {
+    "table": "ApplicationResponses",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "application_id": {
+        "field": "application_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "Applications",
+          "key": "id"
+        }
+      },
+      "requirement_code": {
+        "field": "requirement_code",
+        "type": "STRING{\"length\":100}",
+        "allowNull": false
+      },
+      "response_value": {
+        "field": "response_value",
+        "type": "TEXT{}",
+        "allowNull": false
+      },
+      "review_status": {
+        "field": "review_status",
+        "type": "ENUM{\"values\":[\"pending_review\",\"approved\",\"rejected\",\"needs_revision\"]}"
+      },
+      "review_notes": {
+        "field": "review_notes",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "reviewed_by": {
+        "field": "reviewed_by",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "reviewed_at": {
+        "field": "reviewed_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "version": {
+        "field": "version",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updated_at": {
+        "field": "updated_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": "updated_at",
+    "associations": {
+      "Application": {
+        "target": "Application",
+        "foreignKey": "application_id",
+        "as": "Application"
+      },
+      "responseReviewer": {
+        "target": "User",
+        "foreignKey": "reviewed_by",
+        "as": "responseReviewer"
+      }
+    }
+  },
+  "AuditLog": {
+    "table": "AuditLogs",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "actor_id": {
+        "field": "actor_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "actor_role": {
+        "field": "actor_role",
+        "type": "STRING{\"length\":50}",
+        "allowNull": false
+      },
+      "action": {
+        "field": "action",
+        "type": "STRING{\"length\":100}",
+        "allowNull": false
+      },
+      "target_type": {
+        "field": "target_type",
+        "type": "STRING{\"length\":50}",
+        "allowNull": false
+      },
+      "target_id": {
+        "field": "target_id",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "requirement_code": {
+        "field": "requirement_code",
+        "type": "STRING{\"length\":100}",
+        "allowNull": true
+      },
+      "metadata": {
+        "field": "metadata",
+        "type": "JSONundefined",
+        "allowNull": true
+      },
+      "ip_address": {
+        "field": "ip_address",
+        "type": "STRING{\"length\":45}",
+        "allowNull": true
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": false,
+    "associations": {
+      "User": {
+        "target": "User",
+        "foreignKey": "actor_id",
+        "as": "User"
+      }
+    }
+  },
+  "AlumniProfileUpdateRequest": {
+    "table": "AlumniProfileUpdateRequests",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "alumni_user_id": {
+        "field": "alumni_user_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "requested_by": {
+        "field": "requested_by",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "notification_id": {
+        "field": "notification_id",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "email_queue_job_id": {
+        "field": "email_queue_job_id",
+        "type": "INTEGER{}",
+        "allowNull": true,
+        "references": {
+          "model": "email_queue_jobs",
+          "key": "id"
+        }
+      },
+      "status": {
+        "field": "status",
+        "type": "STRING{\"length\":30}",
+        "allowNull": false
+      },
+      "request_message": {
+        "field": "request_message",
+        "type": "TEXT{}",
+        "allowNull": false
+      },
+      "sent_at": {
+        "field": "sent_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "responded_at": {
+        "field": "responded_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "completed_at": {
+        "field": "completed_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "fields": [
+          "alumni_user_id",
+          "status"
+        ],
+        "name": "alumni_profile_update_requests_user_status_idx",
+        "type": "",
+        "parser": null
+      },
+      {
+        "fields": [
+          "requested_by",
+          "createdAt"
+        ],
+        "name": "alumni_profile_update_requests_actor_created_idx",
+        "type": "",
+        "parser": null
+      },
+      {
+        "unique": true,
+        "fields": [
+          "notification_id"
+        ],
+        "name": "alumni_profile_update_requests_notification_uq",
+        "type": "",
+        "parser": null
+      },
+      {
+        "unique": true,
+        "fields": [
+          "email_queue_job_id"
+        ],
+        "name": "alumni_profile_update_requests_email_job_uq",
+        "type": "",
+        "parser": null
+      }
+    ],
+    "timestamps": true,
+    "associations": {
+      "alumni": {
+        "target": "User",
+        "foreignKey": "alumni_user_id",
+        "as": "alumni"
+      },
+      "requester": {
+        "target": "User",
+        "foreignKey": "requested_by",
+        "as": "requester"
+      },
+      "emailQueueJob": {
+        "target": "EmailQueueJob",
+        "foreignKey": "email_queue_job_id",
+        "as": "emailQueueJob"
+      }
+    }
+  },
+  "MembershipApplication": {
+    "table": "MembershipApplications",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "alumni_user_id": {
+        "field": "alumni_user_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "personal_details": {
+        "field": "personal_details",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "educational_attainment": {
+        "field": "educational_attainment",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "work_experience": {
+        "field": "work_experience",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "training_seminars": {
+        "field": "training_seminars",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "community_involvement": {
+        "field": "community_involvement",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "awards_citations": {
+        "field": "awards_citations",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "options": {
+        "field": "options",
+        "type": "JSONundefined",
+        "allowNull": false
+      },
+      "applicant_name": {
+        "field": "applicant_name",
+        "type": "STRING{\"length\":512}",
+        "allowNull": false
+      },
+      "academic_program": {
+        "field": "academic_program",
+        "type": "STRING{}",
+        "allowNull": true
+      },
+      "graduation_year": {
+        "field": "graduation_year",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "consent_accepted": {
+        "field": "consent_accepted",
+        "type": "BOOLEANundefined",
+        "allowNull": false
+      },
+      "consent_accepted_at": {
+        "field": "consent_accepted_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "consent_text": {
+        "field": "consent_text",
+        "type": "TEXT{}",
+        "allowNull": true
+      },
+      "consent_version": {
+        "field": "consent_version",
+        "type": "STRING{\"length\":100}",
+        "allowNull": true
+      },
+      "application_status": {
+        "field": "application_status",
+        "type": "STRING{\"length\":30}",
+        "allowNull": false
+      },
+      "submitted_at": {
+        "field": "submitted_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "profile_completed_at": {
+        "field": "profile_completed_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updated_at": {
+        "field": "updated_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [
+      {
+        "unique": true,
+        "fields": [
+          "alumni_user_id"
+        ],
+        "name": "membership_application_alumni_uq",
+        "type": "",
+        "parser": null
+      },
+      {
+        "fields": [
+          "application_status",
+          "submitted_at"
+        ],
+        "name": "membership_application_status_date_idx",
+        "type": "",
+        "parser": null
+      }
+    ],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": "updated_at",
+    "associations": {
+      "alumni": {
+        "target": "User",
+        "foreignKey": "alumni_user_id",
+        "as": "alumni"
+      }
+    }
+  },
+  "MembershipAdministrator": {
+    "table": "MembershipAdministrators",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "primaryKey": true
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "granted_by": {
+        "field": "granted_by",
+        "type": "INTEGER{}",
+        "allowNull": true
+      },
+      "grant_reason": {
+        "field": "grant_reason",
+        "type": "STRING{\"length\":255}",
+        "allowNull": false
+      },
+      "revoked_at": {
+        "field": "revoked_at",
+        "type": "DATE{}",
+        "allowNull": true
+      },
+      "created_at": {
+        "field": "created_at",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updated_at": {
+        "field": "updated_at",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "createdAt": "created_at",
+    "updatedAt": "updated_at",
+    "associations": {
+      "administrator": {
+        "target": "User",
+        "foreignKey": "user_id",
+        "as": "administrator"
+      }
+    }
+  },
+  "Resume": {
+    "table": "resumes",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "user_id": {
+        "field": "user_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "users",
+          "key": "id"
+        }
+      },
+      "title": {
+        "field": "title",
+        "type": "STRING{\"length\":255}"
+      },
+      "template_id": {
+        "field": "template_id",
+        "type": "STRING{\"length\":100}"
+      },
+      "font_family": {
+        "field": "font_family",
+        "type": "STRING{\"length\":100}"
+      },
+      "font_size": {
+        "field": "font_size",
+        "type": "INTEGER{}"
+      },
+      "line_spacing": {
+        "field": "line_spacing",
+        "type": "FLOAT{}"
+      },
+      "color_theme": {
+        "field": "color_theme",
+        "type": "STRING{\"length\":100}"
+      },
+      "settings": {
+        "field": "settings",
+        "type": "JSONundefined"
+      },
+      "is_default": {
+        "field": "is_default",
+        "type": "BOOLEANundefined"
+      },
+      "is_archived": {
+        "field": "is_archived",
+        "type": "BOOLEANundefined"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "User": {
+        "target": "User",
+        "foreignKey": "user_id",
+        "as": "User"
+      },
+      "personalInfo": {
+        "target": "ResumePersonalInfo",
+        "foreignKey": "resume_id",
+        "as": "personalInfo"
+      },
+      "summary": {
+        "target": "ResumeSummary",
+        "foreignKey": "resume_id",
+        "as": "summary"
+      },
+      "education": {
+        "target": "ResumeEducation",
+        "foreignKey": "resume_id",
+        "as": "education"
+      },
+      "workExperience": {
+        "target": "ResumeWorkExperience",
+        "foreignKey": "resume_id",
+        "as": "workExperience"
+      },
+      "skills": {
+        "target": "ResumeSkill",
+        "foreignKey": "resume_id",
+        "as": "skills"
+      },
+      "projects": {
+        "target": "ResumeProject",
+        "foreignKey": "resume_id",
+        "as": "projects"
+      },
+      "certifications": {
+        "target": "ResumeCertification",
+        "foreignKey": "resume_id",
+        "as": "certifications"
+      },
+      "trainings": {
+        "target": "ResumeTraining",
+        "foreignKey": "resume_id",
+        "as": "trainings"
+      },
+      "seminars": {
+        "target": "ResumeSeminar",
+        "foreignKey": "resume_id",
+        "as": "seminars"
+      },
+      "awards": {
+        "target": "ResumeAward",
+        "foreignKey": "resume_id",
+        "as": "awards"
+      },
+      "organizations": {
+        "target": "ResumeOrganization",
+        "foreignKey": "resume_id",
+        "as": "organizations"
+      },
+      "volunteerWork": {
+        "target": "ResumeVolunteerWork",
+        "foreignKey": "resume_id",
+        "as": "volunteerWork"
+      },
+      "languages": {
+        "target": "ResumeLanguage",
+        "foreignKey": "resume_id",
+        "as": "languages"
+      },
+      "references": {
+        "target": "ResumeReference",
+        "foreignKey": "resume_id",
+        "as": "references"
+      },
+      "versions": {
+        "target": "ResumeVersion",
+        "foreignKey": "resume_id",
+        "as": "versions"
+      }
+    }
+  },
+  "ResumePersonalInfo": {
+    "table": "resumepersonalinfo",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "full_name": {
+        "field": "full_name",
+        "type": "STRING{\"length\":255}"
+      },
+      "professional_title": {
+        "field": "professional_title",
+        "type": "STRING{\"length\":255}"
+      },
+      "email": {
+        "field": "email",
+        "type": "STRING{\"length\":255}"
+      },
+      "phone": {
+        "field": "phone",
+        "type": "STRING{\"length\":50}"
+      },
+      "address": {
+        "field": "address",
+        "type": "TEXT{}"
+      },
+      "linkedin": {
+        "field": "linkedin",
+        "type": "STRING{\"length\":500}"
+      },
+      "github": {
+        "field": "github",
+        "type": "STRING{\"length\":500}"
+      },
+      "portfolio": {
+        "field": "portfolio",
+        "type": "STRING{\"length\":500}"
+      },
+      "website": {
+        "field": "website",
+        "type": "STRING{\"length\":500}"
+      },
+      "photo_url": {
+        "field": "photo_url",
+        "type": "TEXT{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeSummary": {
+    "table": "resumesummaries",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "content": {
+        "field": "content",
+        "type": "TEXT{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeEducation": {
+    "table": "resumeeducations",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "institution": {
+        "field": "institution",
+        "type": "STRING{\"length\":255}"
+      },
+      "degree": {
+        "field": "degree",
+        "type": "STRING{\"length\":255}"
+      },
+      "field_of_study": {
+        "field": "field_of_study",
+        "type": "STRING{\"length\":255}"
+      },
+      "start_date": {
+        "field": "start_date",
+        "type": "DATE{}"
+      },
+      "end_date": {
+        "field": "end_date",
+        "type": "DATE{}"
+      },
+      "is_current": {
+        "field": "is_current",
+        "type": "BOOLEANundefined"
+      },
+      "gpa": {
+        "field": "gpa",
+        "type": "STRING{\"length\":20}"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeWorkExperience": {
+    "table": "resumeworkexperiences",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "job_title": {
+        "field": "job_title",
+        "type": "STRING{\"length\":255}"
+      },
+      "company": {
+        "field": "company",
+        "type": "STRING{\"length\":255}"
+      },
+      "location": {
+        "field": "location",
+        "type": "STRING{\"length\":255}"
+      },
+      "start_date": {
+        "field": "start_date",
+        "type": "DATE{}"
+      },
+      "end_date": {
+        "field": "end_date",
+        "type": "DATE{}"
+      },
+      "is_current": {
+        "field": "is_current",
+        "type": "BOOLEANundefined"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeSkill": {
+    "table": "resumeskills",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "category": {
+        "field": "category",
+        "type": "STRING{\"length\":100}"
+      },
+      "skill_name": {
+        "field": "skill_name",
+        "type": "STRING{\"length\":255}",
+        "allowNull": false
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeProject": {
+    "table": "resumeprojects",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "project_name": {
+        "field": "project_name",
+        "type": "STRING{\"length\":255}"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "technologies": {
+        "field": "technologies",
+        "type": "TEXT{}"
+      },
+      "url": {
+        "field": "url",
+        "type": "STRING{\"length\":500}"
+      },
+      "start_date": {
+        "field": "start_date",
+        "type": "DATE{}"
+      },
+      "end_date": {
+        "field": "end_date",
+        "type": "DATE{}"
+      },
+      "is_current": {
+        "field": "is_current",
+        "type": "BOOLEANundefined"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeCertification": {
+    "table": "resumecertifications",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "name": {
+        "field": "name",
+        "type": "STRING{\"length\":255}"
+      },
+      "issuer": {
+        "field": "issuer",
+        "type": "STRING{\"length\":255}"
+      },
+      "issue_date": {
+        "field": "issue_date",
+        "type": "DATE{}"
+      },
+      "expiry_date": {
+        "field": "expiry_date",
+        "type": "DATE{}"
+      },
+      "credential_id": {
+        "field": "credential_id",
+        "type": "STRING{\"length\":255}"
+      },
+      "url": {
+        "field": "url",
+        "type": "STRING{\"length\":500}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeTraining": {
+    "table": "resumetrainings",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "training_name": {
+        "field": "training_name",
+        "type": "STRING{\"length\":255}"
+      },
+      "provider": {
+        "field": "provider",
+        "type": "STRING{\"length\":255}"
+      },
+      "completion_date": {
+        "field": "completion_date",
+        "type": "DATE{}"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeSeminar": {
+    "table": "resumeseminars",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "seminar_name": {
+        "field": "seminar_name",
+        "type": "STRING{\"length\":255}"
+      },
+      "organizer": {
+        "field": "organizer",
+        "type": "STRING{\"length\":255}"
+      },
+      "date": {
+        "field": "date",
+        "type": "DATE{}"
+      },
+      "location": {
+        "field": "location",
+        "type": "STRING{\"length\":255}"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeAward": {
+    "table": "resumeawards",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "title": {
+        "field": "title",
+        "type": "STRING{\"length\":255}"
+      },
+      "issuer": {
+        "field": "issuer",
+        "type": "STRING{\"length\":255}"
+      },
+      "date": {
+        "field": "date",
+        "type": "DATE{}"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeOrganization": {
+    "table": "resumeorganizations",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "organization_name": {
+        "field": "organization_name",
+        "type": "STRING{\"length\":255}"
+      },
+      "position": {
+        "field": "position",
+        "type": "STRING{\"length\":255}"
+      },
+      "start_date": {
+        "field": "start_date",
+        "type": "DATE{}"
+      },
+      "end_date": {
+        "field": "end_date",
+        "type": "DATE{}"
+      },
+      "is_current": {
+        "field": "is_current",
+        "type": "BOOLEANundefined"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeVolunteerWork": {
+    "table": "resumevolunteerworks",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "organization": {
+        "field": "organization",
+        "type": "STRING{\"length\":255}"
+      },
+      "role": {
+        "field": "role",
+        "type": "STRING{\"length\":255}"
+      },
+      "start_date": {
+        "field": "start_date",
+        "type": "DATE{}"
+      },
+      "end_date": {
+        "field": "end_date",
+        "type": "DATE{}"
+      },
+      "is_current": {
+        "field": "is_current",
+        "type": "BOOLEANundefined"
+      },
+      "description": {
+        "field": "description",
+        "type": "TEXT{}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeLanguage": {
+    "table": "resumelanguages",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "language": {
+        "field": "language",
+        "type": "STRING{\"length\":100}"
+      },
+      "proficiency": {
+        "field": "proficiency",
+        "type": "STRING{\"length\":100}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeReference": {
+    "table": "resumereferences",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "name": {
+        "field": "name",
+        "type": "STRING{\"length\":255}"
+      },
+      "relationship": {
+        "field": "relationship",
+        "type": "STRING{\"length\":255}"
+      },
+      "company": {
+        "field": "company",
+        "type": "STRING{\"length\":255}"
+      },
+      "email": {
+        "field": "email",
+        "type": "STRING{\"length\":255}"
+      },
+      "phone": {
+        "field": "phone",
+        "type": "STRING{\"length\":50}"
+      },
+      "sort_order": {
+        "field": "sort_order",
+        "type": "INTEGER{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  },
+  "ResumeVersion": {
+    "table": "resumeversions",
+    "attributes": {
+      "id": {
+        "field": "id",
+        "type": "INTEGER{}",
+        "primaryKey": true
+      },
+      "resume_id": {
+        "field": "resume_id",
+        "type": "INTEGER{}",
+        "allowNull": false,
+        "references": {
+          "model": "resumes",
+          "key": "id"
+        }
+      },
+      "version_number": {
+        "field": "version_number",
+        "type": "INTEGER{}",
+        "allowNull": false
+      },
+      "snapshot_data": {
+        "field": "snapshot_data",
+        "type": "JSONundefined"
+      },
+      "change_summary": {
+        "field": "change_summary",
+        "type": "TEXT{}"
+      },
+      "createdAt": {
+        "field": "createdAt",
+        "type": "DATE{}",
+        "allowNull": false
+      },
+      "updatedAt": {
+        "field": "updatedAt",
+        "type": "DATE{}",
+        "allowNull": false
+      }
+    },
+    "indexes": [],
+    "timestamps": true,
+    "associations": {
+      "Resume": {
+        "target": "Resume",
+        "foreignKey": "resume_id",
+        "as": "Resume"
+      }
+    }
+  }
+}

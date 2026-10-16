@@ -1,7 +1,7 @@
 import ApplicantResumePreview from "../components/ApplicantResumePreview";
 import { isResumeRequirement, getApplicantDocumentFilename, getApplicantResumeDocument, getApplicantResumeFileUrl } from "../utils/applicantResume";
-import { saveApplicationDecision, updateActiveApplications } from "../utils/applicationDecision";
-import { APPROVED_LABEL } from "../utils/applicationStatus";
+import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../utils/applicationDecision";
+import { APPROVED_LABEL, applicationStatusLabel } from "../utils/applicationStatus";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -298,7 +298,7 @@ export default function AdminEmployerPage({
     };
 
     const decideApplication = async (status) => {
-        if (!selectedApplication?.id || decisionBusy.current) return;
+        if (!canDecideApplication(selectedApplication, decisionBusy.current)) return;
         decisionBusy.current = true;
         setDecisionSaving(true);
         setError("");
@@ -308,7 +308,8 @@ export default function AdminEmployerPage({
             const update = records => updateActiveApplications(records, selectedApplication.id, status);
             setApplications(update);
 
-            setSelectedApplication(null);
+            setSelectedApplication(previous => previous?.id === selectedApplication.id
+                ? { ...previous, status: result.application?.status || status } : previous);
             setMessage(result.msg);
         } catch (err) { setError(err.message || "Unable to update application."); }
         finally { decisionBusy.current = false; setDecisionSaving(false); }
@@ -819,7 +820,6 @@ export default function AdminEmployerPage({
                                     <div className="emp-list-item-right">
                                         <span className={`emp-status-badge ${job.recruitment_status === "closed" ? "rejected" : "approved"}`}>{job.recruitment_status === "closed" ? "STOPPED" : "ACTIVE"}</span>
                                         <span className="emp-type-tag">{getEmploymentTypeLabel(job.employment_type)}</span>
-                                        <button type="button" className="emp-interview-details-btn" title="Interview Invitation & Details" onClick={() => openJobInterviewDetails(job)}>Update Interview Details</button>
                                         <button type="button" className="emp-view-btn emp-manage-applicants-btn" onClick={() => selectJob(job)}>Manage Applicants</button>
                                         <button type="button" className={job.recruitment_status === "closed" ? "emp-reactivate-btn" : "emp-stop-btn"} disabled={recruitmentBusy !== null} onClick={() => changeRecruitment(job)}>{recruitmentBusy === job.id ? "Updating…" : job.recruitment_status === "closed" ? "Resume Recruitment" : "Stop Recruitment"}</button>
                                         <button type="button" className="emp-delete-btn" aria-label={`Delete ${job.title || "job"}`} title="Delete Job" onClick={() => handleDeleteJob(job)}><BsTrash className="emp-delete-icon" aria-hidden="true" /></button>
@@ -1244,8 +1244,9 @@ export default function AdminEmployerPage({
                         Print Application
                     </Button>
                     <div className="applicant-modal-actions">
-                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={decisionSaving || selectedApplication?.status === "verified"}>Approve</Button>
-                        <Button variant="outline-danger" onClick={() => decideApplication("not_verified")} disabled={decisionSaving}>Decline</Button>
+                        <span role="status" className="status-pill">{decisionSaving ? "Processing..." : applicationStatusLabel(selectedApplication?.status)}</span>
+                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Approve</Button>
+                        <Button variant="outline-danger" onClick={() => decideApplication("not_verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Decline</Button>
                     </div>
                 </Modal.Footer>
             </Modal>

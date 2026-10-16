@@ -40,3 +40,5 @@ module.exports = (req, _res, next) => {
 
     next();
 };
+
+module.exports.sanitizeValue = sanitizeValue;

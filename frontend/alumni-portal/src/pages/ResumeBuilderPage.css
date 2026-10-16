@@ -97,11 +97,18 @@
     .resume-builder-page .resume-step-heading { flex-direction: column; }
     .resume-builder-page .personal-info-section { grid-template-columns: minmax(0, 1fr); }
     .resume-builder-page .editor-section-card .section-header, .resume-builder-page .editor-section-card .card-body { padding: 14px; }
-    .resume-builder-page .resume-document-name { padding: 14px; }
+    .resume-builder-page .resume-document-name { padding: 14px; flex-direction: column; align-items: stretch; }
     .resume-builder-page .resume-step-footer { flex-direction: column-reverse; }
     .resume-builder-page .resume-step-footer .btn { width: 100%; }
     .resume-builder-page .resume-final-aside { display: block; }
     .resume-builder-page .resume-management-actions { width: 100%; }
     .resume-builder-page .resume-management-actions > * { flex: 1; }
     .resume-builder-page .resume-management-actions .dropdown-toggle { width: 100%; }
+}
+
+@media (max-width: 1024px) {
+    .resume-builder-page .resume-editor .d-flex { flex-wrap: wrap; }
+    .resume-builder-page .resume-editor .d-flex > * { min-width: 0; }
+    .resume-builder-page .resume-appearance-grid > div { min-width: 0; }
+    .resume-builder-page .resume-section input[type="file"] { max-width: 100%; }
 }

@@ -1,3 +1,4 @@
+import useChatViewport from "../hooks/useChatViewport";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Spinner, Modal } from "react-bootstrap";
 import { FiPaperclip, FiSend, FiSearch, FiMessageSquare, FiArrowLeft } from "react-icons/fi";
@@ -49,6 +50,7 @@ const mapLegacy = (c) => {
 };
 
 export default function EmployerMessagesPage() {
+    useChatViewport();
     const [viewerProfile, setViewerProfile] = useState(null);
     const [conversations, setConversations] = useState([]);
     const [activeConversationId, setActiveConversationId] = useState(null);

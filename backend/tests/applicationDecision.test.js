@@ -6,16 +6,30 @@ const response = () => ({ statusCode: 200, status(code) { this.statusCode = code
 async function fixture(run) {
     const app = { id: 74, job_id: 34, recruitment_cycle: 2, alumni_id: 18, status: 'pending', is_archived: false, ApplicationDocuments: [{ id: 9, file_path: 'uploads/requirements/proof.pdf' }], async save() {} };
     const job = { id: 34, employer_id: 12, title: 'Office Assistant' };
-    const notifications = [], audits = [];
+    const notifications = [], audits = [], updates = [];
     const overrides = [
         [db.sequelize, 'transaction', async fn => fn({ LOCK: { UPDATE: 'UPDATE' } })],
         [db.Job, 'findByPk', async () => job],
         [db.Application, 'findByPk', async () => app],
         [db.Application, 'max', async () => 2],
+        [db.Application, 'update', async (values, options) => {
+            assert.ok(options.transaction);
+            assert.equal(options.where.id, app.id);
+            assert.equal(options.where.job_id, job.id);
+            assert.equal(options.where.recruitment_cycle, 2);
+            assert.equal(options.where.is_archived, false);
+            const pending = options.where.status[require('sequelize').Op.in];
+            assert.deepEqual(pending, ['pending', 'pending_review', 'submitted']);
+            if (!pending.includes(app.status)) return [0];
+            updates.push(values);
+            app.status = values.status;
+            return [1];
+        }],
         [db.Application, 'findAll', async () => [app]],
         [db.Notification, 'create', async data => notifications.push(data)],
         [db.AuditLog, 'create', async data => audits.push(data)],
-        [db.Interview, 'create', async () => { throw Error('Approval must not create an interview'); }]
+        [db.Interview, 'create', async () => { throw Error('Approval must not create an interview'); }],
+        [db.EmailQueueJob, 'create', async () => { throw Error('Decision retries must not enqueue invitation emails'); }]
     ];
     const originals = overrides.map(([target, key]) => target[key]);
     overrides.forEach(([target, key, value]) => { target[key] = value; });
@@ -25,9 +39,40 @@ async function fixture(run) {
         await controller.reviewApplication(req, res, error => { res.statusCode = error.status || 500; res.body = { msg: error.message }; });
         return res;
     };
-    try { await run({ app, job, notifications, audits, decide }); }
+    try { await run({ app, job, notifications, audits, updates, decide }); }
     finally { overrides.forEach(([target, key], i) => { target[key] = originals[i]; }); }
 }
+
+for (const user of [{ id: 12, role: 'employer' }, { id: 99, role: 'admin', admin_scope: 'employer' }]) {
+    for (const status of ['verified', 'not_verified', 'approved', 'declined', 'rejected', 'ready_for_interview', 'processing']) {
+        test(`${user.role} cannot change an existing ${status} decision`, () => fixture(async ({ app, updates, notifications, audits, decide }) => {
+            app.status = status;
+            const target = status === 'not_verified' ? 'verified' : 'not_verified';
+            assert.equal((await decide(target, { user })).statusCode, 409);
+            assert.equal(app.status, status);
+            assert.equal(updates.length, 0);
+            assert.equal(notifications.length, 0);
+            assert.equal(audits.length, 0);
+        }));
+    }
+    test(`${user.role} competing decisions produce only one update and notification`, () => fixture(async ({ app, updates, notifications, audits, decide }) => {
+        const results = await Promise.all([decide('verified', { user }), decide('not_verified', { user })]);
+        assert.deepEqual(results.map(result => result.statusCode).sort(), [200, 409]);
+        assert.equal(app.status, 'verified');
+        assert.equal(updates.length, 1);
+        assert.equal(notifications.length, 1);
+        assert.equal(audits.length, 1);
+    }));
+}
+
+test('a lost conditional transition emits no side effects', () => fixture(async ({ app, updates, notifications, audits, decide }) => {
+    db.Application.update = async () => [0];
+    assert.equal((await decide('verified')).statusCode, 409);
+    assert.equal(app.status, 'pending');
+    assert.equal(updates.length, 0);
+    assert.equal(notifications.length, 0);
+    assert.equal(audits.length, 0);
+}));
 test.after(() => db.sequelize.close());
 for (const user of [{ id: 12, role: 'employer' }, { id: 99, role: 'admin', admin_scope: 'employer' }]) {
     test(`${user.role} approves without interview details and repeated requests notify once`, () => fixture(async ({ app, notifications, audits, decide }) => {

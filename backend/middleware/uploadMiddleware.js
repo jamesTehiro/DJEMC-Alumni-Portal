@@ -20,6 +20,8 @@ const privateAdminEmployerRoot = path.join(__dirname, "..", "private_uploads", "
 const configuredMaxUploadMb = Number(process.env.MAX_UPLOAD_MB || 10);
 const MAX_UPLOAD_MB = Number.isFinite(configuredMaxUploadMb) && configuredMaxUploadMb > 0 ? configuredMaxUploadMb : 10;
 const limits = { fileSize: MAX_UPLOAD_MB * 1024 * 1024 };
+const configuredProfileUploadMb = Number(process.env.MAX_PROFILE_UPLOAD_MB || 5);
+const MAX_PROFILE_UPLOAD_MB = Number.isFinite(configuredProfileUploadMb) && configuredProfileUploadMb > 0 ? configuredProfileUploadMb : 5;
 
 const allowedExtensions = /\.(pdf|doc|docx|png|jpe?g|webp|gif)$/i;
 const allowedMimes = [
@@ -102,6 +104,15 @@ const fileFilter = (_req, file, cb) => {
     return cb(null, true);
 };
 
+const profileFileFilter = (req, file, cb) => {
+    if (!new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]).has(file.mimetype)) {
+        const err = new Error("Profile photos must be PNG, JPG, WebP, or GIF images.");
+        err.status = 415;
+        return cb(err);
+    }
+    return fileFilter(req, file, cb);
+};
+
 const getTargetForField = (fieldName = "") => {
     if (fieldName === "avatar_image") return { folder: "uploads/images", isPublic: true, prefix: "avatar" };
     if (fieldName === "logo_image") return { folder: "uploads/images", isPublic: true, prefix: "logo" };
@@ -148,6 +159,12 @@ const createCloudStorageEngine = () => ({
                     signatureVerified: file.fieldname === "attachment"
                 });
             } catch (err) {
+                if (["avatar_image", "logo_image"].includes(file.fieldname)) {
+                    const uploadError = new Error("Profile photo storage is unavailable. Please try again later.");
+                    uploadError.status = 502;
+                    uploadError.publicMessage = uploadError.message;
+                    return cb(uploadError);
+                }
                 cb(err);
             }
         });
@@ -190,7 +207,7 @@ const localStorage = multer.diskStorage({
 
 const storage = isObjectStorageEnabled() ? createCloudStorageEngine() : localStorage;
 const upload = multer({ storage, limits, fileFilter });
-const profileUpload = multer({ storage, limits, fileFilter }).fields([
+const profileUpload = multer({ storage, limits: { fileSize: MAX_PROFILE_UPLOAD_MB * 1024 * 1024 }, fileFilter: profileFileFilter }).fields([
     { name: "avatar_image", maxCount: 1 },
     { name: "logo_image", maxCount: 1 }
 ]);
@@ -323,6 +340,12 @@ exports.adminEmployerAttachmentUpload = runChatUpload;
 exports.optionalProfileUpload = (req, res, next) => {
     if (!String(req.headers["content-type"] || "").includes("multipart/form-data")) {
         return next();
+    }
+    if (process.env.NODE_ENV === "production" && !isObjectStorageEnabled()) {
+        const err = new Error("Profile photo storage is unavailable. Please try again later.");
+        err.status = 503;
+        err.publicMessage = err.message;
+        return next(err);
     }
     return profileUpload(req, res, next);
 };

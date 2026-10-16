@@ -3,8 +3,6 @@
    ============================================= */
 
 .dashboard-layout {
-    --portal-sidebar-width: 240px;
-    --portal-sidebar-gap: 0px;
     --portal-layout-padding: 24px;
     --sidebar-toggle-end: rgba(20, 138, 63, 0.92);
     min-height: calc(100dvh - var(--portal-header-height, 0px));
@@ -17,9 +15,7 @@
             var(--sidebar-bg-start) 0%,
             var(--sidebar-bg-mid) 55%,
             var(--sidebar-bg-end) 100%);
-    border-radius: 22px;
     padding: 22px 18px;
-    box-shadow: 0 16px 34px rgba(21, 90, 67, 0.18);
 }
 
 .dashboard-layout .employer-sidebar-title {
@@ -83,7 +79,7 @@
    Mobile & Responsive
    ============================================= */
 
-@media (max-width: 767.98px) {
+@media (max-width: 1024px) {
     .dashboard-layout {
         --portal-layout-padding: 12px;
     }
@@ -97,7 +93,6 @@
 
     .dashboard-layout .employer-sidebar-card {
         padding: 16px 14px;
-        border-radius: 18px;
     }
 
     .dashboard-layout .employer-nav-item {
@@ -108,7 +103,4 @@
         width: 100%;
     }
 
-    .dashboard-layout .main-content {
-        padding: 0;
-    }
 }

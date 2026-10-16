@@ -1,0 +1,2605 @@
+[
+  {
+    "file": "backend/migrations/20260324-add-admin-profile-columns.js",
+    "lines": 34,
+    "references": [
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(\"Users\", \"admin_department\", {"
+      },
+      {
+        "line": 15,
+        "source": "await queryInterface.addColumn(\"Users\", \"admin_avatar_url\", {"
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.removeColumn(\"Users\", \"admin_avatar_url\");"
+      },
+      {
+        "line": 30,
+        "source": "await queryInterface.removeColumn(\"Users\", \"admin_department\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260327-add-expected-salary-to-jobs.js",
+    "lines": 23,
+    "references": [
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(\"Jobs\", \"expected_salary\", {"
+      },
+      {
+        "line": 19,
+        "source": "await queryInterface.removeColumn(\"Jobs\", \"expected_salary\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260328-add-schedule-columns-to-announcements.js",
+    "lines": 45,
+    "references": [
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(\"Announcements\", \"day\", {"
+      },
+      {
+        "line": 15,
+        "source": "await queryInterface.addColumn(\"Announcements\", \"time\", {"
+      },
+      {
+        "line": 22,
+        "source": "await queryInterface.addColumn(\"Announcements\", \"location\", {"
+      },
+      {
+        "line": 33,
+        "source": "await queryInterface.removeColumn(\"Announcements\", \"location\");"
+      },
+      {
+        "line": 37,
+        "source": "await queryInterface.removeColumn(\"Announcements\", \"time\");"
+      },
+      {
+        "line": 41,
+        "source": "await queryInterface.removeColumn(\"Announcements\", \"day\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260413-create-email-queue-and-rate-limit-tables.js",
+    "lines": 148,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 8,
+        "source": "return table.toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 11,
+        "source": "if (table?.tableName) {"
+      },
+      {
+        "line": 12,
+        "source": "return String(table.tableName).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 16,
+        "source": "return String(table.TABLE_NAME).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 19,
+        "source": "return String(table).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.createTable(\"email_queue_jobs\", {"
+      },
+      {
+        "line": 84,
+        "source": "await queryInterface.addIndex(\"email_queue_jobs\", [\"status\", \"available_at\"], {"
+      },
+      {
+        "line": 87,
+        "source": "await queryInterface.addIndex(\"email_queue_jobs\", [\"reserved_at\"], {"
+      },
+      {
+        "line": 93,
+        "source": "await queryInterface.createTable(\"rate_limit_entries\", {"
+      },
+      {
+        "line": 128,
+        "source": "await queryInterface.addIndex(\"rate_limit_entries\", [\"scope\", \"key\", \"window_start\"], {"
+      },
+      {
+        "line": 132,
+        "source": "await queryInterface.addIndex(\"rate_limit_entries\", [\"expires_at\"], {"
+      },
+      {
+        "line": 140,
+        "source": "await queryInterface.dropTable(\"rate_limit_entries\");"
+      },
+      {
+        "line": 144,
+        "source": "await queryInterface.dropTable(\"email_queue_jobs\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260414-unify-messaging-and-harden-infra.js",
+    "lines": 302,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 7,
+        "source": "if (typeof table === \"string\") return table.toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 8,
+        "source": "if (table?.tableName) return String(table.tableName).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 9,
+        "source": "if (table?.TABLE_NAME) return String(table.TABLE_NAME).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 10,
+        "source": "return String(table).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 14,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 15,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 19,
+        "source": "const hasIndex = async (queryInterface, tableName, indexName) => {"
+      },
+      {
+        "line": 20,
+        "source": "const indexes = await queryInterface.showIndex(tableName);"
+      },
+      {
+        "line": 31,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 44,
+        "source": "`UPDATE Conversations"
+      },
+      {
+        "line": 53,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 54,
+        "source": "`UPDATE Conversations"
+      },
+      {
+        "line": 63,
+        "source": "await queryInterface.addIndex(\"Conversations\", [\"type\", \"last_message_at\"], {"
+      },
+      {
+        "line": 72,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 84,
+        "source": "await queryInterface.addIndex(\"Messages\", [\"conversation_id\", \"id\"], {"
+      },
+      {
+        "line": 92,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 93,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 98,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 104,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 105,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 110,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 117,
+        "source": "await queryInterface.addIndex(\"ConversationParticipants\", [\"conversation_id\", \"user_id\"], {"
+      },
+      {
+        "line": 126,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 127,
+        "source": "`INSERT INTO Conversations (conversation_key, name, type, last_message_text, last_message_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 140,
+        "source": "SELECT 1 FROM Conversations c"
+      },
+      {
+        "line": 146,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 147,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 153,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 159,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 160,
+        "source": "`INSERT INTO ConversationParticipants (conversation_id, user_id, unread_count, last_read_at, createdAt, updatedAt)"
+      },
+      {
+        "line": 166,
+        "source": "SELECT 1 FROM ConversationParticipants cp"
+      },
+      {
+        "line": 173,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 174,
+        "source": "`INSERT INTO Messages ("
+      },
+      {
+        "line": 201,
+        "source": "SELECT 1 FROM Messages m"
+      },
+      {
+        "line": 215,
+        "source": "await queryInterface.renameColumn(\"email_queue_jobs\", \"available_at\", \"scheduled_at\", { transaction });"
+      },
+      {
+        "line": 219,
+        "source": "await queryInterface.renameColumn(\"email_queue_jobs\", \"reserved_at\", \"processing_started_at\", { transaction });"
+      },
+      {
+        "line": 223,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 238,
+        "source": "await queryInterface.addIndex(\"Users\", [\"email\"], {"
+      },
+      {
+        "line": 246,
+        "source": "await queryInterface.addIndex(\"Users\", [\"role\", \"admin_scope\"], {"
+      },
+      {
+        "line": 257,
+        "source": "await queryInterface.dropTable(\"EmployerMessages\");"
+      },
+      {
+        "line": 261,
+        "source": "await queryInterface.dropTable(\"EmployerConversations\");"
+      },
+      {
+        "line": 272,
+        "source": "await queryInterface.removeColumn(\"Messages\", \"file_path\");"
+      },
+      {
+        "line": 278,
+        "source": "await queryInterface.renameColumn(\"email_queue_jobs\", \"processing_started_at\", \"reserved_at\");"
+      },
+      {
+        "line": 282,
+        "source": "await queryInterface.renameColumn(\"email_queue_jobs\", \"scheduled_at\", \"available_at\");"
+      },
+      {
+        "line": 286,
+        "source": "await queryInterface.removeColumn(\"email_queue_jobs\", \"max_attempts\");"
+      },
+      {
+        "line": 291,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 292,
+        "source": "`DELETE FROM ConversationParticipants"
+      },
+      {
+        "line": 294,
+        "source": "SELECT id FROM Conversations WHERE type = 'employer_admin'"
+      },
+      {
+        "line": 298,
+        "source": "await queryInterface.sequelize.query(`DELETE FROM Conversations WHERE type = 'employer_admin'`);"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260518-add-missing-application-identity-columns.js",
+    "lines": 46,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 11,
+        "source": "await queryInterface.addColumn(\"Applications\", \"full_name\", {"
+      },
+      {
+        "line": 18,
+        "source": "await queryInterface.addColumn(\"Applications\", \"email\", {"
+      },
+      {
+        "line": 25,
+        "source": "await queryInterface.addColumn(\"Applications\", \"dob\", {"
+      },
+      {
+        "line": 34,
+        "source": "await queryInterface.removeColumn(\"Applications\", \"dob\");"
+      },
+      {
+        "line": 38,
+        "source": "await queryInterface.removeColumn(\"Applications\", \"email\");"
+      },
+      {
+        "line": 42,
+        "source": "await queryInterface.removeColumn(\"Applications\", \"full_name\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260526-add-feed-indexes.js",
+    "lines": 52,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 7,
+        "source": "if (typeof table === \"string\") return table.toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 8,
+        "source": "if (table?.tableName) return String(table.tableName).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 9,
+        "source": "if (table?.TABLE_NAME) return String(table.TABLE_NAME).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 10,
+        "source": "return String(table).toLowerCase() === tableName.toLowerCase();"
+      },
+      {
+        "line": 14,
+        "source": "const hasIndex = async (queryInterface, tableName, indexName) => {"
+      },
+      {
+        "line": 15,
+        "source": "const indexes = await queryInterface.showIndex(tableName);"
+      },
+      {
+        "line": 23,
+        "source": "await queryInterface.addIndex(\"Posts\", [\"createdAt\"], {"
+      },
+      {
+        "line": 31,
+        "source": "await queryInterface.addIndex(\"Comments\", [\"post_id\", \"createdAt\"], {"
+      },
+      {
+        "line": 41,
+        "source": "await queryInterface.removeIndex(\"Comments\", \"comments_post_id_created_at_idx\");"
+      },
+      {
+        "line": 47,
+        "source": "await queryInterface.removeIndex(\"Posts\", \"posts_created_at_idx\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260616-add-employment-status-to-alumni-profiles.js",
+    "lines": 67,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 15,
+        "source": "const tableName = \"AlumniProfiles\";"
+      },
+      {
+        "line": 19,
+        "source": "const exists = tables.some((t) => normalizeTableName(t).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 25,
+        "source": "if (!(await hasColumn(queryInterface, tableName, \"employment_status\"))) {"
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 27,
+        "source": "tableName,"
+      },
+      {
+        "line": 47,
+        "source": "const tableName = \"AlumniProfiles\";"
+      },
+      {
+        "line": 49,
+        "source": "const exists = tables.some((t) => normalizeTableName(t).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 55,
+        "source": "if (await hasColumn(queryInterface, tableName, \"employment_status\")) {"
+      },
+      {
+        "line": 56,
+        "source": "await queryInterface.removeColumn(tableName, \"employment_status\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260618-add-alumni-record-id-to-users.js",
+    "lines": 63,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 14,
+        "source": "const tableName = \"Users\";"
+      },
+      {
+        "line": 16,
+        "source": "const exists = tables.some((t) => normalizeTableName(t).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 22,
+        "source": "if (!(await hasColumn(queryInterface, tableName, \"alumni_record_id\"))) {"
+      },
+      {
+        "line": 23,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 24,
+        "source": "tableName,"
+      },
+      {
+        "line": 44,
+        "source": "const tableName = \"Users\";"
+      },
+      {
+        "line": 46,
+        "source": "const exists = tables.some((t) => normalizeTableName(t).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 52,
+        "source": "if (await hasColumn(queryInterface, tableName, \"alumni_record_id\")) {"
+      },
+      {
+        "line": 53,
+        "source": "await queryInterface.removeColumn(tableName, \"alumni_record_id\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-add-requirement-fields-to-jobs.js",
+    "lines": 58,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 25,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 47,
+        "source": "await queryInterface.removeColumn(\"Jobs\", \"current_requirement_version\", { transaction });"
+      },
+      {
+        "line": 50,
+        "source": "await queryInterface.removeColumn(\"Jobs\", \"has_requirements\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-application-documents.js",
+    "lines": 70,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 40,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 46,
+        "source": "await queryInterface.addIndex(\"ApplicationDocuments\", [\"application_id\"], { transaction });"
+      },
+      {
+        "line": 47,
+        "source": "await queryInterface.addIndex(\"ApplicationDocuments\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 48,
+        "source": "await queryInterface.addIndex(\"ApplicationDocuments\", [\"review_status\"], { transaction });"
+      },
+      {
+        "line": 61,
+        "source": "await queryInterface.dropTable(\"ApplicationDocuments\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-application-responses.js",
+    "lines": 64,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 36,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 42,
+        "source": "await queryInterface.addIndex(\"ApplicationResponses\", [\"application_id\"], { transaction });"
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.addIndex(\"ApplicationResponses\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 56,
+        "source": "await queryInterface.dropTable(\"ApplicationResponses\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-audit-logs.js",
+    "lines": 59,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 34,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"actor_id\"], { transaction });"
+      },
+      {
+        "line": 35,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"action\"], { transaction });"
+      },
+      {
+        "line": 36,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"target_type\", \"target_id\"], { transaction });"
+      },
+      {
+        "line": 37,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 38,
+        "source": "await queryInterface.addIndex(\"AuditLogs\", [\"created_at\"], { transaction });"
+      },
+      {
+        "line": 51,
+        "source": "await queryInterface.dropTable(\"AuditLogs\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-job-requirement-snapshots.js",
+    "lines": 52,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 30,
+        "source": "await queryInterface.addIndex(\"JobRequirementSnapshots\", [\"application_id\"], { transaction });"
+      },
+      {
+        "line": 31,
+        "source": "await queryInterface.addIndex(\"JobRequirementSnapshots\", [\"job_id\", \"version\"], { transaction });"
+      },
+      {
+        "line": 44,
+        "source": "await queryInterface.dropTable(\"JobRequirementSnapshots\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-job-requirements.js",
+    "lines": 71,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 49,
+        "source": "await queryInterface.addIndex(\"JobRequirements\", [\"job_id\", \"version\"], { transaction });"
+      },
+      {
+        "line": 50,
+        "source": "await queryInterface.addIndex(\"JobRequirements\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 63,
+        "source": "await queryInterface.dropTable(\"JobRequirements\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-requirement-groups.js",
+    "lines": 51,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 30,
+        "source": "await queryInterface.addIndex(\"RequirementGroups\", [\"job_id\", \"version\"], { transaction });"
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.dropTable(\"RequirementGroups\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260709-create-requirement-library.js",
+    "lines": 96,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 67,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 73,
+        "source": "await queryInterface.addIndex(\"RequirementLibrary\", [\"requirement_code\"], { transaction });"
+      },
+      {
+        "line": 74,
+        "source": "await queryInterface.addIndex(\"RequirementLibrary\", [\"category\"], { transaction });"
+      },
+      {
+        "line": 88,
+        "source": "await queryInterface.dropTable(\"RequirementLibrary\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260719-add-recruitment-lifecycle.js",
+    "lines": 60,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 13,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 26,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 49,
+        "source": "await queryInterface.removeColumn(\"Jobs\", \"recruitment_status\", { transaction });"
+      },
+      {
+        "line": 52,
+        "source": "await queryInterface.removeColumn(\"Applications\", \"recruitment_cycle\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260720-create-resume-system.js",
+    "lines": 545,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasTable = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((t) => t.toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 15,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 37,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 43,
+        "source": "await queryInterface.addIndex(\"Resumes\", [\"user_id\"], { transaction });"
+      },
+      {
+        "line": 44,
+        "source": "await queryInterface.addIndex(\"Resumes\", [\"user_id\", \"is_archived\"], { transaction });"
+      },
+      {
+        "line": 49,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 72,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 78,
+        "source": "await queryInterface.addIndex(\"ResumePersonalInfo\", [\"resume_id\"], { unique: true, transaction });"
+      },
+      {
+        "line": 83,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 97,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 103,
+        "source": "await queryInterface.addIndex(\"ResumeSummaries\", [\"resume_id\"], { unique: true, transaction });"
+      },
+      {
+        "line": 108,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 130,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 136,
+        "source": "await queryInterface.addIndex(\"ResumeEducation\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 137,
+        "source": "await queryInterface.addIndex(\"ResumeEducation\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 142,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 163,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 169,
+        "source": "await queryInterface.addIndex(\"ResumeWorkExperience\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 170,
+        "source": "await queryInterface.addIndex(\"ResumeWorkExperience\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 175,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 191,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 197,
+        "source": "await queryInterface.addIndex(\"ResumeSkills\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 198,
+        "source": "await queryInterface.addIndex(\"ResumeSkills\", [\"resume_id\", \"category\"], { transaction });"
+      },
+      {
+        "line": 203,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 224,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 230,
+        "source": "await queryInterface.addIndex(\"ResumeProjects\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 231,
+        "source": "await queryInterface.addIndex(\"ResumeProjects\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 236,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 256,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 262,
+        "source": "await queryInterface.addIndex(\"ResumeCertifications\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 263,
+        "source": "await queryInterface.addIndex(\"ResumeCertifications\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 268,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 286,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 292,
+        "source": "await queryInterface.addIndex(\"ResumeTrainings\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 293,
+        "source": "await queryInterface.addIndex(\"ResumeTrainings\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 298,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 317,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 323,
+        "source": "await queryInterface.addIndex(\"ResumeSeminars\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 324,
+        "source": "await queryInterface.addIndex(\"ResumeSeminars\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 329,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 347,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 353,
+        "source": "await queryInterface.addIndex(\"ResumeAwards\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 354,
+        "source": "await queryInterface.addIndex(\"ResumeAwards\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 359,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 379,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 385,
+        "source": "await queryInterface.addIndex(\"ResumeOrganizations\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 386,
+        "source": "await queryInterface.addIndex(\"ResumeOrganizations\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 391,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 411,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 417,
+        "source": "await queryInterface.addIndex(\"ResumeVolunteerWork\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 418,
+        "source": "await queryInterface.addIndex(\"ResumeVolunteerWork\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 423,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 439,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 445,
+        "source": "await queryInterface.addIndex(\"ResumeLanguages\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 446,
+        "source": "await queryInterface.addIndex(\"ResumeLanguages\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 451,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 470,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 476,
+        "source": "await queryInterface.addIndex(\"ResumeReferences\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 477,
+        "source": "await queryInterface.addIndex(\"ResumeReferences\", [\"resume_id\", \"sort_order\"], { transaction });"
+      },
+      {
+        "line": 482,
+        "source": "await queryInterface.createTable("
+      },
+      {
+        "line": 499,
+        "source": "await queryInterface.addIndex(\"ResumeVersions\", [\"resume_id\"], { transaction });"
+      },
+      {
+        "line": 500,
+        "source": "await queryInterface.addIndex(\"ResumeVersions\", [\"resume_id\", \"version_number\"], { unique: true, transaction });"
+      },
+      {
+        "line": 535,
+        "source": "await queryInterface.dropTable(table, { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260724-add-missing-timestamps-to-resume-tables.js",
+    "lines": 107,
+    "references": [
+      {
+        "line": 29,
+        "source": "for (const tableName of tablesToFix) {"
+      },
+      {
+        "line": 30,
+        "source": "if (!existingLower.includes(tableName.toLowerCase())) {"
+      },
+      {
+        "line": 34,
+        "source": "const columns = await queryInterface.describeTable(tableName, { transaction });"
+      },
+      {
+        "line": 37,
+        "source": "await queryInterface.addColumn(tableName, 'created_at', {"
+      },
+      {
+        "line": 45,
+        "source": "await queryInterface.addColumn(tableName, 'updated_at', {"
+      },
+      {
+        "line": 48,
+        "source": "defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\")"
+      },
+      {
+        "line": 85,
+        "source": "for (const tableName of tablesToFix) {"
+      },
+      {
+        "line": 86,
+        "source": "if (!existingLower.includes(tableName.toLowerCase())) {"
+      },
+      {
+        "line": 90,
+        "source": "const columns = await queryInterface.describeTable(tableName, { transaction });"
+      },
+      {
+        "line": 93,
+        "source": "await queryInterface.removeColumn(tableName, 'updated_at', { transaction });"
+      },
+      {
+        "line": 96,
+        "source": "await queryInterface.removeColumn(tableName, 'created_at', { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20260725-add-proof-document-to-alumni-profiles.js",
+    "lines": 65,
+    "references": [
+      {
+        "line": 3,
+        "source": "const hasColumn = async (queryInterface, tableName, columnName) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 14,
+        "source": "const tableName = \"AlumniProfiles\";"
+      },
+      {
+        "line": 16,
+        "source": "const exists = tables.some((table) => normalizeTableName(table).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 23,
+        "source": "if (!(await hasColumn(queryInterface, tableName, \"proof_document_path\"))) {"
+      },
+      {
+        "line": 24,
+        "source": "await queryInterface.addColumn("
+      },
+      {
+        "line": 25,
+        "source": "tableName,"
+      },
+      {
+        "line": 45,
+        "source": "const tableName = \"AlumniProfiles\";"
+      },
+      {
+        "line": 47,
+        "source": "const exists = tables.some((table) => normalizeTableName(table).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 54,
+        "source": "if (await hasColumn(queryInterface, tableName, \"proof_document_path\")) {"
+      },
+      {
+        "line": 55,
+        "source": "await queryInterface.removeColumn(tableName, \"proof_document_path\", { transaction });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261009-add-employer-message-file-metadata.js",
+    "lines": 16,
+    "references": [
+      {
+        "line": 6,
+        "source": "if (!table.file_name) await queryInterface.addColumn(\"EmployerMessages\", \"file_name\", { type: Sequelize.STRING, allowNull: true });"
+      },
+      {
+        "line": 7,
+        "source": "if (!table.file_mime) await queryInterface.addColumn(\"EmployerMessages\", \"file_mime\", { type: Sequelize.STRING, allowNull: true });"
+      },
+      {
+        "line": 12,
+        "source": "if (table.file_mime) await queryInterface.removeColumn(\"EmployerMessages\", \"file_mime\");"
+      },
+      {
+        "line": 13,
+        "source": "if (table.file_name) await queryInterface.removeColumn(\"EmployerMessages\", \"file_name\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261011-add-message-file-sizes.js",
+    "lines": 23,
+    "references": [
+      {
+        "line": 5,
+        "source": "for (const tableName of [\"Messages\", \"EmployerMessages\"]) {"
+      },
+      {
+        "line": 6,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 8,
+        "source": "await queryInterface.addColumn(tableName, \"file_size\", {"
+      },
+      {
+        "line": 17,
+        "source": "for (const tableName of [\"EmployerMessages\", \"Messages\"]) {"
+      },
+      {
+        "line": 18,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 19,
+        "source": "if (columns.file_size) await queryInterface.removeColumn(tableName, \"file_size\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261012-add-application-archive-flag.js",
+    "lines": 20,
+    "references": [
+      {
+        "line": 7,
+        "source": "await queryInterface.addColumn(\"Applications\", \"is_archived\", {"
+      },
+      {
+        "line": 17,
+        "source": "if (columns.is_archived) await queryInterface.removeColumn(\"Applications\", \"is_archived\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261012-add-job-interview-invitations.js",
+    "lines": 62,
+    "references": [
+      {
+        "line": 3,
+        "source": "const addColumnIfMissing = async (queryInterface, Sequelize, tableName, name, definition) => {"
+      },
+      {
+        "line": 4,
+        "source": "const columns = await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 5,
+        "source": "if (!columns[name]) await queryInterface.addColumn(tableName, name, definition);"
+      },
+      {
+        "line": 19,
+        "source": "await addColumnIfMissing(queryInterface, Sequelize, \"Jobs\", name, definition);"
+      },
+      {
+        "line": 22,
+        "source": "await addColumnIfMissing(queryInterface, Sequelize, \"email_queue_jobs\", \"dedupe_key\", {"
+      },
+      {
+        "line": 28,
+        "source": "await queryInterface.addIndex(\"email_queue_jobs\", [\"dedupe_key\"], {"
+      },
+      {
+        "line": 36,
+        "source": "await queryInterface.changeColumn(\"Notifications\", \"message\", {"
+      },
+      {
+        "line": 46,
+        "source": "await queryInterface.removeIndex(\"email_queue_jobs\", \"email_queue_jobs_dedupe_key_uq\");"
+      },
+      {
+        "line": 49,
+        "source": "if (queueColumns.dedupe_key) await queryInterface.removeColumn(\"email_queue_jobs\", \"dedupe_key\");"
+      },
+      {
+        "line": 56,
+        "source": "if (columns[name]) await queryInterface.removeColumn(\"Jobs\", name);"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261013-create-alumni-profile-update-requests.js",
+    "lines": 63,
+    "references": [
+      {
+        "line": 3,
+        "source": "const tableExists = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 5,
+        "source": "return tables.some((table) => String(table).toLowerCase() === tableName.toLowerCase());"
+      },
+      {
+        "line": 12,
+        "source": "await queryInterface.createTable(\"AlumniProfileUpdateRequests\", {"
+      },
+      {
+        "line": 17,
+        "source": "references: { model: \"Users\", key: \"id\" },"
+      },
+      {
+        "line": 24,
+        "source": "references: { model: \"Users\", key: \"id\" },"
+      },
+      {
+        "line": 31,
+        "source": "references: { model: \"Notifications\", key: \"id\" },"
+      },
+      {
+        "line": 38,
+        "source": "references: { model: \"email_queue_jobs\", key: \"id\" },"
+      },
+      {
+        "line": 48,
+        "source": "updatedAt: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\") }"
+      },
+      {
+        "line": 51,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"alumni_user_id\", \"status\"], { name: \"alumni_profile_update_requests_user_status_idx\" });"
+      },
+      {
+        "line": 52,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"requested_by\", \"createdAt\"], { name: \"alumni_profile_update_requests_actor_created_idx\" });"
+      },
+      {
+        "line": 53,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"notification_id\"], { name: \"alumni_profile_update_requests_notification_uq\", unique: true });"
+      },
+      {
+        "line": 54,
+        "source": "await queryInterface.addIndex(\"AlumniProfileUpdateRequests\", [\"email_queue_job_id\"], { name: \"alumni_profile_update_requests_email_job_uq\", unique: true });"
+      },
+      {
+        "line": 59,
+        "source": "await queryInterface.dropTable(\"AlumniProfileUpdateRequests\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261013-expand-application-document-file-path.js",
+    "lines": 40,
+    "references": [
+      {
+        "line": 8,
+        "source": "return tables.some((table) => String(typeof table === \"object\" ? table.tableName : table).toLowerCase() === TABLE_NAME.toLowerCase());"
+      },
+      {
+        "line": 17,
+        "source": "await queryInterface.changeColumn(TABLE_NAME, COLUMN_NAME, {"
+      },
+      {
+        "line": 28,
+        "source": "const [rows] = await queryInterface.sequelize.query("
+      },
+      {
+        "line": 29,
+        "source": "`SELECT COUNT(*) AS long_path_count FROM ${TABLE_NAME} WHERE CHAR_LENGTH(${COLUMN_NAME}) > 500`"
+      },
+      {
+        "line": 34,
+        "source": "await queryInterface.changeColumn(TABLE_NAME, COLUMN_NAME, {"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-add-job-posting-details.js",
+    "lines": 14,
+    "references": [
+      {
+        "line": 7,
+        "source": "await queryInterface.addColumn(\"Jobs\", \"posting_details\", { type: Sequelize.JSON, allowNull: true, defaultValue: null });"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-create-membership-applications.js",
+    "lines": 58,
+    "references": [
+      {
+        "line": 6,
+        "source": "updated_at: { type: Sequelize.DATE, allowNull: false, defaultValue: Sequelize.literal(\"CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\") }"
+      },
+      {
+        "line": 8,
+        "source": "const userReference = Sequelize => ({ type: Sequelize.INTEGER, allowNull: false, references: { model: \"Users\", key: \"id\" }, onUpdate: \"CASCADE\", onDelete: \"RESTRICT\" });"
+      },
+      {
+        "line": 13,
+        "source": "await qi.addIndex(table, [field], { name, unique: true });"
+      },
+      {
+        "line": 20,
+        "source": "await qi.createTable(\"MembershipApplications\", {"
+      },
+      {
+        "line": 38,
+        "source": "await qi.addIndex(\"MembershipApplications\", [\"application_status\", \"submitted_at\"], { name: \"membership_application_status_date_idx\" });"
+      },
+      {
+        "line": 41,
+        "source": "await qi.createTable(\"MembershipAdministrators\", {"
+      },
+      {
+        "line": 44,
+        "source": "granted_by: { type: Sequelize.INTEGER, allowNull: true, references: { model: \"Users\", key: \"id\" }, onUpdate: \"CASCADE\", onDelete: \"SET NULL\" },"
+      },
+      {
+        "line": 52,
+        "source": "await qi.sequelize.query(\"INSERT INTO MembershipAdministrators (user_id, granted_by, grant_reason, created_at, updated_at) SELECT id, NULL, 'Initial verified Employer Admin designated by membership deployment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM Users u WHERE u.role = 'admin' AND u.admin_scope = 'employer' AND u.account_status = 'verified' AND NOT EXISTS (SELECT 1 FROM MembershipAdministrators m WHERE m.user_id = u.id)\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-grant-registrar-membership-access.js",
+    "lines": 10,
+    "references": [
+      {
+        "line": 6,
+        "source": "await queryInterface.sequelize.query(\"INSERT INTO MembershipAdministrators (user_id, granted_by, grant_reason, created_at, updated_at) SELECT id, NULL, 'Registrar read-only membership review designated by deployment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM Users u WHERE u.role = 'admin' AND u.admin_scope = 'registrar' AND u.account_status = 'verified' AND NOT EXISTS (SELECT 1 FROM MembershipAdministrators m WHERE m.user_id = u.id)\");"
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261014-transfer-membership-access-to-admin-alumni.js",
+    "lines": 22,
+    "references": [
+      {
+        "line": 8,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 9,
+        "source": "\"UPDATE MembershipAdministrators m JOIN Users u ON u.id = m.user_id SET m.revoked_at = CURRENT_TIMESTAMP, m.updated_at = CURRENT_TIMESTAMP WHERE m.revoked_at IS NULL AND u.role = 'admin' AND u.admin_scope IN ('registrar', 'employer')\","
+      },
+      {
+        "line": 12,
+        "source": "await queryInterface.sequelize.query("
+      },
+      {
+        "line": 13,
+        "source": "\"INSERT INTO MembershipAdministrators (user_id, granted_by, grant_reason, created_at, updated_at) SELECT id, NULL, 'Admin Alumni read-only membership access designated by feature transfer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP FROM Users u WHERE u.role = 'admin' AND u.admin_scope = 'alumni' AND u.account_status = 'verified' AND NOT EXISTS (SELECT 1 FROM MembershipAdministrators m WHERE m.user_id = u.id)\","
+      }
+    ]
+  },
+  {
+    "file": "backend/migrations/20261016-repair-email-queue-dedupe-key.js",
+    "lines": 39,
+    "references": [
+      {
+        "line": 6,
+        "source": "if (!tables.some(t => (typeof t === 'string' ? t : t.tableName) === table)) throw new Error('The exact lowercase email_queue_jobs table is missing. Check the database connection; no table will be created.');"
+      },
+      {
+        "line": 17,
+        "source": "const [result] = await qi.sequelize.query('SELECT COUNT(*) AS duplicate_groups FROM (SELECT 1 FROM `email_queue_jobs` WHERE `dedupe_key` IS NOT NULL GROUP BY `dedupe_key` HAVING COUNT(*) > 1) AS duplicate_keys', { type: Sequelize.QueryTypes.SELECT });"
+      },
+      {
+        "line": 28,
+        "source": "if (!before.columnPresent) await qi.addColumn(table, 'dedupe_key', { type: Sequelize.STRING(191), allowNull: true, defaultValue: null });"
+      },
+      {
+        "line": 31,
+        "source": "if (!ready.uniqueIndexPresent) await qi.addIndex(table, ['dedupe_key'], { name: indexName, unique: true });"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/adminEmployerMessageRoutes.js",
+    "lines": 43,
+    "references": [
+      {
+        "line": 17,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 18,
+        "source": "router.use(allowEmployerOrEmployerAdmin);"
+      },
+      {
+        "line": 20,
+        "source": "router.get("
+      },
+      {
+        "line": 24,
+        "source": "router.post("
+      },
+      {
+        "line": 29,
+        "source": "router.get("
+      },
+      {
+        "line": 33,
+        "source": "router.get("
+      },
+      {
+        "line": 37,
+        "source": "router.delete("
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/adminRoutes.js",
+    "lines": 55,
+    "references": [
+      {
+        "line": 9,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 10,
+        "source": "router.use(roleMiddleware(\"admin\"));"
+      },
+      {
+        "line": 13,
+        "source": "router.get(\"/alumni/users\", adminScopeMiddleware(\"alumni\"), adminController.getAlumniUsers);"
+      },
+      {
+        "line": 14,
+        "source": "router.get(\"/alumni/tracking-summary\", adminScopeMiddleware(\"alumni\"), adminController.getAlumniTrackingSummary);"
+      },
+      {
+        "line": 15,
+        "source": "router.get(\"/alumni/users/:userId/tracking\", adminScopeMiddleware(\"alumni\"), adminController.getAlumniTrackingDetails);"
+      },
+      {
+        "line": 16,
+        "source": "router.post(\"/alumni/users/:userId/profile-update-requests\", adminScopeMiddleware(\"alumni\"), adminController.requestAlumniProfileUpdate);"
+      },
+      {
+        "line": 17,
+        "source": "router.put(\"/alumni/users/:userId/status\", adminScopeMiddleware(\"alumni\"), adminController.updateAlumniUserStatus);"
+      },
+      {
+        "line": 18,
+        "source": "router.post(\"/alumni/warnings\", adminScopeMiddleware(\"alumni\"), adminController.createAlumniWarning);"
+      },
+      {
+        "line": 19,
+        "source": "router.post(\"/alumni/announcements\", adminScopeMiddleware(\"alumni\"), adminController.createAlumniAnnouncement);"
+      },
+      {
+        "line": 20,
+        "source": "router.get(\"/alumni/announcements\", adminScopeMiddleware(\"alumni\"), adminController.getAnnouncements);"
+      },
+      {
+        "line": 21,
+        "source": "router.delete(\"/alumni/announcements/:id\", adminScopeMiddleware(\"alumni\"), adminController.deleteAnnouncement);"
+      },
+      {
+        "line": 27,
+        "source": "router.get(\"/employer/users\", adminScopeMiddleware(\"employer\"), adminController.getEmployerUsers);"
+      },
+      {
+        "line": 28,
+        "source": "router.put(\"/employer/users/:userId/status\", adminScopeMiddleware(\"employer\"), adminController.updateEmployerUserStatus);"
+      },
+      {
+        "line": 29,
+        "source": "router.post(\"/employer/warnings\", adminScopeMiddleware(\"employer\"), adminController.createEmployerWarning);"
+      },
+      {
+        "line": 32,
+        "source": "router.get(\"/employer/jobs\", adminScopeMiddleware(\"employer\"), jobController.getJobs);"
+      },
+      {
+        "line": 33,
+        "source": "router.get(\"/employer/applications\", adminScopeMiddleware(\"employer\"), applicationController.getEmployerApplications);"
+      },
+      {
+        "line": 34,
+        "source": "router.post(\"/employer/jobs\", adminScopeMiddleware(\"employer\"), jobController.createJob);"
+      },
+      {
+        "line": 35,
+        "source": "router.put(\"/employer/jobs/:jobId/approval\", adminScopeMiddleware(\"employer\"), adminController.updateJobApprovalStatus);"
+      },
+      {
+        "line": 36,
+        "source": "router.delete(\"/employer/jobs/:jobId\", adminScopeMiddleware(\"employer\"), adminController.deleteEmployerJob);"
+      },
+      {
+        "line": 37,
+        "source": "router.post("
+      },
+      {
+        "line": 50,
+        "source": "router.post(\"/employer/jobs/:jobId/reactivate-recruitment\", adminScopeMiddleware(\"employer\"), jobController.reactivateRecruitment);"
+      },
+      {
+        "line": 51,
+        "source": "router.put(\"/employer/applications/:applicationId/review\", adminScopeMiddleware(\"employer\"), applicationController.reviewApplication);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/alumniRecordRoutes.js",
+    "lines": 20,
+    "references": [
+      {
+        "line": 9,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 10,
+        "source": "router.use(roleMiddleware(\"admin\"));"
+      },
+      {
+        "line": 11,
+        "source": "router.use(adminScopeMiddleware(\"registrar\"));"
+      },
+      {
+        "line": 13,
+        "source": "router.get(\"/\", alumniRecordController.getAlumniRecords);"
+      },
+      {
+        "line": 14,
+        "source": "router.get(\"/search\", alumniRecordController.searchAlumniRecords);"
+      },
+      {
+        "line": 15,
+        "source": "router.post(\"/\", alumniRecordController.createAlumniRecord);"
+      },
+      {
+        "line": 16,
+        "source": "router.post(\"/import-csv\", csvUpload, alumniRecordImportController.importCsv);"
+      },
+      {
+        "line": 17,
+        "source": "router.delete(\"/:id\", alumniRecordController.deleteAlumniRecord);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/announcementRoutes.js",
+    "lines": 11,
+    "references": [
+      {
+        "line": 7,
+        "source": "router.get(\"/\", announcementController.getAnnouncements);"
+      },
+      {
+        "line": 8,
+        "source": "router.post(\"/\", authMiddleware, roleMiddleware(\"admin\"), adminScopeMiddleware(\"alumni\"), announcementController.createAnnouncement);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/applicationRoutes.js",
+    "lines": 31,
+    "references": [
+      {
+        "line": 8,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 10,
+        "source": "router.post(\"/\", roleMiddleware(\"alumni\"), applicationUpload, applicationController.applyJob);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/\", roleMiddleware(\"alumni\"), applicationController.getApplications);"
+      },
+      {
+        "line": 12,
+        "source": "router.get(\"/employer\", employerAccess, applicationController.getEmployerApplications);"
+      },
+      {
+        "line": 13,
+        "source": "router.get(\"/:id/interview-invitation\", employerAccess, applicationController.getInterviewInvitationDetails);"
+      },
+      {
+        "line": 14,
+        "source": "router.post(\"/:id/interview-invitation\", employerAccess, applicationController.sendInterviewInvitation);"
+      },
+      {
+        "line": 15,
+        "source": "router.post(\"/:id/interview-invitation/retry-email\", employerAccess, applicationController.retryInterviewInvitationEmail);"
+      },
+      {
+        "line": 16,
+        "source": "router.put(\"/:id/archive\", employerAccess, applicationController.archiveEmployerApplication);"
+      },
+      {
+        "line": 17,
+        "source": "router.put(\"/:id/restore\", employerAccess, applicationController.restoreEmployerApplication);"
+      },
+      {
+        "line": 18,
+        "source": "router.get(\"/jobs/:jobId/applicants\", authMiddleware, applicationController.getJobApplicants);"
+      },
+      {
+        "line": 21,
+        "source": "router.put(\"/:id/review\", employerAccess, applicationController.reviewApplication);"
+      },
+      {
+        "line": 22,
+        "source": "router.put(\"/:id/requirements/:code/review\", employerAccess, applicationController.reviewRequirement);"
+      },
+      {
+        "line": 23,
+        "source": "router.get(\"/:id/requirements/review-status\", applicationController.getRequirementReviewStatus);"
+      },
+      {
+        "line": 24,
+        "source": "router.get(\"/:id/documents/:documentId/file\", applicationController.getApplicationDocumentFile);"
+      },
+      {
+        "line": 25,
+        "source": "router.get(\"/:id/resume/file\", applicationController.getApplicationResumeFile);"
+      },
+      {
+        "line": 28,
+        "source": "router.get(\"/:id/documents/download\", applicationController.downloadApplicationDocuments);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/authRoutes.js",
+    "lines": 15,
+    "references": [
+      {
+        "line": 7,
+        "source": "router.post(\"/register\", registrationUpload, authController.register);"
+      },
+      {
+        "line": 8,
+        "source": "router.post(\"/login\", authController.login);"
+      },
+      {
+        "line": 9,
+        "source": "router.post(\"/forgot-password\", authController.forgotPassword);"
+      },
+      {
+        "line": 10,
+        "source": "router.post(\"/reset-password\", authController.resetPassword);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/admin-setup-status\", bootstrapGuard, authController.getAdminSetupStatus);"
+      },
+      {
+        "line": 12,
+        "source": "router.post(\"/admin-setup\", bootstrapGuard, authController.setupAdmin);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/chatRoutes.js",
+    "lines": 15,
+    "references": [
+      {
+        "line": 5,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 7,
+        "source": "router.get(\"/users\", chatController.searchUsers);"
+      },
+      {
+        "line": 8,
+        "source": "router.get(\"/conversations\", chatController.getConversations);"
+      },
+      {
+        "line": 9,
+        "source": "router.post(\"/conversation\", chatController.createConversation);"
+      },
+      {
+        "line": 10,
+        "source": "router.post(\"/message\", chatController.sendMessage);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/messages/:conversation_id\", chatController.getMessages);"
+      },
+      {
+        "line": 12,
+        "source": "router.delete(\"/conversation/:id\", chatController.deleteConversation);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/commentRoutes.js",
+    "lines": 13,
+    "references": [
+      {
+        "line": 5,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 8,
+        "source": "router.post(\"/\", commentController.createComment);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/:announcement_id\", commentController.getCommentsByAnnouncement);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/fileRoutes.js",
+    "lines": 10,
+    "references": [
+      {
+        "line": 5,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 6,
+        "source": "router.get(\"/secure/:token\", fileController.getSecureStoredFile);"
+      },
+      {
+        "line": 7,
+        "source": "router.get(\"/:folder/:fileName\", fileController.getSecureFile);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/jobRoutes.js",
+    "lines": 34,
+    "references": [
+      {
+        "line": 10,
+        "source": "router.get(\"/requirements/library\", optionalAuthMiddleware, requirementController.getLibrary);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/requirements/library/:code\", optionalAuthMiddleware, requirementController.getLibraryByCode);"
+      },
+      {
+        "line": 14,
+        "source": "router.get(\"/\", optionalAuthMiddleware, jobController.getJobs);"
+      },
+      {
+        "line": 15,
+        "source": "router.get(\"/:id/interview-details\", authMiddleware, employerAccess, jobController.getJobInterviewDetails);"
+      },
+      {
+        "line": 16,
+        "source": "router.put(\"/:id/interview-details\", authMiddleware, employerAccess, jobController.updateJobInterviewDetails);"
+      },
+      {
+        "line": 17,
+        "source": "router.get(\"/:id\", optionalAuthMiddleware, jobController.getJobById);"
+      },
+      {
+        "line": 20,
+        "source": "router.post(\"/\", authMiddleware, employerAccess, jobController.createJob);"
+      },
+      {
+        "line": 21,
+        "source": "router.put(\"/:id\", authMiddleware, employerAccess, jobController.updateJob);"
+      },
+      {
+        "line": 22,
+        "source": "router.delete(\"/:id\", authMiddleware, employerAccess, jobController.deleteJob);"
+      },
+      {
+        "line": 25,
+        "source": "router.post(\"/:id/stop-recruitment\", authMiddleware, employerAccess, jobController.stopRecruitment);"
+      },
+      {
+        "line": 26,
+        "source": "router.post(\"/:id/reactivate-recruitment\", authMiddleware, employerAccess, jobController.reactivateRecruitment);"
+      },
+      {
+        "line": 29,
+        "source": "router.get(\"/:id/requirements\", optionalAuthMiddleware, jobController.getJobRequirements);"
+      },
+      {
+        "line": 30,
+        "source": "router.get(\"/:id/requirements/versions\", authMiddleware, jobController.getRequirementVersions);"
+      },
+      {
+        "line": 31,
+        "source": "router.get(\"/:id/preview\", authMiddleware, jobController.getJobPreview);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/membershipRoutes.js",
+    "lines": 17,
+    "references": [
+      {
+        "line": 5,
+        "source": "router.use(auth);"
+      },
+      {
+        "line": 6,
+        "source": "router.get(\"/access\", controller.getAccess);"
+      },
+      {
+        "line": 7,
+        "source": "router.get(\"/me\", controller.getMyApplication);"
+      },
+      {
+        "line": 8,
+        "source": "router.put(\"/me/draft\", controller.saveDraft);"
+      },
+      {
+        "line": 9,
+        "source": "router.post(\"/me/submit\", controller.submitApplication);"
+      },
+      {
+        "line": 10,
+        "source": "router.get(\"/me/document\", controller.getMyDocument);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/me/pdf\", controller.getMyPdf);"
+      },
+      {
+        "line": 12,
+        "source": "router.get(\"/admin\", controller.listApplications);"
+      },
+      {
+        "line": 13,
+        "source": "router.get(\"/admin/:id/document\", controller.getApplicationDocument);"
+      },
+      {
+        "line": 14,
+        "source": "router.get(\"/admin/:id/pdf\", controller.getApplicationPdf);"
+      },
+      {
+        "line": 15,
+        "source": "router.get(\"/admin/:id\", controller.getApplication);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/messageRoutes.js",
+    "lines": 35,
+    "references": [
+      {
+        "line": 6,
+        "source": "router.use(auth);"
+      },
+      {
+        "line": 8,
+        "source": "router.get(\"/conversations\", messageController.getAccessibleConversations);"
+      },
+      {
+        "line": 9,
+        "source": "router.get(\"/search-users\", messageController.searchEligibleUsers);"
+      },
+      {
+        "line": 10,
+        "source": "router.post(\"/direct\", messageController.createOrGetDirectConversation);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/global\", (req, res, next) => {"
+      },
+      {
+        "line": 15,
+        "source": "router.get(\"/employer\", (req, res, next) => {"
+      },
+      {
+        "line": 19,
+        "source": "router.get(\"/batch/:year\", (req, res, next) => {"
+      },
+      {
+        "line": 23,
+        "source": "router.get(\"/course\", (req, res, next) => {"
+      },
+      {
+        "line": 27,
+        "source": "router.get(\"/files/:fileName\", messageController.downloadMessageFile);"
+      },
+      {
+        "line": 28,
+        "source": "router.get(\"/:conversationId\", messageController.getConversationMessages);"
+      },
+      {
+        "line": 29,
+        "source": "router.post(\"/\", messageController.sendLegacyRoomMessage);"
+      },
+      {
+        "line": 30,
+        "source": "router.post(\"/:conversationId/read\", messageController.markConversationAsRead);"
+      },
+      {
+        "line": 31,
+        "source": "router.post(\"/:conversationId\", chatAttachmentUpload, messageController.sendConversationMessage);"
+      },
+      {
+        "line": 32,
+        "source": "router.delete(\"/:conversationId/messages/:messageId\", messageController.deleteMessage);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/notificationRoutes.js",
+    "lines": 17,
+    "references": [
+      {
+        "line": 6,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 9,
+        "source": "router.get(\"/\", notificationController.getUserNotifications);"
+      },
+      {
+        "line": 10,
+        "source": "router.get(\"/:id/interview\", notificationController.getNotificationInterview);"
+      },
+      {
+        "line": 13,
+        "source": "router.put(\"/read/:id\", notificationController.markAsRead);"
+      },
+      {
+        "line": 14,
+        "source": "router.delete(\"/:id\", notificationController.deleteNotification);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/postRoutes.js",
+    "lines": 13,
+    "references": [
+      {
+        "line": 5,
+        "source": "router.get(\"/\", postController.getPosts);"
+      },
+      {
+        "line": 6,
+        "source": "router.post(\"/\", authMiddleware, postController.createPost);"
+      },
+      {
+        "line": 7,
+        "source": "router.get(\"/:postId/comments\", postController.getPostComments);"
+      },
+      {
+        "line": 8,
+        "source": "router.post(\"/:postId/comments\", authMiddleware, postController.addPostComment);"
+      },
+      {
+        "line": 9,
+        "source": "router.put(\"/:postId\", authMiddleware, postController.updatePost);"
+      },
+      {
+        "line": 10,
+        "source": "router.delete(\"/:postId\", authMiddleware, postController.deletePost);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/profileRoutes.js",
+    "lines": 15,
+    "references": [
+      {
+        "line": 7,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 9,
+        "source": "router.get(\"/\", profileController.getProfile);"
+      },
+      {
+        "line": 10,
+        "source": "router.get(\"/:userId/preview\", profilePreviewController.getProfilePreview);"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/:userId\", profileController.getUserProfileById);"
+      },
+      {
+        "line": 12,
+        "source": "router.put(\"/\", optionalProfileUpload, profileController.updateProfile);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/registrarRoutes.js",
+    "lines": 14,
+    "references": [
+      {
+        "line": 7,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 8,
+        "source": "router.use(roleMiddleware(\"admin\"));"
+      },
+      {
+        "line": 9,
+        "source": "router.use(adminScopeMiddleware(\"registrar\"));"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/analytics\", registrarController.getAnalytics);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/resumeRoutes.js",
+    "lines": 20,
+    "references": [
+      {
+        "line": 6,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 8,
+        "source": "router.get(\"/\", resumeController.getResumes);"
+      },
+      {
+        "line": 9,
+        "source": "router.get(\"/:id\", resumeController.getResume);"
+      },
+      {
+        "line": 10,
+        "source": "router.post(\"/\", resumeController.createResume);"
+      },
+      {
+        "line": 11,
+        "source": "router.put(\"/:id\", resumeController.updateResume);"
+      },
+      {
+        "line": 12,
+        "source": "router.delete(\"/:id\", resumeController.deleteResume);"
+      },
+      {
+        "line": 13,
+        "source": "router.post(\"/:id/duplicate\", resumeController.duplicateResume);"
+      },
+      {
+        "line": 14,
+        "source": "router.get(\"/:id/versions\", resumeController.getVersions);"
+      },
+      {
+        "line": 15,
+        "source": "router.post(\"/:id/snapshot\", resumeController.createSnapshot);"
+      },
+      {
+        "line": 16,
+        "source": "router.get(\"/:id/pdf\", resumeController.getResumePdf);"
+      },
+      {
+        "line": 17,
+        "source": "router.post(\"/:id/pdf\", resumeController.exportResumePdf);"
+      }
+    ]
+  },
+  {
+    "file": "backend/routes/userRoutes.js",
+    "lines": 16,
+    "references": [
+      {
+        "line": 7,
+        "source": "router.use(authMiddleware);"
+      },
+      {
+        "line": 8,
+        "source": "router.use(roleMiddleware(\"admin\"));"
+      },
+      {
+        "line": 9,
+        "source": "router.use(adminScopeMiddleware(\"registrar\"));"
+      },
+      {
+        "line": 11,
+        "source": "router.get(\"/pending\", registrarController.getPendingAlumniUsers);"
+      },
+      {
+        "line": 12,
+        "source": "router.put(\"/:id/approve\", registrarController.approveAlumniUser);"
+      },
+      {
+        "line": 13,
+        "source": "router.put(\"/:id/reject\", registrarController.rejectAlumniUser);"
+      }
+    ]
+  },
+  {
+    "file": "backend/controllers/adminController.js",
+    "lines": 616,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/adminEmployerMessageController.js",
+    "lines": 541,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/alumniRecordController.js",
+    "lines": 200,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/alumniRecordImportController.js",
+    "lines": 79,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/announcementController.js",
+    "lines": 73,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/applicationController.js",
+    "lines": 1223,
+    "references": [
+      {
+        "line": 141,
+        "source": "references: references.map(e => e.toJSON()),"
+      },
+      {
+        "line": 858,
+        "source": "const job = await db.Job.findByPk(job_id, { transaction, lock: transaction.LOCK.UPDATE });"
+      },
+      {
+        "line": 862,
+        "source": "const application = await db.Application.findByPk(req.params.id || req.params.applicationId, { transaction, lock: transaction.LOCK.UPDATE });"
+      }
+    ]
+  },
+  {
+    "file": "backend/controllers/authController.js",
+    "lines": 459,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/chatController.js",
+    "lines": 165,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/commentController.js",
+    "lines": 29,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/fileController.js",
+    "lines": 270,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/healthController.js",
+    "lines": 19,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/jobController.js",
+    "lines": 843,
+    "references": [
+      {
+        "line": 13,
+        "source": "...(transaction ? { transaction, lock: transaction.LOCK?.UPDATE } : {})"
+      },
+      {
+        "line": 44,
+        "source": "const getTableColumns = async (queryInterface, tableName) => {"
+      },
+      {
+        "line": 46,
+        "source": "return await queryInterface.describeTable(tableName);"
+      },
+      {
+        "line": 731,
+        "source": "const directCount = await db.sequelize.query(`SELECT COUNT(*) as cnt FROM ${db.Job.getTableName()} WHERE id = :id`, { replacements: { id: resolvedJobId }, type: \"SELECT\" });"
+      }
+    ]
+  },
+  {
+    "file": "backend/controllers/membershipController.js",
+    "lines": 210,
+    "references": [
+      {
+        "line": 31,
+        "source": "...(transaction ? { transaction, ...(lock ? { lock: transaction.LOCK.UPDATE } : {}) } : {})"
+      },
+      {
+        "line": 98,
+        "source": "const existing = await db.MembershipApplication.findOne({ where: { alumni_user_id: user.id }, transaction, lock: transaction.LOCK.UPDATE });"
+      }
+    ]
+  },
+  {
+    "file": "backend/controllers/messageController.js",
+    "lines": 1039,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/notificationController.js",
+    "lines": 125,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/postController.js",
+    "lines": 224,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/profileController.js",
+    "lines": 301,
+    "references": [
+      {
+        "line": 174,
+        "source": "// UPDATE profile"
+      }
+    ]
+  },
+  {
+    "file": "backend/controllers/profilePreviewController.js",
+    "lines": 104,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/registrarController.js",
+    "lines": 154,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/requirementController.js",
+    "lines": 53,
+    "references": []
+  },
+  {
+    "file": "backend/controllers/resumeController.js",
+    "lines": 360,
+    "references": [
+      {
+        "line": 79,
+        "source": "references: references || []"
+      },
+      {
+        "line": 107,
+        "source": "const owner = await db.User.findByPk(userId, { attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });"
+      },
+      {
+        "line": 158,
+        "source": "const record = await Resume.findOne({ where: { id: req.params.id, user_id: req.user.id }, transaction, lock: transaction.LOCK.UPDATE });"
+      },
+      {
+        "line": 192,
+        "source": "const source = await Resume.findOne({ where: { id: req.params.id, user_id: req.user.id }, transaction, lock: transaction.LOCK.UPDATE });"
+      },
+      {
+        "line": 266,
+        "source": "references: references || []"
+      },
+      {
+        "line": 341,
+        "source": "references: references.map(e => e.toJSON())"
+      }
+    ]
+  },
+  {
+    "file": "backend/services/alumniProfileSave.js",
+    "lines": 85,
+    "references": [
+      {
+        "line": 50,
+        "source": "const owner = await db.User.findByPk(user.id, { transaction, lock: transaction.LOCK.UPDATE });"
+      },
+      {
+        "line": 55,
+        "source": "membership = await db.MembershipApplication.findOne({ where: { alumni_user_id: owner.id, application_status: \"submitted\" }, transaction, lock: transaction.LOCK.UPDATE });"
+      }
+    ]
+  },
+  {
+    "file": "backend/services/auditService.js",
+    "lines": 40,
+    "references": []
+  },
+  {
+    "file": "backend/services/jobPosting.js",
+    "lines": 134,
+    "references": []
+  },
+  {
+    "file": "backend/services/membershipDocument.js",
+    "lines": 180,
+    "references": []
+  },
+  {
+    "file": "backend/services/membershipListing.js",
+    "lines": 51,
+    "references": []
+  },
+  {
+    "file": "backend/services/membershipValidation.js",
+    "lines": 68,
+    "references": []
+  },
+  {
+    "file": "backend/services/objectStorage.js",
+    "lines": 271,
+    "references": []
+  },
+  {
+    "file": "backend/services/resumePdf.js",
+    "lines": 70,
+    "references": []
+  },
+  {
+    "file": "backend/services/resumePersistence.js",
+    "lines": 98,
+    "references": [
+      {
+        "line": 18,
+        "source": "references: { model: \"ResumeReference\", fields: [\"name\", \"relationship\", \"company\", \"email\", \"phone\", \"sort_order\"], aliases: { relationship: [\"position\"] } }"
+      }
+    ]
+  },
+  {
+    "file": "backend/utils/alumniRecordsCsv.js",
+    "lines": 112,
+    "references": []
+  },
+  {
+    "file": "backend/utils/alumniRecordsWriteLock.js",
+    "lines": 15,
+    "references": []
+  },
+  {
+    "file": "backend/utils/databaseReadiness.js",
+    "lines": 23,
+    "references": []
+  },
+  {
+    "file": "backend/utils/email.js",
+    "lines": 42,
+    "references": []
+  },
+  {
+    "file": "backend/utils/emailQueue.js",
+    "lines": 45,
+    "references": []
+  },
+  {
+    "file": "backend/utils/employmentType.js",
+    "lines": 23,
+    "references": []
+  },
+  {
+    "file": "backend/utils/fieldEncryption.js",
+    "lines": 51,
+    "references": []
+  },
+  {
+    "file": "backend/utils/jobTableDiagnostics.js",
+    "lines": 24,
+    "references": [
+      {
+        "line": 5,
+        "source": "const jobTable = typeof table === 'string' ? table : table.tableName;"
+      },
+      {
+        "line": 13,
+        "source": "const [identity] = await db.sequelize.query('SELECT DATABASE() AS database_name', { type: db.Sequelize.QueryTypes.SELECT });"
+      },
+      {
+        "line": 14,
+        "source": "const tables = await db.sequelize.query(\"SELECT TABLE_NAME AS table_name FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = 'jobs'\", { type: db.Sequelize.QueryTypes.SELECT });"
+      }
+    ]
+  },
+  {
+    "file": "backend/utils/rateLimitStore.js",
+    "lines": 57,
+    "references": [
+      {
+        "line": 24,
+        "source": "const tableName = db.RateLimitEntry.getTableName();"
+      },
+      {
+        "line": 26,
+        "source": "await db.sequelize.query("
+      },
+      {
+        "line": 27,
+        "source": "`INSERT INTO ${tableName} (scope, \\`key\\`, window_start, count, expires_at, createdAt)"
+      },
+      {
+        "line": 29,
+        "source": "ON DUPLICATE KEY UPDATE count = count + 1, expires_at = VALUES(expires_at)`,"
+      },
+      {
+        "line": 35,
+        "source": "const [rows] = await db.sequelize.query("
+      },
+      {
+        "line": 36,
+        "source": "`SELECT count, expires_at FROM ${tableName}"
+      }
+    ]
+  },
+  {
+    "file": "backend/utils/schemaAudit.js",
+    "lines": 38,
+    "references": [
+      {
+        "line": 9,
+        "source": "references: a.references ? { table: typeof a.references.model === 'string' ? a.references.model : a.references.model.tableName, column: a.references.key, onDelete: a.onDelete || null, onUpdate: a.onUpdate || null } : null }));"
+      },
+      {
+        "line": 15,
+        "source": "associations: Object.values(model.associations).map(a => ({ alias: a.as, type: a.associationType, targetModel: a.target.name, targetTable: a.target.getTableName(), foreignKey: a.foreignKey, through: a.through?.model?.getTableName() || null })) };"
+      }
+    ]
+  },
+  {
+    "file": "backend/utils/storedFiles.js",
+    "lines": 79,
+    "references": []
+  },
+  {
+    "file": "backend/utils/targetGraduationYear.js",
+    "lines": 19,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/adminScopeMiddleware.js",
+    "lines": 18,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/alumniCsvUpload.js",
+    "lines": 23,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/authMiddleware.js",
+    "lines": 35,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/bootstrapGuard.js",
+    "lines": 49,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/employerAccess.js",
+    "lines": 22,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/errorHandler.js",
+    "lines": 83,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/optionalAuthMiddleware.js",
+    "lines": 31,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/rateLimiter.js",
+    "lines": 51,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/requestLogger.js",
+    "lines": 24,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/roleMiddleware.js",
+    "lines": 17,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/sanitizeMiddleware.js",
+    "lines": 43,
+    "references": []
+  },
+  {
+    "file": "backend/middleware/uploadMiddleware.js",
+    "lines": 329,
+    "references": []
+  },
+  {
+    "file": "backend/config/database.js",
+    "lines": 51,
+    "references": [
+      {
+        "line": 23,
+        "source": "const sequelize = new Sequelize("
+      }
+    ]
+  },
+  {
+    "file": "backend/workers/emailQueueWorker.js",
+    "lines": 159,
+    "references": []
+  }
+]

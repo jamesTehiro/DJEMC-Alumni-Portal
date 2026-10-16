@@ -24,6 +24,29 @@ const withOverrides = async (overrides, run) => {
     }
 };
 
+for (const status of ["not_verified", "declined", "rejected", "approved", "ready_for_interview", "processing"]) {
+    test(`invitation cannot overwrite ${status} or enqueue another email`, async () => {
+        const application = { id: 702, status, Job: { id: 88, employer_id: 41 } };
+        const unexpected = async () => { throw new Error("Locked decisions must not create side effects"); };
+        await withOverrides([
+            [db.sequelize, { transaction: async fn => fn({ LOCK: { UPDATE: "UPDATE" } }) }],
+            [db.Application, { findByPk: async () => application }],
+            [db.Interview, { findOne: async () => null, create: unexpected }],
+            [db.EmailQueueJob, { create: unexpected }],
+            [db.Notification, { create: unexpected }]
+        ], async () => {
+            const res = createResponse();
+            let failure;
+            await controller.sendInterviewInvitation(
+                { user: { id: 41, role: "employer" }, params: { id: "702" } }, res,
+                error => { failure = error; }
+            );
+            assert.equal(failure?.status, 409);
+            assert.equal(application.status, status);
+        });
+    });
+}
+
 test("employer invitation preview returns the owning job's saved details and delivery state", async () => {
     const application = {
         id: 702,
