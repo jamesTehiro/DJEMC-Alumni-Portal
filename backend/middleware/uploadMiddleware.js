@@ -121,7 +121,7 @@ const getTargetForField = (fieldName = "") => {
     if (fieldName === "certificate") return { folder: "private_uploads/documents", isPublic: false, prefix: "certificate" };
     if (fieldName === "proof_document") return { folder: "private_uploads/alumni_proof", isPublic: false, prefix: "proof-document" };
     if (fieldName === "business_permit") return { folder: "private_uploads/business_permits", isPublic: false, prefix: "business-permit" };
-    if (fieldName === "attachment") return { folder: "private_uploads/chat", isPublic: false, prefix: "attachment" };
+    if (fieldName === "attachment") return { folder: "private_uploads/chat", isPublic: false, prefix: "attachment", deliveryType: "authenticated" };
     return { folder: "private_uploads/documents", isPublic: false, prefix: fieldName || "file" };
 };
 
@@ -145,7 +145,8 @@ const createCloudStorageEngine = () => ({
                     originalName: file.originalname,
                     folder: target.folder,
                     prefix: target.prefix,
-                    isPublic: target.isPublic
+                    isPublic: target.isPublic,
+                    deliveryType: target.deliveryType
                 });
 
                 cb(null, {
@@ -334,8 +335,19 @@ const runChatUpload = (req, res, next) => chatUpload(req, res, (err) => {
     if (err) return next(err);
     return verifyChatAttachment(req, res, next);
 });
-exports.chatAttachmentUpload = runChatUpload;
-exports.adminEmployerAttachmentUpload = runChatUpload;
+const requirePersistentMessagingStorage = (req, res, next) => {
+    // Render's writable filesystem is ephemeral unless a disk is explicitly
+    // mounted. Require shared storage there so newly sent chat files survive a
+    // restart or redeploy instead of silently creating another fragile path.
+    if (String(process.env.RENDER || "").toLowerCase() === "true" && !isObjectStorageEnabled()) {
+        const err = new Error("Persistent messaging attachment storage is unavailable. Please try again later.");
+        err.status = 503;
+        return next(err);
+    }
+    return runChatUpload(req, res, next);
+};
+exports.chatAttachmentUpload = requirePersistentMessagingStorage;
+exports.adminEmployerAttachmentUpload = requirePersistentMessagingStorage;
 
 exports.optionalProfileUpload = (req, res, next) => {
     if (!String(req.headers["content-type"] || "").includes("multipart/form-data")) {

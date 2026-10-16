@@ -364,6 +364,28 @@ test("CSV import skips duplicate rows and commits inserted records with one audi
     });
 });
 
+test("CSV import transactionally imports synthetic batches of 10 and 100 valid rows", async () => {
+    for (const count of [10, 100]) {
+        await withDatabase({}, async (state) => {
+            const rows = Array.from({ length: count }, (_, index) =>
+                `Synthetic Alum ${index + 1},BSIT,${2000 + (index % 25)},ID-${count}-${index + 1},alum-${count}-${index + 1}@example.test`);
+            const res = createRes();
+            await importController.importCsv(request("import", csv(...rows)), res);
+            assert.equal(res.statusCode, 201);
+            assert.equal(res.body.total, count);
+            assert.equal(res.body.inserted, count);
+            assert.equal(res.body.errors, 0);
+            assert.equal(state.records.length, count);
+            assert.equal(state.writes.length, count);
+            assert.equal(state.transactions[0].status, "committed");
+            assert.equal(state.audits.length, 1);
+            assert.equal(state.records[0].full_name, "Synthetic Alum 1");
+            assert.equal(state.records.at(-1).full_name, `Synthetic Alum ${count}`);
+            assert.ok(state.records.every((record) => typeof record.batch_year === "number"));
+        });
+    }
+});
+
 test("CSV import checks database collation equivalence and skips accent-equivalent existing names", async () => {
     const existing = [{ full_name: "José Cruz", course: "BSIT", batch_year: 2020, student_id: null, email: null }];
     await withDatabase({ existing }, async (state) => {

@@ -194,7 +194,18 @@ const documentEndpoint = own => endpoint(async (req, res) => {
 const pdfEndpoint = own => endpoint(async (req, res) => {
     const { user, application } = await (own ? getOwnSubmittedApplication(req) : getAdminApplication(req));
     const html = documentService.buildMembershipDocumentHtml(application);
-    const pdf = await pdfService.renderResumePdf(html);
+    let pdf;
+    try {
+        pdf = await pdfService.renderResumePdf(html);
+    } catch (error) {
+        // Keep applicant data and environment details out of logs while recording
+        // the runtime cause needed to diagnose a failed browser launch/render.
+        const reason = String(error?.message || error?.name || "Unknown error")
+            .replace(/https?:\/\/\S+/gi, "[url]")
+            .slice(0, 240);
+        console.error("[membership] PDF generation failed:", error?.name || "Error", reason);
+        throw error;
+    }
     await recordView(req, user, application, "membership.application.pdf_downloaded");
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="DJEMC-Membership-Application-${application.id}.pdf"`);

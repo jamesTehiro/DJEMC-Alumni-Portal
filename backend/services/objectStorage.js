@@ -76,13 +76,13 @@ const recoverTruncatedCloudinaryReference = (value) => {
         const type = readString("type");
         const publicId = readString("publicId");
         const url = readString("url");
-        if (provider !== "cloudinary" || !["image", "raw", "video"].includes(resourceType) || type !== "upload") return null;
+        if (provider !== "cloudinary" || !["image", "raw", "video"].includes(resourceType) || !["upload", "authenticated"].includes(type)) return null;
         if (!publicId || !/^[A-Za-z0-9._/-]+$/.test(publicId) || publicId.split("/").some((part) => !part || part === "." || part === "..")) return null;
 
         const parsedUrl = new URL(url);
         const urlParts = parsedUrl.pathname.split("/").filter(Boolean).map((part) => decodeURIComponent(part));
         if (parsedUrl.protocol !== "https:" || parsedUrl.hostname !== "res.cloudinary.com" || parsedUrl.port || parsedUrl.username || parsedUrl.password) return null;
-        if (urlParts.length < 5 || urlParts[1] !== resourceType || urlParts[2] !== "upload") return null;
+        if (urlParts.length < 5 || urlParts[1] !== resourceType || urlParts[2] !== type) return null;
         const assetPath = urlParts.slice(4).join("/");
         const matchesPublicId = assetPath === publicId ||
             (assetPath.startsWith(`${publicId}.`) && /^\.(jpg|jpeg|png|gif|webp|avif|bmp|pdf|doc|docx)$/i.test(assetPath.slice(publicId.length)));
@@ -106,7 +106,7 @@ const parseStoredFileReference = (value) => {
 
 const isStoredFileReference = (value) => !!parseStoredFileReference(value);
 
-const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, isPublic }) => {
+const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, isPublic, deliveryType = "upload" }) => {
     ensureObjectStorageConfigured();
 
     if (typeof fetch !== "function" || typeof FormData !== "function" || typeof Blob !== "function") {
@@ -118,7 +118,7 @@ const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, is
     const publicId = buildPublicId({ folder, prefix, originalName });
     const timestamp = Math.floor(Date.now() / 1000);
     const resourceType = String(mimeType || "").startsWith("image/") ? "image" : "raw";
-    const type = "upload";
+    const type = deliveryType === "authenticated" ? "authenticated" : "upload";
 
     const signature = signCloudinaryParams({
         public_id: publicId,
@@ -220,8 +220,25 @@ const destroyStoredFile = async (storedValue) => {
     return response.ok;
 };
 
+const authenticatedDeliveryUrl = (parsed) => {
+    if (parsed?.type !== "authenticated" || !apiSecret || !cloudName) return null;
+    try {
+        const source = new URL(parsed.url);
+        if (source.protocol !== "https:" || source.hostname !== "res.cloudinary.com" || source.port || source.username || source.password) return null;
+        const segments = source.pathname.split("/").filter(Boolean);
+        const typeIndex = segments.findIndex((segment, index) => index > 1 && segment === "authenticated");
+        if (typeIndex !== 2 || segments[0] !== cloudName || segments[1] !== parsed.resourceType || !segments[typeIndex + 1]) return null;
+        const resourcePath = segments.slice(typeIndex + 1).join("/");
+        const signature = crypto.createHash("sha1").update(`${resourcePath}${apiSecret}`).digest("base64url").slice(0, 8);
+        return `https://res.cloudinary.com/${cloudName}/${parsed.resourceType}/authenticated/s--${signature}--/${resourcePath}`;
+    } catch {
+        return null;
+    }
+};
+
 const getDownloadSourceUrl = (storedValue) => {
     const parsed = parseStoredFileReference(storedValue);
+    if (parsed?.type === "authenticated") return authenticatedDeliveryUrl(parsed);
     if (parsed?.url) return parsed.url;
     if (/^https?:\/\//i.test(String(storedValue || ""))) return storedValue;
     return null;

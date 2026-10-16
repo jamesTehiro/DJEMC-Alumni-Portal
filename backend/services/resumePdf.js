@@ -29,10 +29,10 @@ async function loadPuppeteer() {
     return module.default || module;
 }
 
-function resolvePdfBrowser(puppeteer) {
+async function resolvePdfBrowser(puppeteer) {
     if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
     let bundled;
-    try { bundled = puppeteer.executablePath(); } catch { /* Prefer an existing system browser below. */ }
+    try { bundled = await puppeteer.executablePath(); } catch { /* Prefer an existing system browser below. */ }
     if (bundled && fs.existsSync(bundled)) return bundled;
     const candidates = process.platform === 'win32' ? [
         path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
@@ -45,12 +45,14 @@ function resolvePdfBrowser(puppeteer) {
 }
 
 async function renderResumePdf(html) {
-    if (activeRenders >= 2) throw Object.assign(new Error('PDF generation is busy. Please try again in a moment.'), { status: 503 });
+    if (activeRenders >= 1) throw Object.assign(new Error('PDF generation is busy. Please try again in a moment.'), { status: 503 });
     activeRenders += 1;
     let browser;
     try {
         const puppeteer = await loadPuppeteer();
-        browser = await puppeteer.launch({ headless: true, timeout: 20000, executablePath: resolvePdfBrowser(puppeteer) });
+        browser = await puppeteer.launch({ headless: true, timeout: 20000, executablePath: await resolvePdfBrowser(puppeteer),
+            args: process.platform === 'linux' && process.env.RENDER === 'true'
+                ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] : [] });
         const page = await browser.newPage();
         await page.setJavaScriptEnabled(false);
         await page.setRequestInterception(true);
@@ -58,8 +60,12 @@ async function renderResumePdf(html) {
         page.setDefaultTimeout(20000);
         await page.setContent(html, { waitUntil: 'load', timeout: 20000 });
         await page.emulateMediaType('print');
-        return Buffer.from(await page.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true,
+        const pdf = Buffer.from(await page.pdf({ format: 'A4', preferCSSPageSize: true, printBackground: true,
             margin: { top: 0, bottom: 0, left: 0, right: 0 }, timeout: 20000 }));
+        if (pdf.length < 100 || pdf.subarray(0, 5).toString() !== '%PDF-') {
+            throw Object.assign(new Error('PDF generation returned an invalid document. Please try again.'), { status: 502 });
+        }
+        return pdf;
     } finally {
         try { if (browser) await browser.close(); }
         finally { activeRenders -= 1; }

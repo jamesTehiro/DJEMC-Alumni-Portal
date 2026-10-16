@@ -13,7 +13,7 @@ import ConversationListItem from "../components/ConversationListItem";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
 import MessageAttachment from "../components/MessageAttachment";
 import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
-import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB } from "../utils/messageAttachments";
+import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB, isImageAttachment } from "../utils/messageAttachments";
 import "./MessagesPage.css";
 
 const PAGE_SIZE = 30;
@@ -683,8 +683,8 @@ export default function MessagesPage() {
                                             </div>
                                         </div>
 
-                                        <div className="message-bubble-wrapper">
-                                            <div className="message-bubble">{message.message_text}</div>
+                                        <div className={`message-bubble-wrapper${isImageAttachment(message) ? " has-image" : ""}`}>
+                                            {message.message_text && <div className="message-bubble">{message.message_text}</div>}
                                             {isOwnMessage && (
                                                 <MessageOptionsMenu
                                                     open={openMessageMenuId === message.id}
@@ -693,9 +693,10 @@ export default function MessagesPage() {
                                                     onDelete={() => deleteMessage(message.id)}
                                                 />
                                             )}
+                                            {message.file_url && isImageAttachment(message) && <MessageAttachment message={message} openAttachment={openAttachment} />}
                                         </div>
 
-                        {message.file_url && <MessageAttachment message={message} openAttachment={openAttachment} />}
+                                        {message.file_url && !isImageAttachment(message) && <MessageAttachment message={message} openAttachment={openAttachment} />}
                                     </div>
 
                                     {isOwnMessage && (

@@ -90,3 +90,50 @@ test("serves a recovered reference through the existing storage download helper"
         global.fetch = originalFetch;
     }
 });
+
+test("authenticated Cloudinary attachments are proxied with a signed delivery URL", async () => {
+    const envKeys = ["OBJECT_STORAGE_PROVIDER", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
+    const previousEnv = Object.fromEntries(envKeys.map((key) => [key, process.env[key]]));
+    const storagePath = require.resolve("../services/objectStorage");
+    const previousModule = require.cache[storagePath];
+    process.env.OBJECT_STORAGE_PROVIDER = "cloudinary";
+    process.env.CLOUDINARY_CLOUD_NAME = "fixture-cloud";
+    process.env.CLOUDINARY_API_KEY = "fixture-key";
+    process.env.CLOUDINARY_API_SECRET = "fixture-secret";
+    delete require.cache[storagePath];
+    const privateStorage = require("../services/objectStorage");
+    const payload = {
+        provider: "cloudinary", resourceType: "image", type: "authenticated",
+        publicId: "private_uploads/chat/attachment-123.jpg",
+        url: "https://res.cloudinary.com/fixture-cloud/image/authenticated/v123/private_uploads/chat/attachment-123.jpg",
+        originalName: "chat-image.jpg"
+    };
+    const reference = `cld:${Buffer.from(JSON.stringify(payload), "utf8").toString("base64url")}`;
+    const originalFetch = global.fetch;
+    const bytes = Buffer.from("image-bytes");
+    let requestedUrl = "";
+    const responseHeaders = {};
+    try {
+        global.fetch = async (url) => {
+            requestedUrl = String(url);
+            return { ok: true, headers: { get: () => "image/jpeg" }, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
+        };
+        let sent = null;
+        await privateStorage.sendStoredFile(reference, {
+            setHeader(name, value) { responseHeaders[name] = value; },
+            send(buffer) { sent = buffer; }
+        }, "chat-image.jpg", "image/jpeg");
+        assert.match(requestedUrl, /\/image\/authenticated\/s--[A-Za-z0-9_-]{8}--\/v123\/private_uploads\/chat\/attachment-123\.jpg$/);
+        assert.deepEqual(sent, bytes);
+        assert.equal(responseHeaders["Content-Type"], "image/jpeg");
+        assert.equal(JSON.stringify(responseHeaders).includes("fixture-secret"), false);
+    } finally {
+        global.fetch = originalFetch;
+        for (const key of envKeys) {
+            if (previousEnv[key] === undefined) delete process.env[key];
+            else process.env[key] = previousEnv[key];
+        }
+        delete require.cache[storagePath];
+        if (previousModule) require.cache[storagePath] = previousModule;
+    }
+});

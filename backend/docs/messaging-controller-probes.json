@@ -1,0 +1,52 @@
+{
+  "kind": "Synthetic controller probes; no SQL or storage operations executed",
+  "list50": {
+    "calls": {
+      "user": 1,
+      "participants": 3,
+      "messages": 3
+    },
+    "total": 7,
+    "returned": 50
+  },
+  "courseSends": [
+    {
+      "audience": 50,
+      "calls": {
+        "user": 1,
+        "conversation": 1,
+        "ensureParticipant": 51,
+        "audience": 1,
+        "verify": 1,
+        "insert": 1,
+        "preview": 1
+      },
+      "total": 57
+    },
+    {
+      "audience": 500,
+      "calls": {
+        "user": 1,
+        "conversation": 1,
+        "ensureParticipant": 501,
+        "audience": 1,
+        "verify": 1,
+        "insert": 1,
+        "preview": 1
+      },
+      "total": 507
+    }
+  ],
+  "rolePolicy": {
+    "source": "employer",
+    "target": "registrar admin",
+    "status": 200
+  },
+  "legacyDelete": {
+    "status": 200,
+    "where": {
+      "conversation_id": 99
+    },
+    "hasSenderFilter": false
+  }
+}

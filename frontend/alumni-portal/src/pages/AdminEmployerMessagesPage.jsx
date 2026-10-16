@@ -11,7 +11,8 @@ import { mergeUniqueById, replaceUniqueById } from "../utils/list";
 import AdminShell from "../components/AdminShell";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
 import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
-import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB } from "../utils/messageAttachments";
+import MessageAttachment from "../components/MessageAttachment";
+import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB, isImageAttachment } from "../utils/messageAttachments";
 import "./MessagesPage.css";
 import "./AdminEmployerMessagesPage.css";
 
@@ -536,6 +537,9 @@ export default function AdminEmployerMessagesPage() {
                                 const isSelf = isForumMessage
                                     ? Number(message.sender_id) === Number(currentUser?.id)
                                     : Number(message.senderId) === Number(currentUser?.id);
+                                const attachmentMessage = { ...message, file_url: isForumMessage ? message.file_url : message.attachment };
+                                const hasAttachment = !!attachmentMessage.file_url;
+                                const imageAttachment = isImageAttachment(attachmentMessage);
                                 const rowClass = isSelf ? "message-row outgoing" : "message-row incoming";
                                 return (
                                     <div key={message.id} className={rowClass}>
@@ -598,7 +602,7 @@ export default function AdminEmployerMessagesPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="message-bubble-wrapper">
+                                            <div className={`message-bubble-wrapper${imageAttachment && hasAttachment ? " has-image" : ""}`}>
                                                 {(isForumMessage ? message.message_text : message.message) && (
                                                     <div className="message-bubble">
                                                 {isForumMessage ? message.message_text : message.message}
@@ -612,7 +616,9 @@ export default function AdminEmployerMessagesPage() {
                                                         onDelete={() => deleteMessage(message)}
                                                     />
                                                 )}
+                                                {hasAttachment && imageAttachment && <MessageAttachment message={attachmentMessage} openAttachment={openAttachment} />}
                                             </div>
+                                            {hasAttachment && !imageAttachment && <MessageAttachment message={attachmentMessage} openAttachment={openAttachment} />}
 
                                         </div>                                        {isSelf && (
                                             <button

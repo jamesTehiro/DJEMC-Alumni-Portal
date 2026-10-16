@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Button, Modal, Spinner } from "react-bootstrap";
 import { FiDownload, FiFile, FiImage } from "react-icons/fi";
 import { fetchFile } from "../services/api";
 import { formatAttachmentSize, isImageAttachment } from "../utils/messageAttachments";
 
 export default function MessageAttachment({ message, openAttachment }) {
     const [previewUrl, setPreviewUrl] = useState("");
+    const [imageState, setImageState] = useState("idle");
+    const [showPreview, setShowPreview] = useState(false);
+    const imageButtonRef = useRef(null);
     const image = isImageAttachment(message);
     const name = message?.file_name || "Shared file";
     const size = formatAttachmentSize(message?.file_size);
@@ -13,30 +17,79 @@ export default function MessageAttachment({ message, openAttachment }) {
         if (!image || !message?.file_url) return undefined;
         let active = true;
         let objectUrl = "";
-        fetchFile(message.file_url, true).then((blob) => {
+        let observer;
+        setImageState("idle");
+        setPreviewUrl("");
+        const load = () => {
             if (!active) return;
-            objectUrl = URL.createObjectURL(blob);
-            setPreviewUrl(objectUrl);
-        }).catch(() => {
-            if (active) setPreviewUrl("");
-        });
+            setImageState("loading");
+            fetchFile(message.file_url, true).then((blob) => {
+                if (!active) return;
+                objectUrl = URL.createObjectURL(blob);
+                setPreviewUrl(objectUrl);
+                setImageState("loaded");
+            }).catch(() => {
+                if (active) setImageState("error");
+            });
+        };
+        if (typeof IntersectionObserver === "function" && imageButtonRef.current) {
+            observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting)) {
+                    observer.disconnect();
+                    load();
+                }
+            }, { rootMargin: "160px" });
+            observer.observe(imageButtonRef.current);
+        } else load();
         return () => {
             active = false;
+            observer?.disconnect();
             if (objectUrl) URL.revokeObjectURL(objectUrl);
         };
     }, [image, message?.file_url]);
 
+    const downloadImage = () => {
+        if (!previewUrl) return;
+        const link = document.createElement("a");
+        link.href = previewUrl;
+        link.download = name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+    };
+
+    if (image) {
+        return (
+            <>
+                <div className="message-attachment is-image">
+                    {imageState === "error" ? (
+                        <div className="attachment-image-fallback" role="status">
+                            <FiImage aria-hidden="true" />
+                            <span>Attachment is no longer available.</span>
+                        </div>
+                    ) : (
+                        <button ref={imageButtonRef} type="button" className="attachment-image-button" onClick={() => previewUrl && setShowPreview(true)} aria-label="Open image preview" disabled={!previewUrl}>
+                            {previewUrl ? <img loading="lazy" src={previewUrl} alt="Image attachment" onError={() => setImageState("error")} /> : imageState === "loading" ? <span className="attachment-image-placeholder" role="status"><Spinner animation="border" size="sm" aria-hidden="true" /> Loading image…</span> : <span className="attachment-image-placeholder"><FiImage aria-hidden="true" /> Image attachment</span>}
+                        </button>
+                    )}
+                </div>
+                <Modal show={showPreview} onHide={() => setShowPreview(false)} centered size="xl" dialogClassName="message-image-preview-dialog" contentClassName="message-image-preview-content" aria-label="Image preview">
+                    <Modal.Header closeButton className="message-image-preview-header">
+                        <Modal.Title>Image preview</Modal.Title>
+                        <Button type="button" variant="light" onClick={downloadImage} aria-label="Download image"><FiDownload /></Button>
+                    </Modal.Header>
+                    <Modal.Body className="message-image-lightbox"><img src={previewUrl || undefined} alt="Image attachment preview" /></Modal.Body>
+                </Modal>
+            </>
+        );
+    }
+
     return (
-        <div className={`message-attachment${image ? " is-image" : ""}`}>
-            {image && (
-                <button type="button" className="attachment-image-button" onClick={() => openAttachment(message)} aria-label={`Preview ${name}`}>
-                    {previewUrl ? <img src={previewUrl} alt={name} /> : <span className="attachment-image-placeholder"><FiImage /> Loading image…</span>}
-                </button>
-            )}
+        <div className="message-attachment">
             <div className="attachment-file-row">
                 <FiFile aria-hidden="true" />
                 <div className="attachment-file-copy"><strong title={name}>{name}</strong><small>{message?.file_mime || "File"}{size ? ` · ${size}` : ""}</small></div>
-                <button type="button" className="attachment-action" onClick={() => openAttachment(message)}>{image ? "Preview" : "Open"}</button>
+                <button type="button" className="attachment-action" onClick={() => openAttachment(message)}>{"Open"}</button>
                 <button type="button" className="attachment-action" onClick={() => openAttachment(message, "download")} aria-label={`Download ${name}`}><FiDownload /></button>
             </div>
         </div>

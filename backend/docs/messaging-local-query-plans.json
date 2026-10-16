@@ -1,0 +1,548 @@
+{
+  "target": "local loopback database; not Aiven production",
+  "capturedAt": "2026-10-16T17:00:41.101Z",
+  "server": [
+    {
+      "version": "10.4.32-MariaDB",
+      "max_connections": 151
+    }
+  ],
+  "connections": [
+    {
+      "Variable_name": "Max_used_connections",
+      "Value": "6"
+    },
+    {
+      "Variable_name": "Threads_connected",
+      "Value": "2"
+    },
+    {
+      "Variable_name": "Threads_running",
+      "Value": "6"
+    }
+  ],
+  "tables": [
+    {
+      "name": "alumniprofiles",
+      "estimated_rows": 10,
+      "data_bytes": 16384,
+      "index_bytes": 16384
+    },
+    {
+      "name": "conversationparticipants",
+      "estimated_rows": 34,
+      "data_bytes": 16384,
+      "index_bytes": 65536
+    },
+    {
+      "name": "conversations",
+      "estimated_rows": 25,
+      "data_bytes": 16384,
+      "index_bytes": 212992
+    },
+    {
+      "name": "employerconversations",
+      "estimated_rows": 18,
+      "data_bytes": 16384,
+      "index_bytes": 32768
+    },
+    {
+      "name": "employermessages",
+      "estimated_rows": 7,
+      "data_bytes": 16384,
+      "index_bytes": 32768
+    },
+    {
+      "name": "messages",
+      "estimated_rows": 31,
+      "data_bytes": 16384,
+      "index_bytes": 49152
+    },
+    {
+      "name": "users",
+      "estimated_rows": 58,
+      "data_bytes": 16384,
+      "index_bytes": 212992
+    }
+  ],
+  "indexes": {
+    "messages": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "id",
+        "cardinality": 31
+      },
+      {
+        "name": "messages_conversation_id_created_at",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "conversation_id",
+        "cardinality": 31
+      },
+      {
+        "name": "messages_conversation_id_created_at",
+        "non_unique": 1,
+        "sequence": 2,
+        "column": "createdAt",
+        "cardinality": 31
+      },
+      {
+        "name": "messages_sender_id",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "sender_id",
+        "cardinality": 10
+      },
+      {
+        "name": "messages_is_read",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "is_read",
+        "cardinality": 4
+      }
+    ],
+    "conversations": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "id",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversations_conversation_key",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_2",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_3",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_4",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_5",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_6",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_7",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_8",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_9",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversation_key_10",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_key",
+        "cardinality": 25
+      },
+      {
+        "name": "conversations_type",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "type",
+        "cardinality": 8
+      },
+      {
+        "name": "conversations_batch_year_course",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "batch_year",
+        "cardinality": 12
+      },
+      {
+        "name": "conversations_batch_year_course",
+        "non_unique": 1,
+        "sequence": 2,
+        "column": "course",
+        "cardinality": 25
+      }
+    ],
+    "conversationparticipants": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_id",
+        "cardinality": 34
+      },
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 2,
+        "column": "user_id",
+        "cardinality": 34
+      },
+      {
+        "name": "ConversationParticipants_conversation_id_user_id_unique",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_id",
+        "cardinality": 34
+      },
+      {
+        "name": "ConversationParticipants_conversation_id_user_id_unique",
+        "non_unique": 0,
+        "sequence": 2,
+        "column": "user_id",
+        "cardinality": 34
+      },
+      {
+        "name": "conversation_participants_conversation_id_user_id",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "conversation_id",
+        "cardinality": 34
+      },
+      {
+        "name": "conversation_participants_conversation_id_user_id",
+        "non_unique": 0,
+        "sequence": 2,
+        "column": "user_id",
+        "cardinality": 34
+      },
+      {
+        "name": "conversation_participants_user_id",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "user_id",
+        "cardinality": 34
+      },
+      {
+        "name": "conversation_participants_conversation_id",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "conversation_id",
+        "cardinality": 34
+      }
+    ],
+    "employermessages": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "id",
+        "cardinality": 7
+      },
+      {
+        "name": "employer_messages_conversation_id_created_at",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "conversationId",
+        "cardinality": 7
+      },
+      {
+        "name": "employer_messages_conversation_id_created_at",
+        "non_unique": 1,
+        "sequence": 2,
+        "column": "createdAt",
+        "cardinality": 7
+      },
+      {
+        "name": "employer_messages_sender_id",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "senderId",
+        "cardinality": 7
+      }
+    ],
+    "employerconversations": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "id",
+        "cardinality": 18
+      },
+      {
+        "name": "employerId",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "employerId",
+        "cardinality": 18
+      },
+      {
+        "name": "adminId",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "adminId",
+        "cardinality": 2
+      }
+    ],
+    "users": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "id",
+        "cardinality": 58
+      },
+      {
+        "name": "users_email",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "users_role_admin_scope",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "role",
+        "cardinality": 6
+      },
+      {
+        "name": "users_role_admin_scope",
+        "non_unique": 0,
+        "sequence": 2,
+        "column": "admin_scope",
+        "cardinality": 11
+      },
+      {
+        "name": "email",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_2",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_3",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_4",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_5",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_6",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_7",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_8",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_9",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "email_10",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "email",
+        "cardinality": 58
+      },
+      {
+        "name": "alumni_record_id",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "alumni_record_id",
+        "cardinality": 19
+      }
+    ],
+    "alumniprofiles": [
+      {
+        "name": "PRIMARY",
+        "non_unique": 0,
+        "sequence": 1,
+        "column": "id",
+        "cardinality": 10
+      },
+      {
+        "name": "user_id",
+        "non_unique": 1,
+        "sequence": 1,
+        "column": "user_id",
+        "cardinality": 10
+      }
+    ]
+  },
+  "plans": {
+    "history": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "messages",
+        "type": "ref",
+        "possible_keys": "PRIMARY,messages_conversation_id_created_at",
+        "key": "messages_conversation_id_created_at",
+        "key_len": "4",
+        "ref": "const",
+        "rows": "9",
+        "Extra": "Using index condition; Using where; Using filesort"
+      }
+    ],
+    "latest": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "messages",
+        "type": "range",
+        "possible_keys": "messages_conversation_id_created_at",
+        "key": "messages_conversation_id_created_at",
+        "key_len": "4",
+        "ref": null,
+        "rows": "14",
+        "Extra": "Using where; Using index"
+      }
+    ],
+    "unread": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "messages",
+        "type": "range",
+        "possible_keys": "messages_conversation_id_created_at,messages_sender_id",
+        "key": "messages_conversation_id_created_at",
+        "key_len": "9",
+        "ref": null,
+        "rows": "3",
+        "Extra": "Using index condition; Using where"
+      }
+    ],
+    "participants": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "conversationparticipants",
+        "type": "ref",
+        "possible_keys": "conversation_participants_user_id",
+        "key": "conversation_participants_user_id",
+        "key_len": "4",
+        "ref": "const",
+        "rows": "1",
+        "Extra": "Using index"
+      }
+    ],
+    "legacyHistory": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "employermessages",
+        "type": "ALL",
+        "possible_keys": "employer_messages_conversation_id_created_at",
+        "key": null,
+        "key_len": null,
+        "ref": null,
+        "rows": "7",
+        "Extra": "Using where; Using filesort"
+      }
+    ],
+    "legacyPairs": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "conversations",
+        "type": "ALL",
+        "possible_keys": null,
+        "key": null,
+        "key_len": null,
+        "ref": null,
+        "rows": "25",
+        "Extra": "Using where; Using filesort"
+      }
+    ],
+    "search": [
+      {
+        "id": 1,
+        "select_type": "SIMPLE",
+        "table": "users",
+        "type": "ref",
+        "possible_keys": "users_role_admin_scope",
+        "key": "users_role_admin_scope",
+        "key_len": "1023",
+        "ref": "const",
+        "rows": "37",
+        "Extra": "Using index condition; Using where"
+      }
+    ]
+  }
+}
