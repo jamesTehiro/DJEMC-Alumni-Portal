@@ -38,8 +38,8 @@ async function loadMembershipProfilePhoto(value) {
     }
     try {
         const url = new URL(stored);
-        const cloudName = String(process.env.CLOUDINARY_CLOUD_NAME || '').trim();
-        if (!cloudName || url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com' || url.port || url.username || url.password || url.search || url.hash || !url.pathname.startsWith('/' + cloudName + '/image/upload/') || typeof fetch !== 'function') return null;
+        const cloudinaryPath = url.pathname.match(/^\/([a-z0-9-]+)\/image\/upload\//i);
+        if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com' || url.port || url.username || url.password || url.search || url.hash || !cloudinaryPath || typeof fetch !== 'function') return null;
         const response = await fetch(url, { signal: AbortSignal.timeout(5000), redirect: 'error' });
         if (!response.ok) return null;
         const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();

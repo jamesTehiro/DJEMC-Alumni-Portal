@@ -19,3 +19,23 @@ export async function requireMembershipPdf(blob) {
     }
     return blob;
 }
+
+export async function waitForMembershipDocumentImages(documentRef) {
+    const images = Array.from(documentRef?.images || []);
+    await Promise.all(images.map(image => {
+        if (image.complete) return Promise.resolve();
+        return new Promise(resolve => {
+            let timeout;
+            const finish = () => {
+                clearTimeout(timeout);
+                image.removeEventListener("load", finish);
+                image.removeEventListener("error", finish);
+                resolve();
+            };
+            image.addEventListener("load", finish, { once: true });
+            image.addEventListener("error", finish, { once: true });
+            timeout = setTimeout(finish, 5000);
+        });
+    }));
+    await Promise.all(images.map(image => image.decode?.().catch(() => undefined)));
+}

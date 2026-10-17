@@ -61,12 +61,12 @@ test('membership profile photo loader accepts inline images and rejects arbitrar
     assert.equal(await loadMembershipProfilePhoto('/uploads/images/../../private.txt'), null);
 });
 
-test('membership photo loader embeds a configured Cloudinary image without allowing redirects', async () => {
+test('membership photo loader embeds public Cloudinary images without deployment-specific configuration', async () => {
     const priorFetch = global.fetch;
     const priorCloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
     let requestOptions;
-    process.env.CLOUDINARY_CLOUD_NAME = 'alumni-test';
+    process.env.CLOUDINARY_CLOUD_NAME = 'different-configured-account';
     global.fetch = async (url, options) => {
         assert.equal(url.hostname, 'res.cloudinary.com');
         requestOptions = options;
