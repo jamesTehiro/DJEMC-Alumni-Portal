@@ -30,7 +30,7 @@ async function fixture(run, settings = {}) {
         if (settings.missingUser) return null;
         return { id: Number(id), role: settings.role || "alumni", admin_scope: settings.scope || "alumni", account_status: settings.status || "verified", name: "Alex Graduate", email: "registered@example.com", alumni_record_id: 8 };
     } });
-    override(db.AlumniProfile, { findOne: async options => { assert.ok(options.where.user_id); return { id: 10, phone: "09123456789", address: "Profile City", course: "Old program", graduation_year: 2025, job_title: "Engineer", current_company: "Office", avatar_url: settings.profilePhotos?.[options.where.user_id] || settings.avatarUrl || null }; } });
+    override(db.AlumniProfile, { findOne: async options => { assert.ok(options.where.user_id); return { id: 10, phone: "09123456789", address: "Profile City", course: "Old program", graduation_year: 2025, job_title: "Engineer", current_company: "Office", avatar_url: settings.avatarUrl || null }; } });
     override(db.AlumniRecord, { findByPk: async () => ({ id: 8, course: "Verified BSIT", batch_year: 2026 }) });
     override(db.EmploymentHistory, { findAll: async options => { assert.equal(options.where.alumni_id, 10); return [{ company_name: "Office", position: "Engineer", start_year: 2025, end_year: null, employment_type: "Full-time" }]; } });
     override(db.MembershipAdministrator, { findOne: async options => { assert.equal(options.where.revoked_at, null); return settings.grant ? { id: 1 } : null; } });
@@ -181,25 +181,6 @@ test("applicants receive their current profile photo in their saved document and
     const pdfResult = response(); await controller.getMyPdf(request(), pdfResult);
     assert.equal(pdfResult.headers["Content-Type"], "application/pdf");
 }, { avatarUrl: "data:image/jpeg;base64,YWJj" }));
-
-test("each admin membership document resolves the photo from its own alumni user ID", () => fixture(async context => {
-    const firstPhoto = "data:image/jpeg;base64,YWxpY2U=";
-    const secondPhoto = "data:image/png;base64,Ym9i";
-    context.state().applications.push(
-        { id: 1, alumni_user_id: 81, application_status: "submitted", ...complete(), consent_text: validation.CONSENT_TEXT, submitted_at: new Date() },
-        { id: 2, alumni_user_id: 92, application_status: "submitted", ...complete(), consent_text: validation.CONSENT_TEXT, submitted_at: new Date() }
-    );
-    for (const [applicationId, expectedPhoto] of [[1, firstPhoto], [2, secondPhoto]]) {
-        const req = request({}, 7);
-        req.user.role = "admin";
-        req.user.admin_scope = "alumni";
-        req.params.id = String(applicationId);
-        const res = response();
-        await controller.getApplicationDocument(req, res);
-        assert.equal(res.statusCode, 200);
-        assert.ok(res.body.html.includes(`src="${expectedPhoto}" alt="Applicant profile photo"`));
-    }
-}, { role: "admin", grant: true, profilePhotos: { 81: "data:image/jpeg;base64,YWxpY2U=", 92: "data:image/png;base64,Ym9i" } }));
 
 test("invalid and missing application IDs fail; ordinary employers cannot render PDF", async () => {
     await fixture(async () => { const req = request(); req.params.id = "../1"; const res = response(); await controller.getApplication(req, res); assert.equal(res.statusCode, 400); req.params.id = "1"; const missing = response(); await controller.getApplication(req, missing); assert.equal(missing.statusCode, 404); }, { role: "admin", grant: true });

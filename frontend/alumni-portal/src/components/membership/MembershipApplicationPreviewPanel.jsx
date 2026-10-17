@@ -3,7 +3,7 @@ import { Button, Modal, Spinner } from "react-bootstrap";
 import { FiDownload, FiPrinter, FiX } from "react-icons/fi";
 import { api } from "../../services/api";
 import { membershipFullName } from "../../utils/membershipApplication";
-import { membershipSubmittedDate, requireMembershipPdf, waitForMembershipDocumentImages } from "../../utils/membershipDocument";
+import { membershipSubmittedDate, requireMembershipPdf } from "../../utils/membershipDocument";
 import { membershipStatus } from "../../utils/membershipManagement";
 
 export default function MembershipApplicationPreviewPanel({ applicationId, onClose }) {
@@ -49,7 +49,6 @@ export default function MembershipApplicationPreviewPanel({ applicationId, onClo
             popup.opener = null;
             popup.document.open(); popup.document.write(html); popup.document.close();
             await popup.document.fonts?.ready;
-            await waitForMembershipDocumentImages(popup.document);
             if (request !== generation.current) { popup.close(); return; }
             if (!popup.closed) { popup.focus(); popup.print(); }
         } catch { if (!popup.closed) popup.close(); if (request === generation.current) setError("The application could not be printed. Please try again."); }

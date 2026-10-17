@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { membershipSubmittedDate, requireMembershipPdf, waitForMembershipDocumentImages } from "../src/utils/membershipDocument.js";
+import { membershipSubmittedDate, requireMembershipPdf } from "../src/utils/membershipDocument.js";
 
 test("submission dates use Manila time consistently with the server date filter", () => {
     assert.equal(membershipSubmittedDate("2026-10-13T16:10:00Z"), "Oct 14, 2026");
@@ -31,22 +31,4 @@ test("membership list dates handle missing or invalid values safely", () => {
     assert.equal(membershipSubmittedDate(null), "Not recorded");
     assert.equal(membershipSubmittedDate("not-a-date"), "Not recorded");
     assert.ok(membershipSubmittedDate("2026-10-14T04:00:00Z").includes("2026"));
-});
-
-test("membership print waits for document images and completes when an image fails", async () => {
-    const listeners = new Map();
-    const image = {
-        complete: false,
-        addEventListener: (event, callback) => listeners.set(event, callback),
-        removeEventListener: event => listeners.delete(event),
-        decode: async () => undefined
-    };
-    let finished = false;
-    const waiting = waitForMembershipDocumentImages({ images: [image] }).then(() => { finished = true; });
-    await Promise.resolve();
-    assert.equal(finished, false);
-    listeners.get("load")();
-    await waiting;
-    assert.equal(finished, true);
-    await waitForMembershipDocumentImages({ images: [{ complete: true, decode: async () => { throw new Error("broken image"); } }] });
 });
