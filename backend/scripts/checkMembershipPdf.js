@@ -32,6 +32,10 @@ const record = {
     fs.mkdirSync(output, { recursive: true });
     for (const [name, application] of [
         ['membership-standard', record],
+        ['membership-work-experience-overflow', { ...record, work_experience: Array.from({ length: 28 }, (_, index) => ({
+            employment_period: 'Employment period ' + (index + 1), position: 'Saved role ' + (index + 1),
+            agency_employer: 'Example employer ' + (index + 1), employment_status: 'Full-time'
+        })) }],
         ['membership-overflow', { ...record, training_seminars: Array.from({ length: 35 }, (_, index) => ({
             title: `Training ${index + 1}: ` + 'Long saved training information '.repeat(6), date: '2025-01-10',
             venue: 'San Jose, Dinagat Islands', facilitator: 'Example Learning Center'

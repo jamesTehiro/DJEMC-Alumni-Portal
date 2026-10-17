@@ -1,5 +1,56 @@
+const fs = require('node:fs');
+const path = require('node:path');
+
+const LOGO_PATH = path.resolve(__dirname, '../../frontend/alumni-portal/src/assets/alumni-logo.jpg');
+const MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024;
+const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const IMAGE_EXTENSIONS = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif' };
+const MEMBERSHIP_LOGO_DATA_URL = (() => {
+    try {
+        const logo = fs.readFileSync(LOGO_PATH);
+        return logo.length <= MAX_PROFILE_PHOTO_BYTES ? 'data:image/jpeg;base64,' + logo.toString('base64') : '';
+    } catch { return ''; }
+})();
+
 const DECLARATION = 'I hereby certify that the above-mentioned information/data is true and correct. I acknowledge that the provided information will be kept confidential and used solely for the stated purpose. My personal data will not be shared with third parties without my explicit consent, except as required by law.';
 
+function isSafeImageDataUrl(value) {
+    const match = typeof value === 'string' && value.match(/^data:(image\/(?:jpeg|png|webp|gif));base64,([a-z\d+/]+={0,2})$/i);
+    if (!match) return false;
+    try { const decoded = Buffer.from(match[2], 'base64'); return decoded.length > 0 && decoded.length <= MAX_PROFILE_PHOTO_BYTES && decoded.toString('base64') === match[2]; } catch { return false; }
+}
+
+async function loadMembershipProfilePhoto(value) {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    const stored = value.trim();
+    if (isSafeImageDataUrl(stored)) return stored;
+    const localPath = stored.replace(/\\/g, '/').match(/(?:^|\/)uploads(?:\/images)?\/([^/?#]+)$/i);
+    if (localPath) {
+        const fileName = path.basename(localPath[1]);
+        for (const candidate of [path.join(__dirname, '..', 'uploads', 'images', fileName), path.join(__dirname, '..', 'uploads', fileName)]) {
+            try {
+                const image = await fs.promises.readFile(candidate);
+                const mime = IMAGE_EXTENSIONS[path.extname(fileName).toLowerCase()];
+                if (mime && image.length > 0 && image.length <= MAX_PROFILE_PHOTO_BYTES) return 'data:' + mime + ';base64,' + image.toString('base64');
+            } catch { /* Try the legacy upload directory next. */ }
+        }
+        return null;
+    }
+    try {
+        const url = new URL(stored);
+        const cloudName = String(process.env.CLOUDINARY_CLOUD_NAME || '').trim();
+        if (!cloudName || url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com' || url.port || url.username || url.password || url.search || url.hash || !url.pathname.startsWith('/' + cloudName + '/image/upload/') || typeof fetch !== 'function') return null;
+        const response = await fetch(url, { signal: AbortSignal.timeout(5000), redirect: 'error' });
+        if (!response.ok) return null;
+        const mime = String(response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+        if (!IMAGE_MIME_TYPES.has(mime)) return null;
+        const declaredSize = Number(response.headers.get('content-length'));
+        if (Number.isFinite(declaredSize) && declaredSize > MAX_PROFILE_PHOTO_BYTES) return null;
+        const image = Buffer.from(await response.arrayBuffer());
+        if (!image.length || image.length > MAX_PROFILE_PHOTO_BYTES) return null;
+        return 'data:' + mime + ';base64,' + image.toString('base64');
+    } catch { return null; }
+}
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, character => ({
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
@@ -88,7 +139,11 @@ const DOCUMENT_CSS = `
     body { margin: 0; color: #172b24; font: 9pt Arial, Helvetica, sans-serif; line-height: 1.3; }
     .membership-document { width: 210mm; max-width: 100%; margin: 0 auto; }
     .membership-part { min-height: 297mm; padding: 12mm; margin: 12px 0; background: white; border: 1px solid #d6dfd9; }
-    .membership-heading { text-align: center; border-bottom: 2px solid #065845; padding-bottom: 3mm; margin-bottom: 3mm; }
+    .membership-heading { display: grid; grid-template-columns: 21mm minmax(0, 1fr) 21mm; align-items: center; column-gap: 4mm; text-align: center; border-bottom: 2px solid #065845; padding-bottom: 3mm; margin-bottom: 3mm; }
+    .membership-heading-copy { min-width: 0; }
+    .membership-logo { display: block; width: 21mm; height: 21mm; object-fit: contain; justify-self: start; }
+    .membership-applicant-photo, .membership-photo-placeholder { display: block; width: 21mm; height: 25mm; justify-self: end; border: 1px solid #bacbc0; object-fit: cover; }
+    .membership-photo-placeholder { background: #f3f6f4; }
     .membership-heading p { margin: 0 0 2mm; font-size: 9pt; }
     h1 { font-size: 14pt; color: #065845; margin: 1mm 0; line-height: 1.2; }
     .membership-subtitle { font-size: 12pt !important; font-weight: bold; }
@@ -124,7 +179,6 @@ const DOCUMENT_CSS = `
         body { margin: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         .membership-document { width: auto; max-width: none; margin: 0; }
         .membership-part { padding: 0; min-height: 0; margin: 0; border: 0; }
-        .membership-part + .membership-part { break-before: page; }
     }
     @media screen and (max-width: 700px) {
         .membership-part { min-height: 0; padding: 16px; margin: 0; }
@@ -134,7 +188,7 @@ const DOCUMENT_CSS = `
     }
 `;
 
-function buildMembershipDocumentHtml(record) {
+function buildMembershipDocumentHtml(record, { profilePhotoDataUrl = null } = {}) {
     const application = typeof record?.get === 'function' ? record.get({ plain: true }) : record;
     if (!application || typeof application !== 'object') throw new TypeError('A saved membership application is required.');
     const personal = structured(application.personal_details, {});
@@ -170,10 +224,13 @@ function buildMembershipDocumentHtml(record) {
     ], options.no_awards_citations ? 'No award or citation information applies.' : 'No award or citation information provided.');
     const title = ['DJEMC Membership Application', personal.first_name, personal.last_name].filter(Boolean).join(' — ');
     const accepted = application.consent_accepted === true || application.consent_accepted === 1;
+    const profilePhoto = isSafeImageDataUrl(profilePhotoDataUrl)
+        ? '<img class="membership-applicant-photo" src="' + profilePhotoDataUrl + '" alt="Applicant profile photo" >'
+        : '<div class="membership-photo-placeholder" role="img" aria-label="No applicant profile photo on file"></div>';
     const academicSummary = application.graduation_year ? `<p class="membership-academic-note"><strong>Graduation year recorded at submission:</strong> Batch ${printable(application.graduation_year)}</p>` : '';
     const optionalName = value => /^(?:n\/?a|not applicable)$/i.test(String(value || '').trim()) ? '' : value;
     const recordedName = [personal.first_name, optionalName(personal.middle_name), personal.last_name, optionalName(personal.extension)].filter(Boolean).join(' ');
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title><style>${DOCUMENT_CSS}</style></head><body><main class="membership-document" data-membership-application-id="${escapeHtml(application.id)}"><article class="membership-part"><header class="membership-heading"><h1>DON JOSE ECLEO MEMORIAL COLLEGE<br>ALUMNI ASSOCIATION</h1><p>P-5 Justiniana Edera, San Jose, Dinagat Islands</p><p class="membership-subtitle">MEMBERSHIP APPLICATION FORM</p></header><div class="membership-reference"><span><strong>Application:</strong> ${printable(application.id)}</span><span><strong>Date Submitted:</strong> ${dateLabel(application.submitted_at, true)}</span><span><strong>Status:</strong> ${printable(application.application_status)}</span></div><p class="membership-instruction">Please complete all sections of this form accurately and honestly. Ensure that the information you provide is correct. If a field does not apply to you, please indicate N/A. Your responses will remain confidential and will be used solely for the stated purpose.</p><section class="membership-section"><h2>I. PERSONAL DETAILS</h2><table class="membership-personal"><tbody>${personalRows.join('')}</tbody></table></section>${education}${academicSummary}${work}</article><article class="membership-part">${training}${community}${awards}<section class="membership-declaration"><p><strong>DECLARATION AND CONSENT</strong></p><p>${escapeHtml(application.consent_text || DECLARATION)}</p><p><strong>Consent acknowledgement:</strong> ${accepted ? 'Accepted electronically' : 'Not recorded'}<br><strong>Accepted on:</strong> ${dateLabel(application.consent_accepted_at, true)}<br><strong>Consent version:</strong> ${printable(application.consent_version)}</p><p><strong>Applicant name recorded electronically:</strong> ${printable(recordedName)}</p><p>Submission records an application and does not constitute association membership approval.</p></section><section class="membership-committee"><p><strong>Conformed:</strong></p><div class="blank-lines"><div class="blank-line">Signature Over-Printed Name</div><div></div></div><h2>FOR ASSOCIATION USE ONLY</h2><p>Committee approval fields are reserved for authorized association personnel.</p><table aria-label="Blank association approval fields"><tbody><tr><th scope="row">Approved during BOT Meeting on:</th><td></td><th scope="row">Resolution No.:</th><td></td></tr><tr><th scope="row">Checked:<br>Committee on Membership</th><td></td><th scope="row">Verified:</th><td></td></tr><tr><th scope="row">Attested:</th><td></td><th scope="row">Approved:</th><td></td></tr></tbody></table></section><footer class="membership-footer">Confidential membership application · DJEMC Alumni Association</footer></article></main></body></html>`;
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title><style>${DOCUMENT_CSS}</style></head><body><main class="membership-document" data-membership-application-id="${escapeHtml(application.id)}"><article class="membership-part"><header class="membership-heading"><img class="membership-logo" src="${MEMBERSHIP_LOGO_DATA_URL}" alt="DJEMC Alumni Association logo"><div class="membership-heading-copy"><h1>DON JOSE ECLEO MEMORIAL COLLEGE<br>ALUMNI ASSOCIATION</h1><p>P-5 Justiniana Edera, San Jose, Dinagat Islands</p><p class="membership-subtitle">MEMBERSHIP APPLICATION FORM</p></div>${profilePhoto}</header><div class="membership-reference"><span><strong>Application:</strong> ${printable(application.id)}</span><span><strong>Date Submitted:</strong> ${dateLabel(application.submitted_at, true)}</span><span><strong>Status:</strong> ${printable(application.application_status)}</span></div><p class="membership-instruction">Please complete all sections of this form accurately and honestly. Ensure that the information you provide is correct. If a field does not apply to you, please indicate N/A. Your responses will remain confidential and will be used solely for the stated purpose.</p><section class="membership-section"><h2>I. PERSONAL DETAILS</h2><table class="membership-personal"><tbody>${personalRows.join('')}</tbody></table></section>${education}${academicSummary}${work}</article><article class="membership-part">${training}${community}${awards}<section class="membership-declaration"><p><strong>DECLARATION AND CONSENT</strong></p><p>${escapeHtml(application.consent_text || DECLARATION)}</p><p><strong>Consent acknowledgement:</strong> ${accepted ? 'Accepted electronically' : 'Not recorded'}<br><strong>Accepted on:</strong> ${dateLabel(application.consent_accepted_at, true)}<br><strong>Consent version:</strong> ${printable(application.consent_version)}</p><p><strong>Applicant name recorded electronically:</strong> ${printable(recordedName)}</p><p>Submission records an application and does not constitute association membership approval.</p></section><section class="membership-committee"><p><strong>Conformed:</strong></p><div class="blank-lines"><div class="blank-line">Signature Over-Printed Name</div><div></div></div><h2>FOR ASSOCIATION USE ONLY</h2><p>Committee approval fields are reserved for authorized association personnel.</p><table aria-label="Blank association approval fields"><tbody><tr><th scope="row">Approved during BOT Meeting on:</th><td></td><th scope="row">Resolution No.:</th><td></td></tr><tr><th scope="row">Checked:<br>Committee on Membership</th><td></td><th scope="row">Verified:</th><td></td></tr><tr><th scope="row">Attested:</th><td></td><th scope="row">Approved:</th><td></td></tr></tbody></table></section><footer class="membership-footer">Confidential membership application · DJEMC Alumni Association</footer></article></main></body></html>`;
 }
 
-module.exports = { buildMembershipDocumentHtml, escapeHtml, ageAtSubmission, PERSONAL_FIELDS };
+module.exports = { buildMembershipDocumentHtml, escapeHtml, ageAtSubmission, loadMembershipProfilePhoto, PERSONAL_FIELDS };

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildMembershipDocumentHtml, ageAtSubmission, escapeHtml, PERSONAL_FIELDS } = require('../services/membershipDocument');
+const { buildMembershipDocumentHtml, ageAtSubmission, escapeHtml, loadMembershipProfilePhoto, PERSONAL_FIELDS } = require('../services/membershipDocument');
 
 function fixture(overrides = {}) {
     return {
@@ -40,6 +40,49 @@ test('membership document renders saved fields from all six sections and officia
     assert.ok(html.includes('data-membership-application-id="71"'));
 });
 
+test('membership header embeds the official logo and an applicant photo when available', () => {
+    const photo = 'data:image/jpeg;base64,dGVzdA==';
+    const html = buildMembershipDocumentHtml(fixture(), { profilePhotoDataUrl: photo });
+    assert.match(html, /class="membership-logo" src="data:image\/jpeg;base64,[A-Za-z0-9+/=]+"/);
+    assert.ok(html.includes('src="' + photo + '" alt="Applicant profile photo"'));
+    assert.ok(html.includes('grid-template-columns: 21mm minmax(0, 1fr) 21mm'));
+    assert.ok(html.includes('object-fit: contain'));
+    assert.ok(!html.includes('<div class="membership-photo-placeholder"'));
+
+    const noPhoto = buildMembershipDocumentHtml(fixture());
+    assert.ok(noPhoto.includes('membership-photo-placeholder'));
+    assert.ok(noPhoto.includes('aria-label="No applicant profile photo on file"'));
+});
+
+test('membership profile photo loader accepts inline images and rejects arbitrary external URLs', async () => {
+    const photo = 'data:image/png;base64,dGVzdA==';
+    assert.equal(await loadMembershipProfilePhoto(photo), photo);
+    assert.equal(await loadMembershipProfilePhoto('https://example.invalid/profile.jpg'), null);
+    assert.equal(await loadMembershipProfilePhoto('/uploads/images/../../private.txt'), null);
+});
+
+test('membership photo loader embeds a configured Cloudinary image without allowing redirects', async () => {
+    const priorFetch = global.fetch;
+    const priorCloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+    let requestOptions;
+    process.env.CLOUDINARY_CLOUD_NAME = 'alumni-test';
+    global.fetch = async (url, options) => {
+        assert.equal(url.hostname, 'res.cloudinary.com');
+        requestOptions = options;
+        return new Response(image, { headers: { 'content-type': 'image/jpeg', 'content-length': String(image.length) } });
+    };
+    try {
+        const result = await loadMembershipProfilePhoto('https://res.cloudinary.com/alumni-test/image/upload/v1/avatar.jpg');
+        assert.equal(result, 'data:image/jpeg;base64,' + image.toString('base64'));
+        assert.equal(requestOptions.redirect, 'error');
+    } finally {
+        global.fetch = priorFetch;
+        if (priorCloudName === undefined) delete process.env.CLOUDINARY_CLOUD_NAME;
+        else process.env.CLOUDINARY_CLOUD_NAME = priorCloudName;
+    }
+});
+
 test('membership document uses stored consent version, text and timestamp without fabricating approval', () => {
     const html = buildMembershipDocumentHtml(fixture({ approved_by: 'Must not appear', approved_at: 'Must not appear' }));
     assert.ok(html.includes('Saved consent declaration.'));
@@ -67,7 +110,7 @@ test('membership document escapes submitted content in title, fields, rows, cons
     const html = buildMembershipDocumentHtml(record);
     assert.ok(html.includes(escapeHtml(attack)));
     assert.ok(!html.includes('<script>'));
-    assert.ok(!html.includes('<img'));
+    assert.ok(!html.includes('<img src="https://example.invalid"'));
     assert.ok(!html.includes('<input'));
     assert.ok(!html.includes('<form'));
     assert.ok(!html.includes('src="https://example.invalid"'));
@@ -97,6 +140,7 @@ test('membership document supports every repeatable row and additional A4 pages 
     assert.ok(html.includes('@page { size: A4 portrait;'));
     assert.ok(html.includes('thead { display: table-header-group; }'));
     assert.ok(html.includes('break-inside: avoid'));
+    assert.ok(!html.includes('.membership-part + .membership-part { break-before: page; }'));
     assert.ok(!html.includes('overflow: hidden'));
     const secondPart = html.indexOf('<article class="membership-part">', html.indexOf('<article class="membership-part">') + 1);
     assert.ok(html.indexOf('III. WORK EXPERIENCE') < secondPart);

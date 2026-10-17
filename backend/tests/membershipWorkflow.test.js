@@ -30,7 +30,7 @@ async function fixture(run, settings = {}) {
         if (settings.missingUser) return null;
         return { id: Number(id), role: settings.role || "alumni", admin_scope: settings.scope || "alumni", account_status: settings.status || "verified", name: "Alex Graduate", email: "registered@example.com", alumni_record_id: 8 };
     } });
-    override(db.AlumniProfile, { findOne: async options => { assert.ok(options.where.user_id); return { id: 10, phone: "09123456789", address: "Profile City", course: "Old program", graduation_year: 2025, job_title: "Engineer", current_company: "Office" }; } });
+    override(db.AlumniProfile, { findOne: async options => { assert.ok(options.where.user_id); return { id: 10, phone: "09123456789", address: "Profile City", course: "Old program", graduation_year: 2025, job_title: "Engineer", current_company: "Office", avatar_url: settings.avatarUrl || null }; } });
     override(db.AlumniRecord, { findByPk: async () => ({ id: 8, course: "Verified BSIT", batch_year: 2026 }) });
     override(db.EmploymentHistory, { findAll: async options => { assert.equal(options.where.alumni_id, 10); return [{ company_name: "Office", position: "Engineer", start_year: 2025, end_year: null, employment_type: "Full-time" }]; } });
     override(db.MembershipAdministrator, { findOne: async options => { assert.equal(options.where.revoked_at, null); return settings.grant ? { id: 1 } : null; } });
@@ -50,7 +50,7 @@ async function fixture(run, settings = {}) {
         try { const result = await action({ LOCK: { UPDATE: "UPDATE" } }); calls.commits += 1; return result; }
         catch (error) { state = previous; calls.rollbacks += 1; throw error; }
     } });
-    override(pdf, { renderResumePdf: async html => { calls.pdf += 1; assert.match(html, /membership application form/i); return Buffer.from("%PDF-1.7\nfixture"); } });
+    override(pdf, { renderResumePdf: async html => { calls.pdf += 1; assert.match(html, /membership application form/i); if (settings.avatarUrl) assert.ok(html.includes("src=\"" + settings.avatarUrl + "\" alt=\"Applicant profile photo\"")); return Buffer.from("%PDF-1.7\nfixture"); } });
     try { await run({ state: () => state, calls }); } finally { for (const [target, changes] of backups.reverse()) Object.assign(target, changes); }
 }
 test.after(async () => db.sequelize.close());
@@ -171,8 +171,17 @@ test("admin list returns submitted summaries with pagination and no sensitive de
     context.state().applications.push({ id: 1, application_status: "draft", applicant_name: "Draft" }, { id: 2, application_status: "submitted", applicant_name: "Alex Graduate", academic_program: "BSIT", graduation_year: 2026, submitted_at: new Date(), personal_details: { tin: "Sensitive" } }); const req = request(); req.query = { search: "AlEX_%", page_size: "1000", page: "-1" }; const res = response(); await controller.listApplications(req, res); assert.equal(res.body.total, 1); assert.equal(res.body.page, 1); assert.equal(res.body.page_size, 100); assert.equal(res.body.applications[0].name, "Alex Graduate"); assert.equal(res.body.applications[0].personal_details, undefined); assert.equal(res.body.applications[0].alumni_user_id, undefined); assert.deepEqual(context.calls.lists[0].order, [["submitted_at", "DESC"], ["id", "DESC"]]);
 }, { role: "admin", grant: true }));
 test("detail and exports use saved submitted data instead of client HTML", async () => fixture(async context => {
-    context.state().applications.push({ id: 1, alumni_user_id: 8, application_status: "submitted", ...complete(), consent_text: validation.CONSENT_TEXT, submitted_at: new Date() }); const req = request({ html: "<script>unsafe()</script>" }); req.params.id = "1"; const detail = response(); await controller.getApplication(req, detail); assert.equal(detail.body.application.personal_details.first_name, "Alex"); const document = response(); await controller.getApplicationDocument(req, document); assert.ok(document.body.html.includes("Alex")); assert.ok(!document.body.html.includes("unsafe()")); const exported = response(); await controller.getApplicationPdf(req, exported); assert.equal(exported.headers["Content-Type"], "application/pdf"); assert.ok(exported.body.subarray(0, 5).equals(Buffer.from("%PDF-"))); assert.equal(context.calls.pdf, 1);
-}, { role: "admin", grant: true }));
+    context.state().applications.push({ id: 1, alumni_user_id: 8, application_status: "submitted", ...complete(), consent_text: validation.CONSENT_TEXT, submitted_at: new Date() }); const req = request({ html: "<script>unsafe()</script>" }); req.params.id = "1"; const detail = response(); await controller.getApplication(req, detail); assert.equal(detail.body.application.personal_details.first_name, "Alex"); const document = response(); await controller.getApplicationDocument(req, document); assert.ok(document.body.html.includes("Alex")); assert.ok(!document.body.html.includes("unsafe()")); assert.ok(document.body.html.includes("src=\"data:image/jpeg;base64,YWJj\" alt=\"Applicant profile photo\"")); const exported = response(); await controller.getApplicationPdf(req, exported); assert.equal(exported.headers["Content-Type"], "application/pdf"); assert.ok(exported.body.subarray(0, 5).equals(Buffer.from("%PDF-"))); assert.equal(context.calls.pdf, 1);
+}, { role: "admin", grant: true, avatarUrl: "data:image/jpeg;base64,YWJj" }));
+test("applicants receive their current profile photo in their saved document and PDF", async () => fixture(async context => {
+    context.state().applications.push({ id: 1, alumni_user_id: 7, application_status: "submitted", ...complete(), consent_text: validation.CONSENT_TEXT, submitted_at: new Date() });
+    const document = response(); await controller.getMyDocument(request(), document);
+    assert.equal(document.statusCode, 200);
+    assert.ok(document.body.html.includes("src=\"data:image/jpeg;base64,YWJj\" alt=\"Applicant profile photo\""));
+    const pdfResult = response(); await controller.getMyPdf(request(), pdfResult);
+    assert.equal(pdfResult.headers["Content-Type"], "application/pdf");
+}, { avatarUrl: "data:image/jpeg;base64,YWJj" }));
+
 test("invalid and missing application IDs fail; ordinary employers cannot render PDF", async () => {
     await fixture(async () => { const req = request(); req.params.id = "../1"; const res = response(); await controller.getApplication(req, res); assert.equal(res.statusCode, 400); req.params.id = "1"; const missing = response(); await controller.getApplication(req, missing); assert.equal(missing.statusCode, 404); }, { role: "admin", grant: true });
     await fixture(async context => { const req = request(); req.params.id = "1"; const res = response(); await controller.getApplicationPdf(req, res); assert.equal(res.statusCode, 403); assert.equal(context.calls.pdf, 0); }, { role: "employer", grant: true });

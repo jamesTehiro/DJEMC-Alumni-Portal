@@ -185,15 +185,23 @@ exports.getApplication = endpoint(async (req, res) => {
     res.json({ application });
 });
 
+async function buildApplicationDocument(application) {
+    const profile = application.alumni_user_id
+        ? await db.AlumniProfile.findOne({ where: { user_id: application.alumni_user_id }, attributes: ["avatar_url"] })
+        : null;
+    const profilePhotoDataUrl = await documentService.loadMembershipProfilePhoto(profile?.avatar_url);
+    return documentService.buildMembershipDocumentHtml(application, { profilePhotoDataUrl });
+}
+
 const documentEndpoint = own => endpoint(async (req, res) => {
     const { user, application } = await (own ? getOwnSubmittedApplication(req) : getAdminApplication(req));
-    const html = documentService.buildMembershipDocumentHtml(application);
+    const html = await buildApplicationDocument(application);
     await recordView(req, user, application, "membership.application.document_viewed");
     res.json({ html });
 });
 const pdfEndpoint = own => endpoint(async (req, res) => {
     const { user, application } = await (own ? getOwnSubmittedApplication(req) : getAdminApplication(req));
-    const html = documentService.buildMembershipDocumentHtml(application);
+    const html = await buildApplicationDocument(application);
     let pdf;
     try {
         pdf = await pdfService.renderResumePdf(html);
