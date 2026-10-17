@@ -5,7 +5,7 @@ const { Op } = require("sequelize");
 const db = require("../models");
 const { reserveJobs } = require("../workers/emailQueueWorker");
 
-test("missing SMTP configuration leaves queued jobs and attempt counts untouched", async () => {
+test("missing email provider configuration leaves queued jobs and attempt counts untouched", async () => {
     const email = require("../utils/email");
     const originalValidate = email.validateConfiguration;
     const originalTransaction = db.sequelize.transaction;

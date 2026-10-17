@@ -4,7 +4,7 @@ const nodemailer = require("nodemailer");
 const { safeEmailError } = require("../utils/emailDiagnostics");
 
 test("SMTP STARTTLS, cache rotation, missing configuration and safe diagnostics", async () => {
-    const keys = ["SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS", "EMAIL_FROM"];
+    const keys = ["EMAIL_PROVIDER", "BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS"];
     const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
     const original = nodemailer.createTransport;
     const transports = [], sent = [];
@@ -16,6 +16,7 @@ test("SMTP STARTTLS, cache rotation, missing configuration and safe diagnostics"
     const email = require("../utils/email");
     try {
         keys.forEach(key => delete process.env[key]);
+        process.env.EMAIL_PROVIDER = "smtp";
         process.env.SMTP_PORT = "587";
         process.env.SMTP_SECURE = "false";
         process.env.EMAIL_USER = "test@example.invalid";
@@ -48,4 +49,89 @@ test("SMTP STARTTLS, cache rotation, missing configuration and safe diagnostics"
         keys.forEach(key => saved[key] === undefined ? delete process.env[key] : process.env[key] = saved[key]);
         delete require.cache[require.resolve("../utils/email")];
     }
+});
+
+const withBrevo = async callback => {
+    const keys = ["EMAIL_PROVIDER", "BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS"];
+    const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+    const originalFetch = global.fetch;
+    keys.forEach(key => delete process.env[key]);
+    process.env.BREVO_API_KEY = "test-brevo-api-key";
+    process.env.EMAIL_FROM = "sender@example.invalid";
+    process.env.EMAIL_FROM_NAME = "DJEMC Alumni Portal";
+    delete require.cache[require.resolve("../utils/email")];
+    const email = require("../utils/email");
+    try { await callback(email); }
+    finally {
+        global.fetch = originalFetch;
+        keys.forEach(key => saved[key] === undefined ? delete process.env[key] : process.env[key] = saved[key]);
+        delete require.cache[require.resolve("../utils/email")];
+    }
+};
+
+test("Brevo sends the existing text notification over HTTPS using configured sender details", async () => {
+    await withBrevo(async email => {
+        let request;
+        global.fetch = async (url, options) => {
+            request = { url, options };
+            return { ok: true, status: 201, json: async () => ({ messageId: "<brevo-message-id>" }) };
+        };
+        assert.equal(email.validateConfiguration().provider, "brevo");
+        const result = await email("alumni@example.invalid", "Account update", "Your account is ready.");
+        assert.equal(result.messageId, "<brevo-message-id>");
+        assert.equal(request.url, "https://api.brevo.com/v3/smtp/email");
+        assert.equal(request.options.method, "POST");
+        assert.equal(request.options.headers["api-key"], "test-brevo-api-key");
+        assert.equal(request.options.headers["Content-Type"], "application/json");
+        assert.equal(request.options.headers.Accept, "application/json");
+        assert.deepEqual(JSON.parse(request.options.body), {
+            sender: { email: "sender@example.invalid", name: "DJEMC Alumni Portal" },
+            to: [{ email: "alumni@example.invalid" }],
+            subject: "Account update",
+            textContent: "Your account is ready."
+        });
+        let logged = "";
+        const originalLog = console.log;
+        try { console.log = (...args) => { logged += JSON.stringify(args); }; email.logConfiguration(); }
+        finally { console.log = originalLog; }
+        assert.ok(!logged.includes("test-brevo-api-key"));
+        assert.ok(!logged.includes("sender@example.invalid"));
+    });
+});
+
+test("Brevo API rejection is returned as a safe delivery failure", async () => {
+    await withBrevo(async email => {
+        global.fetch = async () => ({ ok: false, status: 401, json: async () => ({ message: "secret response" }) });
+        await assert.rejects(email("recipient", "subject", "message"), error => error.code === "EMAIL_API" && error.responseCode === 401 && error.retryable === false && !error.message.includes("secret"));
+    });
+});
+
+test("Brevo rejects missing configuration without making a request", async () => {
+    await withBrevo(async email => {
+        let requests = 0;
+        global.fetch = async () => { requests++; throw new Error("unexpected request"); };
+        process.env.EMAIL_PROVIDER = "brevo";
+        delete process.env.BREVO_API_KEY;
+        assert.throws(() => email.validateConfiguration(), { code: "EMAIL_CONFIG" });
+        await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_CONFIG" });
+        assert.equal(requests, 0);
+    });
+});
+
+test("Brevo network failures and timeouts reject without exposing request details", async () => {
+    await withBrevo(async email => {
+        global.fetch = async () => { throw new Error("private network details"); };
+        await assert.rejects(email("recipient", "subject", "message"), error => error.code === "EMAIL_NETWORK" && error.retryable === false && !error.message.includes("private"));
+        global.fetch = async () => { throw Object.assign(new Error("private timeout details"), { name: "TimeoutError" }); };
+        await assert.rejects(email("recipient", "subject", "message"), error => error.code === "ETIMEDOUT" && error.retryable === false && !error.message.includes("private"));
+    });
+});
+
+test("Brevo malformed success responses do not count as accepted emails", async () => {
+    await withBrevo(async email => {
+        global.fetch = async () => ({ ok: true, status: 201, json: async () => ({}) });
+        await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_RESPONSE" });
+        global.fetch = async () => ({ ok: true, status: 201, json: async () => { throw new SyntaxError("bad json"); } });
+        await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_RESPONSE" });
+    });
 });

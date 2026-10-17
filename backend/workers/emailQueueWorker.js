@@ -86,7 +86,7 @@ const markJobSent = async (job) =>
 
 const markJobFailed = async (job, error) => {
     const nextAttempts = job.attempts + 1;
-    const hasRemainingAttempts = nextAttempts < job.max_attempts;
+    const hasRemainingAttempts = error?.retryable !== false && nextAttempts < job.max_attempts;
 
     await job.update({
         status: hasRemainingAttempts ? "pending" : "failed",
@@ -102,7 +102,7 @@ const processJob = async (job) => {
     try {
         await sendEmail(job.to, job.subject, job.message);
         await markJobSent(job);
-        console.log("[email] sent (SMTP accepted)", { jobId: job.id });
+        console.log("[email] provider accepted", { jobId: job.id });
     } catch (error) {
         console.error("[email] delivery failed", { jobId: job.id, ...safeEmailError(error) });
         await markJobFailed(job, error);
@@ -115,7 +115,7 @@ const processBatch = async () => {
         if (configurationPaused) console.log("[email] configuration restored; queue resumed");
         configurationPaused = false;
     } catch {
-        if (!configurationPaused) console.warn("[email] queue paused: invalid or missing SMTP settings; jobs and attempts unchanged");
+        if (!configurationPaused) console.warn("[email] queue paused: invalid or missing email provider settings; jobs and attempts unchanged");
         configurationPaused = true;
         return;
     }
