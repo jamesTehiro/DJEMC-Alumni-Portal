@@ -13,7 +13,7 @@ export function createJobPostingForm() {
         posting_details: {
             work_setup: "on-site", vacancy_count: "", industry: "", company_description: "", responsibilities: [],
             required_qualifications: { education: "", experience: "", skills: [], other: [], preferred_start_date: "" },
-            preferred_qualifications: [], compensation: { min: "", max: "", period: "monthly", display: "range" },
+            preferred_qualifications: [], compensation: { min: "", max: "", period: "monthly", display: "negotiable" },
             benefits: { government: [], additional: [], other: [] },
             application: { deadline: "", method: "portal", publish_contact: false, contact_email: "", contact_number: "", walk_in_address: "", office_hours: "", instructions: "" }
         }
@@ -58,17 +58,6 @@ export function validateJobPosting(form, requirements = []) {
     if (!WORK_SETUP_OPTIONS.some(option => option.value === details.work_setup)) errors.push("Select a valid Work Setup.");
     const vacancies = nullableNumber(details.vacancy_count);
     if (vacancies !== null && (!Number.isSafeInteger(vacancies) || vacancies < 1 || vacancies > 100000)) errors.push("Vacancies must be a positive whole number up to 100,000.");
-    const compensation = details.compensation || {};
-    if (!["range", "negotiable", "based-on-experience"].includes(compensation.display)) errors.push("Select a valid Salary Display.");
-    if (!["monthly", "daily", "hourly"].includes(compensation.period)) errors.push("Select a valid Salary Period.");
-    const min = nullableNumber(compensation.min), max = nullableNumber(compensation.max);
-    if (compensation.display === "range") {
-        for (const [name, amount] of [["Salary Minimum", min], ["Salary Maximum", max]]) {
-            if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > 100000000000 || Math.abs(Math.round(amount * 100) - amount * 100) > 0.00001)) errors.push(`${name} must be a non-negative amount with at most two decimal places.`);
-        }
-        if (min !== null && max !== null && min > max) errors.push("Salary Maximum must be greater than or equal to Salary Minimum.");
-    }
-    if (compensation.display === "range" && min === null && max === null) errors.push("Enter a salary amount or select Negotiable / Based on Experience.");
     const application = details.application || {};
     const validDate = (value) => !value || (/^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value);
     for (const [name, value] of [["Application Deadline", application.deadline], ["Preferred Start Date", details.required_qualifications?.preferred_start_date]]) {
@@ -95,7 +84,7 @@ export function jobPostingPayload(form, requirements) {
         responsibilities: cleanPostingList(details.responsibilities),
         required_qualifications: { education: text(qualification.education), experience: text(qualification.experience), skills: cleanPostingList(qualification.skills), other: cleanPostingList(qualification.other), preferred_start_date: text(qualification.preferred_start_date) },
         preferred_qualifications: cleanPostingList(details.preferred_qualifications),
-        compensation: { min: details.compensation?.display === "range" ? nullableNumber(details.compensation?.min) : null, max: details.compensation?.display === "range" ? nullableNumber(details.compensation?.max) : null, period: details.compensation?.period || "monthly", display: details.compensation?.display || "range" },
+        compensation: { min: details.compensation?.display === "range" ? nullableNumber(details.compensation?.min) : null, max: details.compensation?.display === "range" ? nullableNumber(details.compensation?.max) : null, period: details.compensation?.period || "monthly", display: details.compensation?.display || "negotiable" },
         benefits: { government: cleanPostingList(details.benefits?.government), additional: cleanPostingList(details.benefits?.additional), other: cleanPostingList(details.benefits?.other) },
         application: { deadline: text(application.deadline) || null, method: "portal", publish_contact: application.publish_contact === true, contact_email: application.publish_contact === true ? text(application.contact_email) : "", contact_number: application.publish_contact === true ? text(application.contact_number) : "", walk_in_address: application.publish_contact === true ? text(application.walk_in_address) : "", office_hours: application.publish_contact === true ? text(application.office_hours) : "", instructions: text(application.instructions) }
     };

@@ -34,6 +34,21 @@ async function creation({ user = { id: 18, name: "DB Employer", role: "employer"
 }
 test.after(() => db.sequelize.close());
 
+test("both posting roles publish without salary or benefits and retain notifications", async () => {
+    for (const role of ["employer", "admin"]) {
+        const input = body();
+        delete input.posting_details.compensation;
+        delete input.posting_details.benefits;
+        await creation({ user: { id: 18, name: "Verified poster", role, admin_scope: role === "admin" ? "employer" : null, account_status: "verified" }, input }, (res, state) => {
+            assert.equal(res.statusCode, 200);
+            assert.equal(state.jobs.length, 1);
+            assert.ok(state.notifications.length > 0);
+        });
+    }
+    const legacy = body(); delete legacy.posting_details; delete legacy.expected_salary;
+    assert.equal(validateJobFields(legacy).expected_salary, "");
+});
+
 test("MariaDB JSON text reloads as an object and nullable older jobs remain readable", () => {
     const saved = normalizePostingDetails(posting());
     const job = db.Job.build({ posting_details: JSON.stringify(saved) });

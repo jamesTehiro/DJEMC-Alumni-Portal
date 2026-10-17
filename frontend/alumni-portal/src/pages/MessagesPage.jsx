@@ -613,6 +613,13 @@ export default function MessagesPage() {
                                 <FiArrowLeft />
                             </button>
                         )}
+                        {isMobile && activeConversation && (
+                            <div className="chat-contact-avatar" aria-hidden="true">
+                                {activeConversation.participant_avatar_url
+                                    ? <img src={activeConversation.participant_avatar_url} alt="" />
+                                    : <FiUser />}
+                            </div>
+                        )}
                         <div>
                             <h3>{activeConversation ? getConversationDisplayName(activeConversation, viewerProfile || currentUser) : "Select a conversation"}</h3>
                             <p>
@@ -620,6 +627,8 @@ export default function MessagesPage() {
                                     ? "Only your verified batch and course can access this group."
                                     : activeConversation?.type === "course"
                                         ? "Only verified alumni from your course can access this community."
+                                    : ["direct", "legacy"].includes(activeConversation?.type)
+                                        ? "Direct conversation"
                                         : "Shared forum for authorized users."}
                             </p>
                         </div>
@@ -656,7 +665,7 @@ export default function MessagesPage() {
                             return aDate - bDate;
                         }).map((message) => {
                             const isOwnMessage = Number(message.sender_id) === Number(currentUser?.id);
-                            const rowClass = isOwnMessage ? "message-row outgoing" : "message-row incoming";
+                            const rowClass = `message-row ${isOwnMessage ? "outgoing" : "incoming"}${["direct", "legacy"].includes(activeConversation?.type) ? " direct-message" : ""}`;
                             return (
                                 <div key={message.id} className={rowClass}>
                                     {!isOwnMessage && (
@@ -741,9 +750,17 @@ export default function MessagesPage() {
                                 }}
                             />
                             <Form.Control
+                                as={isMobile ? "textarea" : "input"}
+                                rows={1}
                                 placeholder="Write a message..."
                                 value={draft}
-                                onChange={(e) => setDraft(e.target.value)}
+                                onChange={(e) => {
+                                    setDraft(e.target.value);
+                                    if (isMobile) {
+                                        e.target.style.height = "auto";
+                                        e.target.style.height = `${Math.min(e.target.scrollHeight, 100)}px`;
+                                    }
+                                }}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
                                         e.preventDefault();

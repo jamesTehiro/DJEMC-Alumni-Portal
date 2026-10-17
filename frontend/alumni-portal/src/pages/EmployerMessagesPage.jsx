@@ -8,6 +8,7 @@ import useAdaptivePoll from "../hooks/useAdaptivePoll";
 import { mergeUniqueById } from "../utils/list";
 import { formatMessageTimestamp, getConversationDisplayName } from "../utils/messaging";
 import ConversationListItem from "../components/ConversationListItem";
+import MobileChatAvatar from "../components/MobileChatAvatar";
 import MessageOptionsMenu from "../components/MessageOptionsMenu";
 import MessageAttachment from "../components/MessageAttachment";
 import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
@@ -318,6 +319,9 @@ export default function EmployerMessagesPage() {
         return <span>{avatarLetter(person.name)}</span>;
     };
 
+    const selectedConversation = conversations.find((conversation) => conversation.id === activeConversationId);
+    const selectedTitle = getConversationDisplayName(selectedConversation, viewerProfile || currentUser) || "Select a conversation";
+
     return (
         <div className={`messages-page employer-messages-page ${mobileView === "chat" ? "mobile-view-chat" : "mobile-view-list"}`}>
             <div className="messages-shell">
@@ -366,7 +370,11 @@ export default function EmployerMessagesPage() {
                 </aside>
 
                 <section className="chat-panel">
-                    <div className="chat-header"><button type="button" className="mobile-back-btn employer-mobile-back" onClick={() => setMobileView("list")} aria-label="Back to conversations"><FiArrowLeft /></button><div><h3>{getConversationDisplayName(conversations.find((c) => c.id === activeConversationId), viewerProfile || currentUser) || "Select a conversation"}</h3></div></div>
+                    <div className="chat-header">
+                        <button type="button" className="mobile-back-btn employer-mobile-back" onClick={() => setMobileView("list")} aria-label="Back to conversations"><FiArrowLeft /></button>
+                        <MobileChatAvatar src={selectedConversation?.participant_avatar_url} name={selectedTitle} />
+                        <div><h3>{selectedTitle}</h3></div>
+                    </div>
 
                     <div className="chat-stream" ref={chatStreamRef}>
                         {loadingMessages && <div className="chat-state"><Spinner animation="border" size="sm" /> Loading messages...</div>}
@@ -375,7 +383,7 @@ export default function EmployerMessagesPage() {
                         {!loadingMessages && messages.map((message) => {
                             const isOwnMessage = Number(message.sender_id) === Number(currentUser?.id);
                             return (
-                                <div key={message.id || Math.random()} className={`message-row ${isOwnMessage ? "outgoing" : "incoming"}`}>
+                                <div key={message.id || Math.random()} className={`message-row ${isOwnMessage ? "outgoing" : "incoming"}${["direct", "legacy"].includes(selectedConversation?.type) ? " direct-message" : ""}`}>
                                     {!isOwnMessage && (
                                         <button type="button" className="message-avatar" onClick={() => { }}>{renderAvatar(message.sender)}</button>
                                     )}

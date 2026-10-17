@@ -14,6 +14,7 @@ import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview
 import MessageAttachment from "../components/MessageAttachment";
 import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB, isImageAttachment } from "../utils/messageAttachments";
 import "./MessagesPage.css";
+import MobileChatAvatar from "../components/MobileChatAvatar";
 import "./AdminEmployerMessagesPage.css";
 
 const getConversationSearchText = (conversation) => {
@@ -498,11 +499,16 @@ export default function AdminEmployerMessagesPage() {
                     <section className="chat-panel">
                         <div className="chat-header">
                             <button type="button" className="mobile-back-btn" onClick={() => setMobileView("list")} aria-label="Back to conversations"><FiArrowLeft /></button>
+                            <MobileChatAvatar
+                                src={activeConversation?.threadType === "forum" ? null : activeConversation?.participant_avatar_url || activeConversation?.employer?.logo_url}
+                                name={activeConversation?.employer?.organization_name || activeConversation?.employer?.name || "Employer"}
+                                fallback={activeConversation?.threadType === "forum" ? "F" : undefined}
+                            />
                             <div>
                                 <h3>
                                     {activeConversation?.threadType === "forum"
                                         ? activeConversation?.name || "Forum"
-                                        : activeConversation?.employer?.organization_name || "Select an employer"}
+                                        : activeConversation?.employer?.organization_name || activeConversation?.employer?.name || "Select an employer"}
                                 </h3>
                                 <p>
                                     {activeConversation?.threadType === "forum"
@@ -540,7 +546,7 @@ export default function AdminEmployerMessagesPage() {
                                 const attachmentMessage = { ...message, file_url: isForumMessage ? message.file_url : message.attachment };
                                 const hasAttachment = !!attachmentMessage.file_url;
                                 const imageAttachment = isImageAttachment(attachmentMessage);
-                                const rowClass = isSelf ? "message-row outgoing" : "message-row incoming";
+                                const rowClass = `message-row ${isSelf ? "outgoing" : "incoming"}${isForumMessage ? "" : " direct-message"}`;
                                 return (
                                     <div key={message.id} className={rowClass}>
                                         {!isSelf && (

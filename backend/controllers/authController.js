@@ -102,6 +102,11 @@ exports.register = async (req, res, next) => {
     try {
         const { name, email, password, role, company_address, companyAddress, website_url, websiteUrl, course, graduationYear, graduation_year } = req.body;
         const proofDocumentFile = req.files?.proof_document?.[0];
+        const { isValidGraduationYear, GRADUATION_YEAR_ERROR } = require("../utils/graduationYear");
+        if (role === "alumni" && (!isValidGraduationYear(graduationYear ?? graduation_year) ||
+            (graduationYear != null && graduation_year != null && String(graduationYear) !== String(graduation_year)))) {
+            return res.status(400).json({ msg: GRADUATION_YEAR_ERROR });
+        }
 
         if (!name || !email || !password || !role) {
             return res.status(400).json({ msg: "Name, email, password, and role are required." });
@@ -147,7 +152,10 @@ exports.register = async (req, res, next) => {
                     // In local-disk mode, never store multer's absolute Windows path.
                     businessPermitFile.storageRef ||
                     `/uploads/documents/${businessPermitFile.filename}`;
-                await db.EmployerProfile.findOrCreate({
+                if (!businessPermitFile.storageRef && !businessPermitFile.filename) {
+                    throw new Error("Business permit storage did not return a file reference. Registration was not completed.");
+                }
+                const [employerProfile] = await db.EmployerProfile.findOrCreate({
                     where: { user_id: createdUser.id },
                     defaults: {
                         user_id: createdUser.id,
@@ -160,6 +168,12 @@ exports.register = async (req, res, next) => {
                     },
                     transaction
                 });
+                // Defaults are ignored when a profile already exists.
+                await employerProfile.update({ business_permit_path: businessPermitPath }, { transaction });
+                await employerProfile.reload({ transaction });
+                if (employerProfile.business_permit_path !== businessPermitPath) {
+                    throw new Error("Business permit could not be saved. Registration was not completed.");
+                }
             }
 
             if (role === "alumni") {

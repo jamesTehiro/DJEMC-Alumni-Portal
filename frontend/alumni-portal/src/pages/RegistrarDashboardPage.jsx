@@ -130,7 +130,7 @@ function DoughnutChartPanel({ insights, loading }) {
 
             <div className="doughnut-stats-section">
                 <h4 className="doughnut-stats-title">Quick Statistics</h4>
-                <div className="doughnut-stats-grid">
+                <div className="doughnut-stats-grid mobile-scroll-cards">
                     <div className="doughnut-stat-card">
                         <div className="doughnut-stat-value" style={{ color: DJEMC_GREEN_PRIMARY }}>{percentages.employed.toFixed(1)}%</div>
                         <div className="doughnut-stat-label">Employed</div>
@@ -725,7 +725,7 @@ export default function RegistrarDashboardPage() {
             {message && <p className="notice success">{message}</p>}
             {error && <p className="notice error">{error}</p>}
 
-            <section className="registrar-dashboard-cards">
+            <section className="registrar-dashboard-cards mobile-scroll-cards">
                 <button
                     type="button"
                     className="registrar-dashboard-card registrar-card-pending"

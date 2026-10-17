@@ -21,6 +21,7 @@ const requirements = [{ requirement_code: "custom_cv", label: "Resume / CV", req
 const complete = () => {
     const form = createJobPostingForm();
     Object.assign(form, { title: "HR Assistant", description: "Help our people team.", location: "San Jose", course_target: "BSBA", interview_details: { venue: "Office", place: "Dinagat", date: "2027-01-03", time: "09:00", contact_info: "hr@example.invalid", what_to_bring: "CV" } });
+    form.posting_details.compensation.display = "range";
     form.posting_details.compensation.min = "15000";
     form.posting_details.compensation.max = "20000";
     return form;
@@ -51,17 +52,14 @@ test("required job fields and requirements are validated", () => {
     const form = complete(); form.title = "   ";
     assert.ok(validateJobPosting(form, requirements).includes("Job Title is required."));
 });
-test("salary validation rejects negatives, invalid numbers, inverted ranges and missing amounts", () => {
-    for (const [min, max] of [[-1, 100], ["invalid", 100], [200, 100], ["", ""], [Infinity, 200], ["1.234", 200]]) {
-        const form = complete(); Object.assign(form.posting_details.compensation, { min, max });
-        assert.ok(validateJobPosting(form, requirements).some(error => /Salary|salary/.test(error)), `${min}/${max}`);
-    }
-    for (const display of ["negotiable", "based-on-experience"]) {
-        const form = complete(); Object.assign(form.posting_details.compensation, { min: "", max: "", display });
-        assert.deepEqual(validateJobPosting(form, requirements), []);
-        assert.ok(jobPostingPayload(form, requirements).expected_salary);
-    }
+test("salary and benefits are not required by the Post Job form", () => {
+    const form = complete();
+    delete form.posting_details.compensation;
+    delete form.posting_details.benefits;
+    assert.deepEqual(validateJobPosting(form, requirements), []);
+    assert.equal(jobPostingPayload(form, requirements).posting_details.compensation.display, "negotiable");
 });
+
 test("vacancies are optional or positive bounded integers and work setup uses real enums", () => {
     const form = complete();
     assert.equal(jobPostingPayload(form, requirements).posting_details.vacancy_count, null);
@@ -143,7 +141,9 @@ test("advertisement escapes text and tolerates missing or malformed optional fie
 });
 test("shared form renders all sections with dynamic list actions and privacy defaults", () => {
     const html = renderToStaticMarkup(React.createElement(PostingForm, { value: createJobPostingForm(), onChange() {}, profile: { admin_organization: "DJEMC" }, requirements: [], requirementsEditor: React.createElement("button", { type: "button" }, "+ Custom Requirement"), onConfigureInterview() {}, onPublish() {} }));
-    for (const value of ["Basic Job Information", "About the Company", "About the Role", "Qualifications", "Salary &amp; Benefits", "How to Apply", "Application Requirements", "Preview Job Posting", "+ Custom Requirement", "Add Responsibility", "Add Skill", "Add Qualification", "Add Benefit"]) assert.ok(html.includes(value), value);
+    for (const value of ["Basic Job Information", "About the Company", "About the Role", "Qualifications", "How to Apply", "Application Requirements", "Preview Job Posting", "+ Custom Requirement", "Add Responsibility", "Add Skill", "Add Qualification"]) assert.ok(html.includes(value), value);
+    for (const removed of ["Salary &amp; Benefits", "Salary Display", "Salary Period", "Government Benefits", "Add Benefit"]) assert.ok(!html.includes(removed));
+    assert.deepEqual([...html.matchAll(/job-posting-section-number">(\d+)</g)].map(match => Number(match[1])), [1,2,3,4,5,6]);
     assert.ok(!html.includes('type="checkbox" checked')); assert.ok(!html.includes("Publish Job</button>"));
     assert.ok(!html.includes("Contact Email (optional)")); assert.match(html, /readonly=""/i);
 });

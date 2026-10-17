@@ -410,6 +410,7 @@ exports.getEmployerUsers = async (req, res) => {
                 } : null;
 
                 if (plain.EmployerProfile?.business_permit_path) {
+                    plain.EmployerProfile.business_permit_name = require("../services/objectStorage").getStoredFileOriginalName(plain.EmployerProfile.business_permit_path) || String(plain.EmployerProfile.business_permit_path).split(/[/\\]/).pop();
                     const normalized = normalizeBusinessPermitPath(plain.EmployerProfile.business_permit_path);
                     plain.EmployerProfile.business_permit_path = toSecureFileUrl(normalized);
                     if (!String(plain.EmployerProfile.business_permit_path).startsWith("/api/files/")) {

@@ -4,6 +4,8 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const { Op } = require("sequelize");
 const db = require("../models");
 const sendEmail = require("../utils/email");
+const { safeEmailError } = require("../utils/emailDiagnostics");
+let configurationPaused = false;
 
 const pollIntervalMs = Number(process.env.EMAIL_QUEUE_POLL_MS || 2000);
 const batchSize = Number(process.env.EMAIL_QUEUE_BATCH_SIZE || 20);
@@ -90,33 +92,33 @@ const markJobFailed = async (job, error) => {
         status: hasRemainingAttempts ? "pending" : "failed",
         attempts: nextAttempts,
         processing_started_at: null,
-        last_error: error.message,
+        last_error: JSON.stringify(safeEmailError(error)),
         scheduled_at: hasRemainingAttempts ? new Date(Date.now() + retryDelayMs) : job.scheduled_at
     });
 };
 
 const processJob = async (job) => {
-    console.log("=== [DEBUG] EmailQueueWorker processing job ===");
-    console.log("[DEBUG] Job ID:", job.id);
-    console.log("[DEBUG] To:", job.to);
-    console.log("[DEBUG] Subject:", job.subject);
-    console.log("[DEBUG] Status:", job.status);
-    console.log("[DEBUG] Attempts:", job.attempts);
+    console.log("[email] processing", { jobId: job.id, attempts: job.attempts });
     try {
-        console.log("[DEBUG] Calling sendEmail()...");
         await sendEmail(job.to, job.subject, job.message);
-        console.log("[DEBUG] sendEmail() completed successfully");
         await markJobSent(job);
-        console.log("[DEBUG] Job marked as sent. New status: sent");
+        console.log("[email] sent (SMTP accepted)", { jobId: job.id });
     } catch (error) {
-        console.error("[DEBUG] sendEmail() FAILED:", error.message);
-        console.error("[DEBUG] sendEmail() error stack:", error.stack);
+        console.error("[email] delivery failed", { jobId: job.id, ...safeEmailError(error) });
         await markJobFailed(job, error);
-        console.log("[DEBUG] Job marked as failed. New status:", job.status);
     }
 };
 
 const processBatch = async () => {
+    try {
+        sendEmail.validateConfiguration?.();
+        if (configurationPaused) console.log("[email] configuration restored; queue resumed");
+        configurationPaused = false;
+    } catch {
+        if (!configurationPaused) console.warn("[email] queue paused: invalid or missing SMTP settings; jobs and attempts unchanged");
+        configurationPaused = true;
+        return;
+    }
     const jobs = await reserveJobs();
     if (!jobs.length) return;
 
@@ -128,6 +130,7 @@ const processBatch = async () => {
 };
 
 const main = async () => {
+    sendEmail.logConfiguration();
     await db.sequelize.authenticate();
 
     // eslint-disable-next-line no-console
@@ -138,9 +141,9 @@ const main = async () => {
             await processBatch();
         } catch (error) {
             // eslint-disable-next-line no-console
-            console.error("Email queue worker error:", error);
+            console.error("Email queue worker error:", safeEmailError(error));
         } finally {
-            setTimeout(run, pollIntervalMs).unref();
+            setTimeout(run, pollIntervalMs);
         }
     };
 
@@ -150,7 +153,7 @@ const main = async () => {
 if (require.main === module) {
     main().catch((error) => {
         // eslint-disable-next-line no-console
-        console.error("Failed to start email queue worker:", error);
+        console.error("Failed to start email queue worker:", safeEmailError(error));
         process.exit(1);
     });
 }

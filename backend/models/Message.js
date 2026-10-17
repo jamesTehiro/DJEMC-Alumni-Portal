@@ -20,7 +20,7 @@ module.exports = (sequelize, Sequelize) => {
                 allowNull: true
             },
             file_url: {
-                type: Sequelize.STRING,
+                type: Sequelize.TEXT,
                 allowNull: true
             },
             file_name: {

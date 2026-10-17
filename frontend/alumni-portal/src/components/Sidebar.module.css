@@ -180,6 +180,8 @@
         z-index: 45;
         width: 44px;
         height: 44px;
+        padding: 0;
+        flex-shrink: 0;
         align-items: center;
         justify-content: center;
         border: 1px solid var(--sidebar-toggle-border, rgba(255, 255, 255, 0.22));
@@ -191,6 +193,15 @@
 
     .mobileNavToggle[aria-expanded="true"] {
         left: calc(min(84vw, 300px) - 56px);
+    }
+
+    .mobileNavToggle svg {
+        display: block;
+        width: 24px;
+        height: 24px;
+        flex: 0 0 24px;
+        stroke: currentColor;
+        stroke-width: 2.5;
     }
 
     .sidebar,

@@ -1,3 +1,4 @@
+import ApplicantDocumentWorkspace, { ApplicantResumePrintButton } from "../components/ApplicantDocumentWorkspace";
 import ApplicantResumePreview from "../components/ApplicantResumePreview";
 import { isResumeRequirement, getApplicantDocumentFilename, getApplicantResumeDocument, getApplicantResumeFileUrl } from "../utils/applicantResume";
 import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../utils/applicationDecision";
@@ -690,7 +691,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         if (documentPreviewUrlRef.current) URL.revokeObjectURL(documentPreviewUrlRef.current);
         documentPreviewUrlRef.current = null;
         setPreviewDocument(null);
-        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume && !documentEntry?.isLegacyDocument)) {
             setPreviewDocumentError("This application document is missing its file record.");
             setPreviewDocumentLoading(false);
             return;
@@ -712,7 +713,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             setPreviewDocument({
                 url: objectUrl,
                 type: getDocumentPreviewType(documentEntry, blob),
-                fileName: documentEntry.file_name || "document"
+                fileName: getApplicantDocumentFilename(documentEntry)
             });
         } catch (error) {
             if (requestId === documentPreviewRequestRef.current) {
@@ -744,7 +745,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     };
 
     const downloadApplicationDocument = async (documentEntry, applicationId) => {
-        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume && !documentEntry?.isLegacyDocument)) {
             setPreviewDocumentError("This application document is missing its file record.");
             setPreviewDocument(null);
             return;
@@ -756,7 +757,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             const objectUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = objectUrl;
-            link.download = String(documentEntry.file_name || "document").replace(/[\\/:*?"<>|\r\n]/g, "_");
+            link.download = String(getApplicantDocumentFilename(documentEntry)).replace(/[\\/:*?"<>|\r\n]/g, "_");
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -1331,7 +1332,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                     )}
                     {activeView === "dashboard" && (
                         <>
-                            <div className="emp-dash-metrics">
+                            <div className="emp-dash-metrics mobile-scroll-cards">
                                 <button
                                     type="button"
                                     className={`emp-dash-card ${dashboardPanel === "activity" ? "active" : ""}`}
@@ -1635,14 +1636,19 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                 centered
                 size="lg"
                 scrollable
-                dialogClassName="resume-dialog"
-                contentClassName="resume-content"
+                dialogClassName="resume-dialog applicant-details-dialog"
+                contentClassName="resume-content applicant-details-content"
                 backdropClassName="resume-backdrop"
             >
                 <Modal.Header closeButton>
                     <Modal.Title>Applicant Details</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
+                    {selectedApplication && <ApplicantDocumentWorkspace key={selectedApplication.id} application={selectedApplication} onDownload={downloadApplicationDocument} onView={previewDocumentFile} />}
+                    <details className="applicant-extra-details">
+                        <summary>Application information</summary>
+                        <Button variant="link" size="sm" onClick={handlePrintApplication}>Print Application Summary</Button>
+
                     {getApplicantResumeDocument(selectedApplication)?.isLegacyResume && (() => {
                         const resume = getApplicantResumeDocument(selectedApplication);
                         return <section className="applicant-legacy-resume" aria-label="Submitted resume">
@@ -2033,16 +2039,11 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                         onClose={() => setInlineResume(null)}
                         onView={() => previewDocumentFile(inlineResume.document, selectedApplication.id)}
                         onDownload={() => downloadApplicationDocument(inlineResume.document, selectedApplication.id)} />}
+                    </details>
                 </Modal.Body>
 
                 <Modal.Footer className="applicant-modal-footer">
-                    <Button
-                        variant="outline-dark"
-                        onClick={handlePrintApplication}
-                        disabled={!selectedApplication}
-                    >
-                        Print Application
-                    </Button>
+                    <ApplicantResumePrintButton application={selectedApplication} />
                     <div className="applicant-modal-actions">
                         <span role="status" className="status-pill">{decisionSaving ? "Processing..." : applicationStatusLabel(selectedApplication?.status)}</span>
                         <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Approve</Button>

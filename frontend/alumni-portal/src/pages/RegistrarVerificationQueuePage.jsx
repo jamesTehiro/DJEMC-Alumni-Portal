@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Alert, Badge, Button, Modal } from "react-bootstrap";
 import { FiSearch, FiEye, FiCheck, FiUser, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { FaUserCircle } from "react-icons/fa";
@@ -10,6 +10,7 @@ import useRenderDebug from "../hooks/useRenderDebug";
 import useRegistrarAdminData from "./registrar/useRegistrarAdminData";
 import "./AdminEmployerPage.css";
 import "./RegistrarVerificationQueuePage.css";
+import GraduationProofPreview from "../components/GraduationProofPreview";
 
 export default function RegistrarVerificationQueuePage() {
     useRenderDebug("RegistrarVerificationQueuePage");
@@ -68,12 +69,6 @@ export default function RegistrarVerificationQueuePage() {
         finally { reviewInProgress.current = false; setReviewBusy(false); }
     };
     const selectedProofName = selectedUser?.AlumniProfile?.proof_document_name || "Proof of Graduation";
-    const selectedProofType = useMemo(() => {
-        const lower = String(selectedProofName || "").toLowerCase();
-        if (lower.endsWith(".pdf")) return "pdf";
-        if (/\.(png|jpe?g|webp|gif|bmp)$/i.test(lower)) return "image";
-        return "generic";
-    }, [selectedProofName]);
 
     if (!isAllowed) {
         return (
@@ -143,25 +138,8 @@ export default function RegistrarVerificationQueuePage() {
                     <Modal.Title>Proof of Graduation</Modal.Title>
                 </Modal.Header>
                 <Modal.Body className="text-center">
-                    {selectedProof ? (
-                        selectedProofType === "pdf" ? (
-                            <iframe
-                                title={selectedProofName}
-                                src={selectedProof}
-                                style={{ width: "100%", minHeight: "70vh", border: "none" }}
-                            />
-                        ) : selectedProofType === "image" ? (
-                            <img
-                                src={selectedProof}
-                                alt={selectedProofName}
-                                style={{ maxWidth: "100%", maxHeight: "70vh", objectFit: "contain" }}
-                            />
-                        ) : (
-                            <div>
-                                <p>Unable to preview this file inline.</p>
-                                <a href={selectedProof} target="_blank" rel="noreferrer">Open document</a>
-                            </div>
-                        )
+                    {showProofModal && selectedProof ? (
+                        <GraduationProofPreview path={selectedProof} name={selectedProofName} />
                     ) : (
                         <p>No document available.</p>
                     )}

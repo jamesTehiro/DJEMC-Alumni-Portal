@@ -91,7 +91,7 @@ test("registration responds successfully only after its transaction completes", 
     try {
         const res = createRes();
         await authController.register({
-            body: { name: "Test Registration", email: "registration-test@example.invalid", password: "test-password", role: "alumni" },
+            body: { name: "Test Registration", email: "registration-test@example.invalid", password: "test-password", role: "alumni", graduationYear: "2023" },
             files: {}
         }, res, (err) => { throw err; });
         assert.equal(transactionCompleted, true);
@@ -129,7 +129,7 @@ test("registration database insert failure returns an error and never reports su
         const res = createRes();
         let forwardedError;
         await authController.register({
-            body: { name: "Test Registration", email: "failure-test@example.invalid", password: "test-password", role: "alumni" },
+            body: { name: "Test Registration", email: "failure-test@example.invalid", password: "test-password", role: "alumni", graduationYear: "2023" },
             files: {}
         }, res, (err) => { forwardedError = err; });
         assert.equal(transactionCompleted, false);

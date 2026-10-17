@@ -48,7 +48,7 @@ export default function MasterAlumniRecordsPanel({ records = [], loading = false
 
     return <div className="master-alumni-records">
         {actions && <div className="master-records-toolbar">{actions}</div>}
-        <section className="master-records-metrics" aria-label="Master records summary">
+        <section className="master-records-metrics mobile-scroll-cards" aria-label="Master records summary">
             {[
                 { label: "Total Alumni Records", count: records.length, icon: <FaUsers />, tone: "green" },
                 { label: "Academic Programs", count: programs.length, icon: <FaGraduationCap />, tone: "amber" },

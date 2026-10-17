@@ -1,0 +1,101 @@
+.applicant-details-dialog.modal-dialog {
+    width: min(1080px, calc(100vw - 32px));
+    max-width: none;
+    margin: 16px auto;
+}
+.applicant-details-content.resume-content {
+    max-height: calc(100dvh - 32px);
+    border: 1px solid #e1e6eb;
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 24px 72px #071c1938;
+    overflow: hidden;
+    color: #101a30;
+}
+.applicant-details-content.resume-content > .modal-header {
+    flex-shrink: 0;
+    padding: 18px 22px;
+    border-bottom: 1px solid #eef0f3;
+}
+.applicant-details-content.resume-content .modal-title { font-size: 24px; font-weight: 650; }
+.applicant-details-content.resume-content > .modal-body { padding: 18px 20px 12px; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+.applicant-document-profile { display: flex; align-items: center; gap: 22px; padding: 0 30px 18px; border-bottom: 1px solid #dce3eb; margin-bottom: 16px; }
+.applicant-document-profile > div:last-child { min-width: 0; }
+.applicant-document-photo { display: grid; place-items: center; width: 96px; height: 104px; flex: 0 0 96px; border: 1px solid #d5dee8; border-radius: 12px; background: #f3f6f8; overflow: hidden; color: #758795; }
+.applicant-document-photo img { width: 100%; height: 100%; object-fit: cover; }
+.applicant-document-photo > svg { width: 40px; height: 40px; }
+.applicant-document-profile h2 { margin: 0 0 3px; font-size: clamp(21px, 2.4vw, 28px); font-weight: 800; overflow-wrap: anywhere; }
+.applicant-details-content.resume-content .applicant-document-profile p { margin: 0 0 11px; color: #101a30; font-size: 17px; font-weight: 650; overflow-wrap: anywhere; }
+.applicant-document-profile span { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: #60768d; }
+.applicant-document-columns { display: grid; grid-template-columns: 252px minmax(0, 1fr); gap: 16px; align-items: stretch; min-width: 0; }
+.applicant-document-sidebar, .applicant-document-viewer { min-width: 0; border: 1px solid #dce3eb; border-radius: 10px; background: #fff; padding: 14px 12px; }
+.applicant-document-sidebar h3, .applicant-document-toolbar h3 { color: #101a30; font-size: 17px; font-weight: 750; margin: 0 0 12px; }
+.applicant-document-sidebar h3 { padding: 0 5px; }
+.applicant-document-list { display: flex; flex-direction: column; gap: 7px; max-height: calc(52dvh + 40px); overflow-y: auto; }
+.applicant-document-card { display: flex; gap: 16px; align-items: center; flex-shrink: 0; min-width: 0; width: 100%; min-height: 78px; padding: 12px 15px; border: 1px solid #dce3eb; border-radius: 8px; background: #fafbfc; color: #192334; text-align: left; }
+.applicant-document-card > svg { flex: 0 0 29px; width: 29px; height: 35px; stroke-width: 1.7; }
+.applicant-document-card > span { min-width: 0; display: grid; gap: 5px; }
+.applicant-document-card strong { font-size: 16px; font-weight: 700; }
+.applicant-document-card small { color: #475468; font-size: 12px; overflow-wrap: anywhere; }
+.applicant-document-card.selected { border-color: #cfebdf; border-left: 3px solid #008650; background: #eaf7f0; color: #00693d; }
+.applicant-document-card.selected small { color: #00693d; }
+.applicant-document-card.unavailable { background: #fbfcfc; color: #687584; }
+.applicant-document-card.unavailable small { font-size: 11px; color: #78828d; }
+.applicant-document-card:hover { border-color: #83b89d; }
+.applicant-document-card:focus-visible { outline: 3px solid #8bc9aa; outline-offset: -3px; }
+.applicant-document-review { text-transform: capitalize; }
+.applicant-document-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 2px 12px; }
+.applicant-document-toolbar > div { min-width: 0; }
+.applicant-document-toolbar h3 { margin-bottom: 3px; }
+.applicant-details-content.resume-content .applicant-document-toolbar p { margin: 0; color: #48566b; font-size: 13px; overflow-wrap: anywhere; }
+.applicant-document-toolbar .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex-shrink: 0; min-height: 40px; font-size: 14px; color: #00834f; border-color: #13a46a; }
+.applicant-document-embedded.applicant-resume-preview { padding: 0; margin: 0; border: 0; border-radius: 0; color: #243d33; }
+.applicant-document-embedded .applicant-resume-preview-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.applicant-document-embedded .applicant-resume-preview-actions { margin: 5px 0 8px; font-size: 11px; }
+.applicant-document-embedded .applicant-resume-preview-button { padding: 3px 7px; background: #fff; border-color: #dce3eb; }
+.applicant-document-embedded .applicant-resume-preview-pdf { height: clamp(320px, 51dvh, 560px); min-height: 0; border: 0; border-radius: 5px; background: #454c50; }
+.applicant-document-embedded .applicant-resume-preview-image-scroll { height: clamp(320px, 51dvh, 560px); max-height: none; padding: 16px; border-radius: 5px; border-color: #e0e6ec; }
+.applicant-document-embedded .applicant-resume-preview-image-scroll img { object-fit: contain; margin: auto; }
+.applicant-document-embedded .applicant-resume-preview-hint { font-size: 10px; margin-bottom: 0; }
+.applicant-document-unavailable { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 320px; height: 51dvh; max-height: 560px; padding: 24px; background: #f6f8fa; color: #6d7a89; text-align: center; }
+.applicant-document-unavailable > svg { width: 44px; height: 44px; margin-bottom: 15px; }
+.applicant-extra-details { margin: 14px 0 0; border-top: 1px solid #edf0f3; padding-top: 10px; font-size: 13px; }
+.applicant-extra-details > summary { cursor: pointer; color: #4f655c; font-weight: 600; }
+.applicant-extra-details > .btn { margin: 12px 0; }
+.applicant-extra-details .applicant-print-header { display: none; }
+.applicant-details-content.resume-content > .applicant-modal-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; flex-shrink: 0; margin: 0; padding: 16px 22px; background: #fff; border-top: 1px solid #e3e8ee; }
+.applicant-details-content.resume-content .applicant-modal-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.applicant-details-content.resume-content .applicant-modal-actions .status-pill { padding: 0 5px; background: none; color: #4a515d; font-size: 11px; }
+.applicant-details-content.resume-content .applicant-modal-actions .btn { min-width: 94px; min-height: 44px; border-radius: 7px; }
+.applicant-details-content.resume-content .applicant-modal-actions .btn-success { background: #008c58; border-color: #008c58; }
+.applicant-resume-print-control { min-width: 0; max-width: 100%; }
+.applicant-resume-print-control .btn { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; border-color: #68737d; color: #28343e; font-size: 16px; padding-inline: 17px; }
+.applicant-resume-print-control small { display: block; max-width: 330px; color: #a52e36; margin-top: 4px; font-size: 11px; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+    .applicant-details-dialog.modal-dialog { width: calc(100vw - 16px); margin: 8px auto; }
+    .applicant-details-content.resume-content { max-height: calc(100dvh - 16px); border-radius: 13px; }
+    .applicant-details-content.resume-content > .modal-header { padding: 13px 15px; }
+    .applicant-details-content.resume-content > .modal-body { padding: 14px 12px; }
+    .applicant-document-profile { gap: 12px; padding: 0 0 14px; }
+    .applicant-document-photo { width: 68px; height: 76px; flex-basis: 68px; }
+    .applicant-details-content.resume-content .applicant-document-profile p { font-size: 14px; }
+    .applicant-document-profile span { font-size: 9px; }
+    .applicant-document-columns { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .applicant-document-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 240px; }
+    .applicant-document-card { padding: 10px; gap: 8px; min-height: 70px; }
+    .applicant-document-card strong { font-size: 14px; }
+    .applicant-document-card > svg { flex-basis: 22px; width: 22px; }
+    .applicant-document-card small { font-size: 11px; }
+    .applicant-document-toolbar { flex-wrap: wrap; gap: 8px; }
+    .applicant-document-embedded .applicant-resume-preview-pdf, .applicant-document-embedded .applicant-resume-preview-image-scroll { height: 50dvh; min-height: 280px; }
+    .applicant-details-content.resume-content > .applicant-modal-footer { padding: 12px; gap: 10px; }
+    .applicant-details-content.resume-content .applicant-modal-actions { gap: 8px; margin: 0; }
+}
+@media (max-width: 430px) {
+    .applicant-document-list { grid-template-columns: minmax(0, 1fr); max-height: 230px; }
+    .applicant-details-content.resume-content .modal-title { font-size: 21px; }
+    .applicant-resume-print-control { width: 100%; }
+    .applicant-resume-print-control .btn { min-height: 40px; width: 100%; font-size: 14px; }
+    .applicant-details-content.resume-content .applicant-modal-actions { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; }
+    .applicant-details-content.resume-content .applicant-modal-actions .btn { min-width: 76px; padding-inline: 10px; }
+}

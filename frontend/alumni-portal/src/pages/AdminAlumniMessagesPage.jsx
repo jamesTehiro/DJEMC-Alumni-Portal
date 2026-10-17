@@ -14,6 +14,7 @@ import MessageAttachment from "../components/MessageAttachment";
 import AttachmentSelectionPreview from "../components/AttachmentSelectionPreview";
 import { ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENT_MB, isImageAttachment } from "../utils/messageAttachments";
 import "./MessagesPage.css";
+import MobileChatAvatar from "../components/MobileChatAvatar";
 
 const PAGE_SIZE = 30;
 
@@ -331,6 +332,7 @@ export default function AdminAlumniMessagesPage() {
                     <section className="chat-panel">
                         <div className="chat-header">
                             <button type="button" className="mobile-back-btn" onClick={() => setMobileView("list")} aria-label="Back to conversations"><FiArrowLeft /></button>
+                            <MobileChatAvatar name={forumConversation?.name || "Forum"} fallback="F" />
                             <div>
                                 <h3>{forumConversation?.name || "Forum"}</h3>
                                 <p>Shared forum for authorized users.</p>

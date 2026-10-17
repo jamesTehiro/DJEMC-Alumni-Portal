@@ -1,6 +1,8 @@
 const db = require("../models");
 const notificationController = require("./notificationController");
 const auditService = require("../services/auditService");
+const { toSecureFileUrl } = require("./fileController");
+const { getStoredFileOriginalName } = require("../services/objectStorage");
 
 exports.getPendingAlumniUsers = async (_req, res) => {
     try {
@@ -13,10 +15,9 @@ exports.getPendingAlumniUsers = async (_req, res) => {
         const serialized = users.map((user) => {
             const profile = user.AlumniProfile ? user.AlumniProfile.toJSON() : {};
             if (profile.proof_document_path) {
-                const token = Buffer.from(String(profile.proof_document_path), "utf8").toString("base64url");
-                profile.proof_document_url = `/api/files/secure/${token}`;
+                profile.proof_document_url = toSecureFileUrl(profile.proof_document_path);
                 profile.has_proof_document = true;
-                profile.proof_document_name = String(profile.proof_document_path).split("/").pop() || "proof-document";
+                profile.proof_document_name = getStoredFileOriginalName(profile.proof_document_path) || String(profile.proof_document_path).split(/[/\\]/).pop() || "proof-document";
             } else {
                 profile.proof_document_url = null;
                 profile.has_proof_document = false;

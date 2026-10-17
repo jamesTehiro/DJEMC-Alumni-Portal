@@ -25,6 +25,7 @@ router.delete("/alumni/announcements/:id", adminScopeMiddleware("alumni"), admin
 // is a single source of truth for job posting, application review, interviews,
 // hiring, notifications, and dynamic application requirements.
 router.get("/employer/users", adminScopeMiddleware("employer"), adminController.getEmployerUsers);
+router.put("/employer/users/:userId/business-permit", adminScopeMiddleware("employer"), require("../middleware/uploadMiddleware").employerRegistrationUpload, require("../controllers/employerPermitController").replacePermit);
 router.put("/employer/users/:userId/status", adminScopeMiddleware("employer"), adminController.updateEmployerUserStatus);
 router.post("/employer/warnings", adminScopeMiddleware("employer"), adminController.createEmployerWarning);
 // Admin employer jobs are already guarded by adminScopeMiddleware("employer") above,

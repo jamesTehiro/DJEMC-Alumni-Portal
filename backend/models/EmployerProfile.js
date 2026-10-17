@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
             organization_name: DataTypes.STRING,
             industry: DataTypes.STRING,
             website_url: DataTypes.STRING,
-            business_permit_path: DataTypes.STRING,
+            business_permit_path: DataTypes.TEXT,
             address: DataTypes.STRING,
             contact_email: DataTypes.STRING,
             logo_url: DataTypes.TEXT("long"),

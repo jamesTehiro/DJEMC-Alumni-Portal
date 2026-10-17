@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: true
             },
             attachment: {
-                type: DataTypes.STRING,
+                type: DataTypes.TEXT,
                 allowNull: true
             },
             file_name: {

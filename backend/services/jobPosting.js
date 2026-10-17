@@ -125,7 +125,7 @@ function validateJobFields(body, creating = true) {
         result.posting_details = normalizePostingDetails(body.posting_details);
         result.expected_salary = salaryLabel(result.posting_details);
     } else if (creating || body.expected_salary !== undefined) {
-        result.expected_salary = text(body.expected_salary, "Expected salary", 255, true);
+        result.expected_salary = text(body.expected_salary, "Expected salary", 255);
     }
     return result;
 }

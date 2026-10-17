@@ -1,3 +1,4 @@
+import ApplicantDocumentWorkspace, { ApplicantResumePrintButton } from "../components/ApplicantDocumentWorkspace";
 import ApplicantResumePreview from "../components/ApplicantResumePreview";
 import { isResumeRequirement, getApplicantDocumentFilename, getApplicantResumeDocument, getApplicantResumeFileUrl } from "../utils/applicantResume";
 import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../utils/applicationDecision";
@@ -650,7 +651,7 @@ export default function AdminEmployerPage({
         if (documentPreviewUrlRef.current) URL.revokeObjectURL(documentPreviewUrlRef.current);
         documentPreviewUrlRef.current = null;
         setPreviewDocument(null);
-        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume && !documentEntry?.isLegacyDocument)) {
             setPreviewDocumentError("This application document is missing its file record.");
             setPreviewDocumentLoading(false);
             return;
@@ -672,7 +673,7 @@ export default function AdminEmployerPage({
             setPreviewDocument({
                 url: objectUrl,
                 type: previewType,
-                fileName: documentEntry.file_name || "document"
+                fileName: getApplicantDocumentFilename(documentEntry)
             });
         } catch (error) {
             if (requestId === documentPreviewRequestRef.current) {
@@ -685,7 +686,7 @@ export default function AdminEmployerPage({
     };
 
     const downloadApplicationDocument = async (documentEntry, applicationId) => {
-        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume)) {
+        if (!applicationId || (!documentEntry?.id && !documentEntry?.isLegacyResume && !documentEntry?.isLegacyDocument)) {
             setError("This application document is missing its file record.");
             return;
         }
@@ -699,7 +700,7 @@ export default function AdminEmployerPage({
             const objectUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
             link.href = objectUrl;
-            link.download = String(documentEntry.file_name || "document").replace(/[\\/:*?"<>|\r\n]/g, "_");
+            link.download = String(getApplicantDocumentFilename(documentEntry)).replace(/[\\/:*?"<>|\r\n]/g, "_");
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -741,7 +742,7 @@ export default function AdminEmployerPage({
                     {message && <p className="notice success">{message}</p>}
                     {error && <p className="notice error">{error}</p>}
 
-                    <section className="metric-grid">
+                    <section className="metric-grid mobile-scroll-cards">
                         <button
                             type="button"
                             className={`metric-card metric-overview-card metric-card-queue${activeView === "pendingAccounts" ? " active" : ""}`}
@@ -867,14 +868,19 @@ export default function AdminEmployerPage({
                 centered
                 size="lg"
                 scrollable
-                dialogClassName="resume-dialog"
-                contentClassName="resume-content"
+                dialogClassName="resume-dialog applicant-details-dialog"
+                contentClassName="resume-content applicant-details-content"
                 backdropClassName="resume-backdrop"
             >
                 <Modal.Header closeButton>
                     <Modal.Title>Applicant Details</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
+                    {selectedApplication && <ApplicantDocumentWorkspace key={selectedApplication.id} application={selectedApplication} onDownload={downloadApplicationDocument} onView={previewDocumentFile} />}
+                    <details className="applicant-extra-details">
+                        <summary>Application information</summary>
+                        <Button variant="link" size="sm" onClick={handlePrintApplication}>Print Application Summary</Button>
+
                     {getApplicantResumeDocument(selectedApplication)?.isLegacyResume && (() => {
                         const resume = getApplicantResumeDocument(selectedApplication);
                         return <section className="applicant-legacy-resume" aria-label="Submitted resume">
@@ -1238,11 +1244,10 @@ export default function AdminEmployerPage({
                         onClose={() => setInlineResume(null)}
                         onView={() => previewDocumentFile(inlineResume.document, selectedApplication.id)}
                         onDownload={() => downloadApplicationDocument(inlineResume.document, selectedApplication.id)} />}
+                    </details>
                 </Modal.Body>
                 <Modal.Footer className="applicant-modal-footer">
-                    <Button variant="outline-dark" onClick={handlePrintApplication} disabled={!selectedApplication}>
-                        Print Application
-                    </Button>
+                    <ApplicantResumePrintButton application={selectedApplication} />
                     <div className="applicant-modal-actions">
                         <span role="status" className="status-pill">{decisionSaving ? "Processing..." : applicationStatusLabel(selectedApplication?.status)}</span>
                         <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Approve</Button>

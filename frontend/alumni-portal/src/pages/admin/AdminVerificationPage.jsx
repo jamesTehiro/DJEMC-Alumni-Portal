@@ -1,25 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { api, fetchFile, API_BASE_URL } from "../../services/api";
+import { api } from "../../services/api";
 
-const getServerOrigin = () => {
-    try {
-        return API_BASE_URL.replace(/\/api$/, "");
-    } catch {
-        return typeof window !== "undefined" ? window.location.origin : "http://localhost:5000";
-    }
-};
-
-const toAbsoluteUploadUrl = (url) => {
-    if (!url) return "";
-    if (url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) return url;
-    if (url.startsWith("/uploads/")) return `${getServerOrigin()}${url}`;
-    return url;
-};
 import useRenderDebug from "../../hooks/useRenderDebug";
 import useStrictSafeEffect from "../../hooks/useStrictSafeEffect";
 import AdminShell from "../../components/AdminShell";
+import BusinessPermitPreview from "../../components/BusinessPermitPreview";
 import SectionHeader from "../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "./adminUtils";
 import "../AdminEmployerPage.css";
@@ -33,9 +20,9 @@ export default function AdminVerificationPage({ role }) {
     const [error, setError] = useState("");
     const [selectedEmployer, setSelectedEmployer] = useState(null);
     const [previewFile, setPreviewFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewError, setPreviewError] = useState("");
+
+
+
     const [search, setSearch] = useState("");
     const [employerStatusTab, setEmployerStatusTab] = useState("pending");
     const [processingId, setProcessingId] = useState(null);
@@ -47,8 +34,8 @@ export default function AdminVerificationPage({ role }) {
     const scopeMeta = ADMIN_SCOPE_META[role];
 
     // Stable refs to track loading state without triggering re-renders
-    const previewLoadedRef = useRef(false);
-    const blobUrlRef = useRef(null);
+
+
 
     const loadRecords = async () => {
         try {
@@ -129,100 +116,21 @@ export default function AdminVerificationPage({ role }) {
         return "status-pill pending";
     };
 
-    const getPreviewType = (filePath) => {
-        const value = String(filePath || "").toLowerCase();
-        if (/\.(png|jpe?g|webp|gif)$/.test(value)) return "image";
-        if (value.endsWith(".pdf")) return "pdf";
-        return "file";
-    };
-
-    const toFileUrl = (filePath) => {
-        const value = String(filePath || "").trim();
-        if (!value) return null;
-
-        if (value.startsWith("/")) {
-            const parts = value.split("/").filter(Boolean);
-            if (parts[0] === "uploads") {
-                if (parts.length === 2) {
-                    return value;
-                }
-                const folder = parts[1];
-                const fileName = parts.slice(2).join("/");
-                return `/api/files/${folder}/${encodeURIComponent(fileName)}`;
-            }
-            return value;
-        }
-
-        if (/^https?:\/\//i.test(value)) {
-            try {
-                const parsed = new URL(value);
-                if (typeof window !== "undefined" && window.location.protocol === "https:" && parsed.protocol === "http:") {
-                    return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
-                }
-            } catch {
-                return value;
-            }
-            return value;
-        }
-
-        const uploadPathMatch = value.match(/(?:[/\\]uploads[/\\]([^/\\]+)[/\\])([^/\\]+)$/i);
-        if (uploadPathMatch) {
-            const folder = uploadPathMatch[1];
-            const fileName = uploadPathMatch[2];
-            return `/api/files/${folder}/${encodeURIComponent(fileName)}`;
-        }
-
-        return value;
-    };
-
-    // Stable cleanup - no dependencies that change
-    const cleanupPreviewUrl = useCallback(() => {
-        if (blobUrlRef.current) {
-            URL.revokeObjectURL(blobUrlRef.current);
-            blobUrlRef.current = null;
-            setPreviewUrl(null);
-        }
-    }, []);
-
-    // Stable load function - no dependencies that change
-    const loadProtectedPreview = useCallback(async (filePath) => {
-        if (!filePath) return;
-
-        setPreviewError("");
-        setPreviewLoading(true);
+    const uploadPermit = async event => {
+        const file = event.target.files?.[0];
+        const employer = selectedEmployer;
+        event.target.value = "";
+        if (!file || !employer || processingId !== null) return;
+        setProcessingId(employer.id); setError("");
         try {
-            const blob = await fetchFile(toFileUrl(filePath), true);
-            const url = URL.createObjectURL(blob);
-            blobUrlRef.current = url;
-            setPreviewUrl(url);
-        } catch (err) {
-            setPreviewError(err.message || "Unable to load preview.");
-        } finally {
-            setPreviewLoading(false);
-        }
-    }, []);
-
-    // Stable effect that only runs when selectedEmployer changes
-    useEffect(() => {
-        if (!selectedEmployer?.EmployerProfile?.business_permit_path) {
-            cleanupPreviewUrl();
-            previewLoadedRef.current = false;
-            return undefined;
-        }
-
-        // Prevent re-fetch if already loaded for the current selected employer
-        if (previewLoadedRef.current) return undefined;
-        previewLoadedRef.current = true;
-
-        loadProtectedPreview(selectedEmployer.EmployerProfile.business_permit_path);
-
-        return () => {
-            cleanupPreviewUrl();
-            previewLoadedRef.current = false;
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedEmployer?.EmployerProfile?.business_permit_path]);
-
+            const payload = new FormData(); payload.append("business_permit", file);
+            const result = await api.put(`/admin/employer/users/${employer.id}/business-permit`, payload, true);
+            setSelectedEmployer(previous => previous?.id === employer.id ? { ...previous, EmployerProfile: { ...previous.EmployerProfile, business_permit_path: result.business_permit_path, business_permit_name: result.business_permit_name } } : previous);
+            setMessage(result.msg);
+            await loadRecords();
+        } catch (error) { setError(error.message || "Business permit could not be saved."); }
+        finally { setProcessingId(null); }
+    };
     return (
         <AdminShell
             scope={role}
@@ -399,34 +307,13 @@ export default function AdminVerificationPage({ role }) {
 
                             <div className="employer-permit-section">
                                 <p className="employer-details-label employer-permit-heading">Business Permit File</p>
+                                {error && <p className="text-danger" role="alert">{error}</p>}
                                 {!selectedEmployer?.EmployerProfile?.business_permit_path && <p className="empty">No business permit uploaded.</p>}
-                                {!!selectedEmployer?.EmployerProfile?.business_permit_path && (
-                                    <div className="employer-file-preview">
-                                        {getPreviewType(selectedEmployer.EmployerProfile.business_permit_path) === "image" ? (
-                                            <button
-                                                type="button"
-                                                className="permit-preview-trigger"
-                                                onClick={() => setPreviewFile(selectedEmployer.EmployerProfile.business_permit_path)}
-                                            >
-                                                <img
-                                                    src={previewUrl || undefined}
-                                                    alt="Business permit preview"
-                                                    className="permit-thumb"
-                                                />
-                                                <span className="permit-preview-caption">Click to enlarge permit image</span>
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                className="permit-preview-trigger permit-pdf-trigger"
-                                                onClick={() => setPreviewFile(selectedEmployer.EmployerProfile.business_permit_path)}
-                                            >
-                                                <span className="permit-pdf-icon">PDF</span>
-                                                <span>{selectedEmployer.EmployerProfile.business_permit_path.split("/").pop()}</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
+                                {selectedEmployer?.EmployerProfile?.business_permit_path && <Button variant="outline-success" onClick={() => setPreviewFile(selectedEmployer.EmployerProfile.business_permit_path)}>View Document</Button>}
+                                {role === "employer" && <label className="d-block mt-3">Upload replacement business permit
+                                    <input type="file" className="form-control mt-2" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif" disabled={processingId !== null} onChange={uploadPermit} />
+                                    <small>Use the document provided by this employer. Account and verification status stay unchanged.</small>
+                                </label>}
                             </div>
                         </Modal.Body>
                         <Modal.Footer>
@@ -443,15 +330,7 @@ export default function AdminVerificationPage({ role }) {
                             <Modal.Title>Business Permit Preview</Modal.Title>
                         </Modal.Header>
                         <Modal.Body className="permit-preview-modal">
-                            {previewLoading && <p>Loading preview...</p>}
-                            {previewError && <p className="notice error">{previewError}</p>}
-                            {!previewLoading && !previewError && (
-                                getPreviewType(previewFile) === "image" ? (
-                                    <img src={previewUrl || undefined} alt="Business permit full preview" className="permit-full-image" />
-                                ) : (
-                                    <iframe title="Business permit PDF preview" src={previewUrl || undefined} className="permit-pdf-frame" />
-                                )
-                            )}
+                            {previewFile && <BusinessPermitPreview path={previewFile} name={selectedEmployer?.EmployerProfile?.business_permit_name || "Business Permit"} />}
                         </Modal.Body>
                     </Modal>
                     <Modal show={!!rejectingEmployer} onHide={() => { if (processingId === null) setRejectingEmployer(null); }} centered>

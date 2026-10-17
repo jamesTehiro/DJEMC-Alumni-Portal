@@ -97,6 +97,15 @@ const verifyChatAttachment = (req, _res, next) => {
 };
 
 const fileFilter = (_req, file, cb) => {
+    if (file.fieldname === "business_permit") {
+        if (process.env.NODE_ENV === "production" && !isObjectStorageEnabled()) {
+            const error = new Error("Business permit storage is unavailable. Registration was not completed."); error.status = 503; return cb(error);
+        }
+        if (!["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.mimetype)) {
+            const error = new Error("Business permit must be a PDF, PNG, JPG, WEBP, or GIF file."); error.status = 415; return cb(error);
+        }
+        return chatFileFilter(_req, file, cb);
+    }
     const isAllowed = allowedMimes.includes(file.mimetype) || allowedExtensions.test(file.originalname);
     if (!isAllowed) {
         return cb(new Error("Invalid file type. Allowed: pdf, doc, docx, png, jpg, webp."));
@@ -119,8 +128,8 @@ const getTargetForField = (fieldName = "") => {
     if (fieldName === "resume") return { folder: "private_uploads/resumes", isPublic: false, prefix: "resume" };
     if (fieldName === "transcript") return { folder: "private_uploads/documents", isPublic: false, prefix: "transcript" };
     if (fieldName === "certificate") return { folder: "private_uploads/documents", isPublic: false, prefix: "certificate" };
-    if (fieldName === "proof_document") return { folder: "private_uploads/alumni_proof", isPublic: false, prefix: "proof-document" };
-    if (fieldName === "business_permit") return { folder: "private_uploads/business_permits", isPublic: false, prefix: "business-permit" };
+    if (fieldName === "proof_document") return { folder: "private_uploads/alumni_proof", isPublic: false, prefix: "proof-document", deliveryType: "authenticated" };
+    if (fieldName === "business_permit") return { folder: "private_uploads/business_permits", isPublic: false, prefix: "business-permit", deliveryType: "authenticated" };
     if (fieldName === "attachment") return { folder: "private_uploads/chat", isPublic: false, prefix: "attachment", deliveryType: "authenticated" };
     return { folder: "private_uploads/documents", isPublic: false, prefix: fieldName || "file" };
 };
@@ -133,7 +142,7 @@ const createCloudStorageEngine = () => ({
         file.stream.on("end", async () => {
             try {
                 const buffer = Buffer.concat(chunks);
-                if (file.fieldname === "attachment" && !hasAllowedChatSignature(buffer, file.mimetype)) {
+                if (["attachment", "business_permit"].includes(file.fieldname) && !hasAllowedChatSignature(buffer, file.mimetype)) {
                     const err = new Error("The file contents do not match a supported file type.");
                     err.status = 415;
                     return cb(err);
@@ -160,6 +169,12 @@ const createCloudStorageEngine = () => ({
                     signatureVerified: file.fieldname === "attachment"
                 });
             } catch (err) {
+                if (file.fieldname === "business_permit" && err.status !== 415) {
+                    const uploadError = new Error("Business permit storage is unavailable. The document was not saved. Please try again.");
+                    uploadError.status = 502;
+                    uploadError.publicMessage = uploadError.message;
+                    return cb(uploadError);
+                }
                 if (["avatar_image", "logo_image"].includes(file.fieldname)) {
                     const uploadError = new Error("Profile photo storage is unavailable. Please try again later.");
                     uploadError.status = 502;
@@ -319,14 +334,26 @@ const applicationUpload = (req, res, next) => {
 
 exports.applicationUpload = applicationUpload;
 
-exports.registrationUpload = upload.fields([
+const withBusinessPermitValidation = parser => (req, res, next) => parser(req, res, async error => {
+    if (error) return next(error);
+    const file = req.files?.business_permit?.[0];
+    try {
+        if (file && !file.storageRef && !hasAllowedChatSignature(await fs.promises.readFile(file.path), file.mimetype)) {
+            await fs.promises.unlink(file.path);
+            const error = new Error("The business permit contents do not match the selected file type."); error.status = 415; throw error;
+        }
+        next();
+    } catch (error) { next(error); }
+});
+
+exports.registrationUpload = withBusinessPermitValidation(upload.fields([
     { name: "business_permit", maxCount: 1 },
     { name: "proof_document", maxCount: 1 }
-]);
+ ]));
 
-exports.employerRegistrationUpload = upload.fields([
+exports.employerRegistrationUpload = withBusinessPermitValidation(upload.fields([
     { name: "business_permit", maxCount: 1 }
-]);
+ ]));
 
 exports.alumniRegistrationUpload = upload.single("proof_document");
 

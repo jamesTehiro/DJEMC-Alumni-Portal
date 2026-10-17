@@ -568,4 +568,20 @@ button:focus-visible {
     padding: 7px 10px;
     font-size: 0.8rem;
   }
+}/* Reserve a column for the public menu so the brand cannot push it below. */
+@media (max-width: 991.98px) {
+  .navbar-custom:not(.navbar-app) > .container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px;
+    align-items: start;
+    gap: 8px;
+  }
+  .navbar-custom:not(.navbar-app) .brand-wrapper { min-width: 0; width: 100%; justify-content: flex-start; }
+  .navbar-custom:not(.navbar-app) .brand-text { min-width: 0; flex: 1; }
+  .navbar-custom:not(.navbar-app) .brand-logo,
+  .navbar-custom:not(.navbar-app) .brand-side-logo { width: 34px; height: 34px; margin: 0; padding: 2px; }
+  .navbar-custom:not(.navbar-app) .brand-title { font-size: clamp(10px, 2.6vw, 16px); white-space: normal; }
+  .navbar-custom:not(.navbar-app) .brand-subtitle { font-size: clamp(9px, 2.3vw, 13px); white-space: normal; }
+  .navbar-custom .navbar-mobile-toggle { width: 44px; height: 44px; padding: 8px; justify-self: end; }
+  .navbar-custom .navbar-collapse-shell { grid-column: 1 / -1; margin: 0; }
 }

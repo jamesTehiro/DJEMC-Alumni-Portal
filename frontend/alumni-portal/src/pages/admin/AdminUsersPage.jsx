@@ -293,8 +293,8 @@ export default function AdminUsersPage({ role }) {
                         <select value={selectedCourse} onChange={(event) => { setSelectedCourse(event.target.value); setRecordsPage(1); }} aria-label="Filter by course">
                             <option value="">All courses</option>{courses.map((course) => <option key={course} value={course}>{course}</option>)}
                         </select>
-                        <select value={selectedYear} onChange={(event) => { setSelectedYear(event.target.value); setRecordsPage(1); }} aria-label="Filter by batch">
-                            <option value="">Batch</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}
+                        <select value={selectedYear} onChange={(event) => { setSelectedYear(event.target.value); setRecordsPage(1); }} aria-label="Filter by academic year">
+                            <option value="">Academic Year</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}
                         </select>
                         <select value={employmentFilter} onChange={(event) => { setEmploymentFilter(event.target.value); setRecordsPage(1); }} aria-label="Filter by employment status">
                             <option value="">All employment statuses</option><option value="employed">Employed</option><option value="unemployed">Unemployed</option><option value="self-employed">Self-Employed</option><option value="not specified">Not specified</option>
@@ -306,11 +306,10 @@ export default function AdminUsersPage({ role }) {
 
                     <div className="alumni-tracking-table-wrap">
                         <table className="alumni-tracking-table">
-                            <thead><tr><th>Alumnus</th><th>Course / Year</th><th>Employment</th><th>Position / Company</th><th>Last Profile Update</th><th>Tracking</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Alumnus</th><th>Course / Year</th><th>Employment</th><th>Position / Company</th><th>Last Profile Update</th><th>Actions</th></tr></thead>
                             <tbody>
-                                {recordsLoading ? <tr><td colSpan="7" className="alumni-tracking-empty">Loading alumni records…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="7" className="alumni-tracking-empty">No alumni match these filters.</td></tr> : visibleRecords.map((item) => {
+                                {recordsLoading ? <tr><td colSpan="6" className="alumni-tracking-empty">Loading alumni records…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="6" className="alumni-tracking-empty">No alumni match these filters.</td></tr> : visibleRecords.map((item) => {
                                     const employment = getEmploymentStatus(item);
-                                    const tracking = getTrackingStatus(item);
                                     const privateProfile = String(item.AlumniProfile?.profile_visibility || "public").toLowerCase() !== "public";
                                     return (
                                         <tr key={item.id} role="button" tabIndex={0} className={Number(selectedProfile?.id) === Number(item.id) ? "selected" : ""} onClick={() => openProfilePreview(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProfilePreview(item); } }}>
@@ -319,7 +318,6 @@ export default function AdminUsersPage({ role }) {
                                             <td>{employment ? <span className={`employment-status-badge ${employment.tone}`}>{employment.label}</span> : <span className="alumni-tracking-muted">Not specified</span>}</td>
                                             <td>{privateProfile ? <span className="alumni-tracking-muted">Private profile</span> : <>{item.AlumniProfile?.job_title || "—"}<small>{item.AlumniProfile?.current_company || "Company not listed"}</small></>}</td>
                                             <td>{item.AlumniProfile?.updatedAt ? new Date(item.AlumniProfile.updatedAt).toLocaleDateString() : "Not updated"}</td>
-                                            <td><span className={`alumni-tracking-status ${tracking.tone}`}>{tracking.label}</span></td>
                                             <td><button type="button" className="alumni-profile-view-button" onClick={(event) => { event.stopPropagation(); openProfilePreview(item); }}>View Profile</button></td>
                                         </tr>
                                     );

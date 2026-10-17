@@ -881,7 +881,7 @@ export default function AdminAlumniPage() {
                 {message && <p className="notice success">{message}</p>}
                 {error && <p className="notice error">{error}</p>}
 
-                <section className="metric-grid alumni-metric-grid">
+                <section className="metric-grid alumni-metric-grid mobile-scroll-cards">
 
                     <button
                         type="button"

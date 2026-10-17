@@ -116,7 +116,7 @@ export default function AlumniPage() {
 
                     {error && <p>{error}</p>}
 
-                    <div className="alu-dash-metrics">
+                    <div className="alu-dash-metrics mobile-scroll-cards">
                         <button
                             type="button"
                             className={`alu-dash-card ${dashboardPanel === "jobs" ? "active" : ""}`}

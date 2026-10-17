@@ -7,6 +7,7 @@ import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
 import "./AuthPage.css";
+import { isValidGraduationYear, GRADUATION_YEAR_ERROR } from "../utils/graduationYear";
 
 export default function AlumniRegisterPage() {
     const [form, setForm] = useState({
@@ -24,6 +25,8 @@ export default function AlumniRegisterPage() {
     const [success, setSuccess] = useState("");
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [consentEnabled, setConsentEnabled] = useState(false);
+    const [yearTouched, setYearTouched] = useState(false);
+    const yearInvalid = !isValidGraduationYear(form.graduationYear);
 
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -40,6 +43,8 @@ export default function AlumniRegisterPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setYearTouched(true);
+        if (yearInvalid) return;
         setLoading(true);
         setError("");
         setSuccess("");
@@ -109,8 +114,9 @@ export default function AlumniRegisterPage() {
                         <label className="field">
                             <span>Graduation Year</span>
                             <label className="line-input">
-                                <input type="text" name="graduationYear" value={form.graduationYear} onChange={handleChange} placeholder="Enter graduation year" inputMode="numeric" maxLength={4} />
+                                <input type="text" name="graduationYear" value={form.graduationYear} onChange={handleChange} onBlur={() => setYearTouched(true)} placeholder="2023–2027" inputMode="numeric" aria-invalid={yearTouched && yearInvalid} aria-describedby="graduation-year-error" />
                             </label>
+                            {yearTouched && yearInvalid && <small id="graduation-year-error" className="text-danger" role="alert">{GRADUATION_YEAR_ERROR}</small>}
                         </label>
                         <label className="field">
                             <span>TOR / Diploma (Proof of Graduation)</span>

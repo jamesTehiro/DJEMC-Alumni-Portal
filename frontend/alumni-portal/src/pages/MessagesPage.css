@@ -1184,3 +1184,71 @@
     .message-options-trigger { width: 40px; height: 40px; flex-basis: 40px; }
     .messages-page .mobile-back-btn { min-width: 44px; min-height: 44px; }
 }
+
+/* Compact chat rows; override the legacy mobile column layout. */
+@media (max-width: 1024px) {
+    .messages-page .message-row {
+        flex-direction: row;
+        align-items: flex-end;
+        gap: 6px;
+        margin-bottom: 2px;
+        min-width: 0;
+    }
+    .messages-page .message-row .message-avatar {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 30px;
+        border-radius: 50%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    .messages-page .message-row.outgoing .message-avatar { display: none; }
+    .messages-page .message-row .message-content {
+        width: auto;
+        max-width: calc(80% - 6px);
+        min-width: 0;
+        margin: 0;
+    }
+    .messages-page .message-row.outgoing .message-content { max-width: 88%; }
+    .messages-page .message-bubble { width: auto; padding: 9px 12px; border-radius: 18px; box-shadow: none; }
+    .messages-page .message-row.incoming .message-bubble { background: #edf1ec; }
+    .messages-page .message-bubble-wrapper { max-width: 100%; min-width: 0; }
+    .messages-page .message-row.outgoing .message-bubble-wrapper:has(.message-options-trigger) { padding-left: 40px; }
+    .messages-page .message-row .message-meta { margin-bottom: 3px; }
+    .messages-page .message-timestamp { font-size: 9px; white-space: normal; }
+    .messages-page .message-row.outgoing .message-author,
+    .messages-page .message-row.direct-message .message-author { display: none; }
+    .messages-page .message-author { font-size: 11px; }
+    .messages-page .chat-header { gap: 6px; padding: 8px; }
+    .messages-page .chat-header h3 { font-size: 15px; }
+    .messages-page .chat-header p { font-size: 11px; margin: 2px 0 0; }
+    .messages-page .chat-header .chat-contact-avatar { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: #dfeee6; }
+    .chat-contact-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .messages-page .chat-stream { padding: 10px 8px; gap: 10px; scrollbar-gutter: auto; }
+    .messages-page .composer-row { grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 5px; }
+    .messages-page .composer-row .attach-btn,
+    .messages-page .composer-row .send-btn { width: 36px; min-width: 36px; height: 40px; border-radius: 50%; }
+    .messages-page .composer-row .form-control { min-width: 0; border-radius: 20px; font-size: 16px; resize: none; max-height: 100px; }
+    .messages-page .chat-composer { padding-inline: 8px; }
+    .messages-page .conversation-avatar,
+    .messages-page .conversation-avatar-img { border-radius: 50%; }
+    .messages-page .conversation-item { gap: 8px; padding: 9px 4px; }
+    .messages-page .conversation-top { flex-wrap: wrap; gap: 2px; }
+    .messages-page .conversation-top strong { max-width: 100%; }
+    .messages-page .conversation-top span { font-size: 10px; }
+    .messages-page .message-attachment { min-width: 0; max-width: 100%; }
+    .messages-page .attachment-name { overflow-wrap: anywhere; }
+}
+
+/* Shared header presentation for the role-specific messaging pages. */
+.messages-page .mobile-chat-avatar { display: none; }
+@media (max-width: 1024px) {
+    .messages-page .chat-header .mobile-chat-avatar { display: grid; flex: 0 0 32px; }
+    .messages-page .message-meta-left > span { font-size: 9px; white-space: normal; overflow-wrap: anywhere; }
+    .messages-page .conversation-avatar > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .messages-page .message-row.outgoing .message-content { max-width: 80%; }
+    .messages-page .message-attachment,
+    .messages-page .attachment-file-row { box-sizing: border-box; }
+    .messages-page .attachment-file-row { flex-wrap: wrap; }
+}

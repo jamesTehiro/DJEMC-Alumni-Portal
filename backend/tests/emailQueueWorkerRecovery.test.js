@@ -5,6 +5,22 @@ const { Op } = require("sequelize");
 const db = require("../models");
 const { reserveJobs } = require("../workers/emailQueueWorker");
 
+test("missing SMTP configuration leaves queued jobs and attempt counts untouched", async () => {
+    const email = require("../utils/email");
+    const originalValidate = email.validateConfiguration;
+    const originalTransaction = db.sequelize.transaction;
+    let reservations = 0;
+    email.validateConfiguration = () => { throw Object.assign(new Error("missing settings"), { code: "EMAIL_CONFIG" }); };
+    db.sequelize.transaction = async () => { reservations += 1; throw new Error("must not reserve"); };
+    try {
+        await require("../workers/emailQueueWorker").processBatch();
+        assert.equal(reservations, 0);
+    } finally {
+        email.validateConfiguration = originalValidate;
+        db.sequelize.transaction = originalTransaction;
+    }
+});
+
 test("email worker reserves stale processing jobs for recovery", async () => {
     const originalTransaction = db.sequelize.transaction;
     const originalFindAll = db.EmailQueueJob.findAll;

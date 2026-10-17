@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const db = require("../models");
 const lockRecordWrites = require("../utils/alumniRecordsWriteLock");
+const { tolerantNameWhere } = require("../utils/alumniNameSearch");
 
 exports.getAlumniRecords = async (_req, res) => {
     try {
@@ -52,7 +53,7 @@ exports.searchAlumniRecords = async (req, res) => {
             where[Op.or].push({ batch_year: batchYear });
         }
 
-        const records = await db.AlumniRecord.findAll({
+        const searchOptions = {
             where,
             attributes: ["id", "full_name", "course", "batch_year"],
             include: [
@@ -71,7 +72,12 @@ exports.searchAlumniRecords = async (req, res) => {
             ],
             order: [["full_name", "ASC"]],
             limit: 25
-        });
+        };
+        let records = await db.AlumniRecord.findAll(searchOptions);
+        if (!records.length) {
+            const fallback = tolerantNameWhere(name);
+            if (fallback) records = await db.AlumniRecord.findAll({ ...searchOptions, where: fallback });
+        }
 
         res.json(records);
     } catch (err) {

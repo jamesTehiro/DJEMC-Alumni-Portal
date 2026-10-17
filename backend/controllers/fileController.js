@@ -72,9 +72,12 @@ const normalizePathForComparison = (p) => {
 };
 
 const canAccessEmployerPermit = async (reqUser, relativePath) => {
+    if (reqUser?.role !== "admin" || reqUser.admin_scope !== "employer") return false;
+    // Older rows sometimes store the delivery path rather than the disk path.
+    const legacyPath = String(relativePath).replace(/^\/uploads\//, "/api/files/");
     // First, try exact match
     let profile = await db.EmployerProfile.findOne({
-        where: { business_permit_path: relativePath }
+        where: { business_permit_path: { [db.Sequelize.Op.in]: [relativePath, legacyPath] } }
     });
 
     // If exact match failed, try normalized comparison for admin users
@@ -130,7 +133,6 @@ const canAccessAlumniProofDocument = async (reqUser, relativePath) => {
     const alumniProfile = await db.AlumniProfile.findOne({ where: { proof_document_path: relativePath } });
     if (!alumniProfile) return false;
     if (reqUser.role === "admin") return true;
-    if (reqUser.role === "alumni" && alumniProfile.user_id === reqUser.id) return true;
     return false;
 };
 

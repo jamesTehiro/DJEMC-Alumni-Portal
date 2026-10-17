@@ -54,8 +54,53 @@ export function getApplicantResumeDocument(application = {}) {
 export function getApplicantResumeFileUrl(applicationId, document) {
     if (!applicationId || !document) return "";
     const base = `/api/applications/${encodeURIComponent(applicationId)}`;
+    if (document.isLegacyDocument && /^\/api\/files\//.test(document.authorizedFileUrl || "")) return document.authorizedFileUrl;
     if (document.isLegacyResume) return `${base}/resume/file`;
     return document.id ? `${base}/documents/${encodeURIComponent(document.id)}/file` : "";
+}
+
+export function getApplicantDocumentEntries(application = {}) {
+    application ||= {};
+    let snapshot = application.JobRequirementSnapshot?.snapshot_data;
+    if (typeof snapshot === "string") { try { snapshot = JSON.parse(snapshot); } catch { snapshot = null; } }
+    const requirements = [...(Array.isArray(snapshot?.groups) ? snapshot.groups.flatMap(group => group.requirements || []) : []), ...(Array.isArray(snapshot?.ungrouped) ? snapshot.ungrouped : [])].filter(Boolean);
+    const documents = Array.isArray(application.ApplicationDocuments) ? application.ApplicationDocuments.filter(Boolean) : [];
+    const entries = [];
+    const kindOf = (requirement, document) => {
+        if (isResumeRequirement(requirement, document)) return "resume";
+        const value = `${requirement?.requirement_code || document?.requirement_code || ""} ${requirement?.label || document?.requirement_label || ""}`;
+        if (/\btor\b|transcript/i.test(value)) return "tor";
+        if (/valid[\s_-]*id|identification/i.test(value)) return "id";
+        return "other";
+    };
+    const add = (requirement, document, key) => {
+        const kind = kindOf(requirement, document);
+        entries.push({ key, kind, label: ({ resume: "Resume", tor: "TOR", id: "Valid ID" })[kind] || requirement?.label || document?.requirement_label || document?.requirement_code || "Document", document, available: Boolean(getApplicantResumeFileUrl(application.id, document)), reviewStatus: document?.review_status });
+    };
+    for (const requirement of requirements.filter(item => item.requirement_type === "document_upload")) {
+        const matching = documents.filter(document => document.requirement_code === requirement.requirement_code);
+        if (!matching.length) add(requirement, null, `missing:${requirement.requirement_code}`);
+        for (const document of matching) add(requirement, document, `document:${document.id || entries.length}`);
+    }
+    for (const document of documents) {
+        if (!entries.some(entry => entry.document === document)) add(requirements.find(item => item.requirement_code === document.requirement_code), document, `document:${document.id || entries.length}`);
+    }
+    const resume = getApplicantResumeDocument(application);
+    if (resume?.isLegacyResume && !entries.some(entry => entry.kind === "resume" && entry.available)) add({ requirement_code: "resume" }, resume, "legacy:resume");
+    // Older responses already provide protected file URLs. Never convert an
+    // arbitrary external URL into a document request carrying authentication.
+    for (const [field, code, label] of [["transcript_path", "tor", "TOR"], ["certificate_path", "certificate", "Certificate"]]) {
+        const path = application[field];
+        if (!/^\/api\/files\//.test(path || "") || entries.some(entry => entry.kind === code || entry.document?.requirement_code === code)) continue;
+        const basename = path.split("/").pop();
+        const filename = /\.[a-z0-9]{2,5}$/i.test(basename) ? decodeURIComponent(basename) : "Filename unavailable";
+        add({ requirement_code: code, label }, { isLegacyDocument: true, authorizedFileUrl: path, requirement_code: code, file_name: application[`${code}_file_name`] || filename }, `legacy:${code}`);
+    }
+    for (const [kind, label] of [["resume", "Resume"], ["tor", "TOR"], ["id", "Valid ID"]]) {
+        if (!entries.some(entry => entry.kind === kind)) entries.push({ key: `missing:${kind}`, kind, label, document: null, available: false });
+    }
+    const order = { resume: 0, tor: 1, id: 2, other: 3 };
+    return entries.sort((a, b) => order[a.kind] - order[b.kind]);
 }
 
 export function getApplicantResumePreviewType(document, blob) {
