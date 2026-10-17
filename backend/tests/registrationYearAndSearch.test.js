@@ -3,38 +3,48 @@ const assert = require("node:assert/strict");
 const db = require("../models");
 const auth = require("../controllers/authController");
 const records = require("../controllers/alumniRecordController");
-const { isValidGraduationYear, GRADUATION_YEAR_ERROR } = require("../utils/graduationYear");
+const { isValidGraduationYear, getGraduationYearError, getMaxGraduationYear, MIN_GRADUATION_YEAR } = require("../utils/graduationYear");
 const { nameTokens, tolerantNameWhere } = require("../utils/alumniNameSearch");
 test.after(() => db.sequelize.close());
-test("registration persists both allowed boundary years through the normal transaction", async () => {
-    const saved = [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.sequelize.transaction];
+test("registration persists the minimum and current maximum years through the normal transaction", async () => {
+    const saved = [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.AlumniProfile.findOne, db.sequelize.transaction];
     let storedYear;
+    let storedProfile;
+    const profile = { save: async () => {} };
     db.User.findOne = async () => null;
     db.User.create = async values => ({ id: 71, ...values });
-    db.AlumniProfile.findOrCreate = async options => { storedYear = options.defaults.graduation_year; return [{}, true]; };
+    db.AlumniProfile.findOrCreate = async options => { storedYear = options.defaults.graduation_year; storedProfile = options.defaults; return [profile, true]; };
+    db.AlumniProfile.findOne = async () => profile;
     db.sequelize.transaction = callback => callback({});
     try {
-        for (const year of ["2023", "2027"]) {
+        for (const year of [String(MIN_GRADUATION_YEAR), String(getMaxGraduationYear())]) {
             const res = { status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
-            await auth.register({ body: { name: "Test", email: "year@example.invalid", password: "test-password", role: "alumni", graduationYear: year } }, res, error => { throw error; });
+            await auth.register({ body: { name: "Test Alumni", email: "year@example.invalid", password: "test-password", role: "alumni", course: "BSIT", graduationYear: year }, files: { proof_document: [{ filename: "proof.pdf" }] } }, res, error => { throw error; });
             assert.equal(res.code, 201);
             assert.equal(storedYear, year);
+            assert.equal(storedProfile.course, "BSIT");
+            assert.equal(profile.proof_document_path, "/uploads/documents/proof.pdf");
         }
-    } finally { [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.sequelize.transaction] = saved; }
+    } finally { [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.AlumniProfile.findOne, db.sequelize.transaction] = saved; }
 });
-test("only four-digit years 2023–2027 pass both frontend and backend validators", async () => {
+test("both validators accept 1885, 2023, and the current year, and reject out-of-range or malformed values", async () => {
     const frontend = await import("../../frontend/alumni-portal/src/utils/graduationYear.js");
-    for (const value of ["2023", "2027", 2023, 2027, "2025"]) {
+    const currentYear = new Date().getFullYear();
+    assert.equal(getMaxGraduationYear(), currentYear);
+    assert.equal(frontend.getMaxGraduationYear(), currentYear);
+    assert.equal(getGraduationYearError(), `Graduation year must be between 1885 and ${currentYear}.`);
+    assert.equal(frontend.getGraduationYearError(), `Graduation year must be between 1885 and ${currentYear}.`);
+    for (const value of ["1885", 1885, "2023", 2023, String(currentYear), currentYear]) {
         assert.equal(isValidGraduationYear(value), true);
         assert.equal(frontend.isValidGraduationYear(value), true);
     }
-    for (const value of ["2022", "2028", "abcd", "2e3", "2023.0", " 2023 ", "20230", "", null, undefined, [], {}]) {
+    for (const value of ["1884", 1884, String(currentYear + 1), currentYear + 1, "abcd", "2e3", "2023.0", " 2023 ", "20230", "", null, undefined, [], {}]) {
         assert.equal(isValidGraduationYear(value), false);
         assert.equal(frontend.isValidGraduationYear(value), false);
         const res = { status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
         await auth.register({ body: { name: "Test", email: "year@example.invalid", password: "password", role: "alumni", graduationYear: value } }, res, error => { throw error; });
         assert.equal(res.code, 400);
-        assert.equal(res.body.msg, GRADUATION_YEAR_ERROR);
+        assert.equal(res.body.msg, `Graduation year must be between 1885 and ${currentYear}.`);
     }
 });
 test("name search falls back to all significant name tokens and retains official records", async () => {

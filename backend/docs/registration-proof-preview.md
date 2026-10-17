@@ -2,13 +2,12 @@
 
 ## Changes and diagnosis
 
-Registration now accepts only four-digit graduation years 2023–2027, inclusive.
-Frontend inline validation and backend validation reject missing, malformed or
-out-of-range values before account creation. Existing records are untouched.
-The range is explicit in backend/utils/graduationYear.js and
-frontend/alumni-portal/src/utils/graduationYear.js; update both deliberately
-when the allowed range changes. The backend also checks the graduation_year
-alias and rejects contradictory aliases.
+Registration accepts four-digit graduation years from 1885 through the current
+calendar year, inclusive. Frontend inline validation and backend validation
+reject missing, malformed or out-of-range values before account creation.
+Existing records are untouched. Both validators calculate the upper bound at
+runtime. The backend also checks the graduation_year alias and rejects
+contradictory aliases.
 
 The registrar API previously derived the filename by splitting the opaque
 `cld:` reference, so the frontend could not recognize its extension. The modal

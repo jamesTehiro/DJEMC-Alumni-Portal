@@ -33,7 +33,7 @@ const toAbsoluteUploadUrl = (url) => {
 };
 
 export default function AdminEmployerPage({
-    title = "Employer Administration",
+    title = "Employer Manager",
     subtitle = "Monitor verifications, approvals, and platform health.",
     eyebrow = "Security Gate",
     showOverviewSections = true

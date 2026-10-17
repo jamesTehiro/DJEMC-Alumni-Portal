@@ -102,10 +102,10 @@ exports.register = async (req, res, next) => {
     try {
         const { name, email, password, role, company_address, companyAddress, website_url, websiteUrl, course, graduationYear, graduation_year } = req.body;
         const proofDocumentFile = req.files?.proof_document?.[0];
-        const { isValidGraduationYear, GRADUATION_YEAR_ERROR } = require("../utils/graduationYear");
+        const { isValidGraduationYear, getGraduationYearError } = require("../utils/graduationYear");
         if (role === "alumni" && (!isValidGraduationYear(graduationYear ?? graduation_year) ||
             (graduationYear != null && graduation_year != null && String(graduationYear) !== String(graduation_year)))) {
-            return res.status(400).json({ msg: GRADUATION_YEAR_ERROR });
+            return res.status(400).json({ msg: getGraduationYearError() });
         }
 
         if (!name || !email || !password || !role) {

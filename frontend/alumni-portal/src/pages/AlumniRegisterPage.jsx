@@ -7,7 +7,7 @@ import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
 import "./AuthPage.css";
-import { isValidGraduationYear, GRADUATION_YEAR_ERROR } from "../utils/graduationYear";
+import { getGraduationYearError, getMaxGraduationYear, isValidGraduationYear } from "../utils/graduationYear";
 
 export default function AlumniRegisterPage() {
     const [form, setForm] = useState({
@@ -114,9 +114,9 @@ export default function AlumniRegisterPage() {
                         <label className="field">
                             <span>Graduation Year</span>
                             <label className="line-input">
-                                <input type="text" name="graduationYear" value={form.graduationYear} onChange={handleChange} onBlur={() => setYearTouched(true)} placeholder="2023–2027" inputMode="numeric" aria-invalid={yearTouched && yearInvalid} aria-describedby="graduation-year-error" />
+                                <input type="text" name="graduationYear" value={form.graduationYear} onChange={handleChange} onBlur={() => setYearTouched(true)} placeholder={`1885–${getMaxGraduationYear()}`} inputMode="numeric" aria-invalid={yearTouched && yearInvalid} aria-describedby="graduation-year-error" />
                             </label>
-                            {yearTouched && yearInvalid && <small id="graduation-year-error" className="text-danger" role="alert">{GRADUATION_YEAR_ERROR}</small>}
+                            {yearTouched && yearInvalid && <small id="graduation-year-error" className="text-danger" role="alert">{getGraduationYearError()}</small>}
                         </label>
                         <label className="field">
                             <span>TOR / Diploma (Proof of Graduation)</span>

@@ -873,7 +873,7 @@ export default function AdminAlumniPage() {
     return (
         <AdminShell
             scope="alumni"
-            title="System Overview"
+            title="Alumni Coordinator"
             subtitle="Monitor alumni activity, posts, and announcements at a glance."
             onLogout={handleLogout}
         >

@@ -717,7 +717,7 @@ export default function RegistrarDashboardPage() {
     return (
         <AdminShell
             scope="registrar"
-            title="Registrar Dashboard"
+            title="Registrar Officer"
             subtitle="Monitor verification activity, review quick matches, and keep the alumni master list within reach."
             eyebrow="Registrar Console"
             onLogout={handleLogout}
