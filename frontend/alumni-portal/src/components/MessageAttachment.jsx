@@ -7,6 +7,7 @@ import { formatAttachmentSize, isImageAttachment } from "../utils/messageAttachm
 export default function MessageAttachment({ message, openAttachment }) {
     const [previewUrl, setPreviewUrl] = useState("");
     const [imageState, setImageState] = useState("idle");
+    const [imageError, setImageError] = useState("");
     const [showPreview, setShowPreview] = useState(false);
     const imageButtonRef = useRef(null);
     const image = isImageAttachment(message);
@@ -19,6 +20,7 @@ export default function MessageAttachment({ message, openAttachment }) {
         let objectUrl = "";
         let observer;
         setImageState("idle");
+        setImageError("");
         setPreviewUrl("");
         const load = () => {
             if (!active) return;
@@ -28,8 +30,8 @@ export default function MessageAttachment({ message, openAttachment }) {
                 objectUrl = URL.createObjectURL(blob);
                 setPreviewUrl(objectUrl);
                 setImageState("loaded");
-            }).catch(() => {
-                if (active) setImageState("error");
+            }).catch((error) => {
+                if (active) { setImageState("error"); setImageError(error.message); }
             });
         };
         if (typeof IntersectionObserver === "function" && imageButtonRef.current) {
@@ -65,7 +67,7 @@ export default function MessageAttachment({ message, openAttachment }) {
                     {imageState === "error" ? (
                         <div className="attachment-image-fallback" role="status">
                             <FiImage aria-hidden="true" />
-                            <span>Attachment is no longer available.</span>
+                            <span>{imageError || "Attachment is no longer available."}</span>
                         </div>
                     ) : (
                         <button ref={imageButtonRef} type="button" className="attachment-image-button" onClick={() => previewUrl && setShowPreview(true)} aria-label="Open image preview" disabled={!previewUrl}>

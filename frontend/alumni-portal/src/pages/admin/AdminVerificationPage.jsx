@@ -7,6 +7,7 @@ import useRenderDebug from "../../hooks/useRenderDebug";
 import useStrictSafeEffect from "../../hooks/useStrictSafeEffect";
 import AdminShell from "../../components/AdminShell";
 import BusinessPermitPreview from "../../components/BusinessPermitPreview";
+import BusinessPermitDocuments from "../../components/BusinessPermitDocuments";
 import SectionHeader from "../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "./adminUtils";
 import "../AdminEmployerPage.css";
@@ -116,21 +117,6 @@ export default function AdminVerificationPage({ role }) {
         return "status-pill pending";
     };
 
-    const uploadPermit = async event => {
-        const file = event.target.files?.[0];
-        const employer = selectedEmployer;
-        event.target.value = "";
-        if (!file || !employer || processingId !== null) return;
-        setProcessingId(employer.id); setError("");
-        try {
-            const payload = new FormData(); payload.append("business_permit", file);
-            const result = await api.put(`/admin/employer/users/${employer.id}/business-permit`, payload, true);
-            setSelectedEmployer(previous => previous?.id === employer.id ? { ...previous, EmployerProfile: { ...previous.EmployerProfile, business_permit_path: result.business_permit_path, business_permit_name: result.business_permit_name } } : previous);
-            setMessage(result.msg);
-            await loadRecords();
-        } catch (error) { setError(error.message || "Business permit could not be saved."); }
-        finally { setProcessingId(null); }
-    };
     return (
         <AdminShell
             scope={role}
@@ -305,16 +291,7 @@ export default function AdminVerificationPage({ role }) {
                                 </div>
                             </div>
 
-                            <div className="employer-permit-section">
-                                <p className="employer-details-label employer-permit-heading">Business Permit File</p>
-                                {error && <p className="text-danger" role="alert">{error}</p>}
-                                {!selectedEmployer?.EmployerProfile?.business_permit_path && <p className="empty">No business permit uploaded.</p>}
-                                {selectedEmployer?.EmployerProfile?.business_permit_path && <Button variant="outline-success" onClick={() => setPreviewFile(selectedEmployer.EmployerProfile.business_permit_path)}>View Document</Button>}
-                                {role === "employer" && <label className="d-block mt-3">Upload replacement business permit
-                                    <input type="file" className="form-control mt-2" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif" disabled={processingId !== null} onChange={uploadPermit} />
-                                    <small>Use the document provided by this employer. Account and verification status stay unchanged.</small>
-                                </label>}
-                            </div>
+                            <BusinessPermitDocuments profile={selectedEmployer?.EmployerProfile} onView={setPreviewFile} />
                         </Modal.Body>
                         <Modal.Footer>
                             {selectedEmployer?.account_status === "pending" && <>
@@ -330,7 +307,7 @@ export default function AdminVerificationPage({ role }) {
                             <Modal.Title>Business Permit Preview</Modal.Title>
                         </Modal.Header>
                         <Modal.Body className="permit-preview-modal">
-                            {previewFile && <BusinessPermitPreview path={previewFile} name={selectedEmployer?.EmployerProfile?.business_permit_name || "Business Permit"} />}
+                            {previewFile && <BusinessPermitPreview path={previewFile.url} name={previewFile.name} />}
                         </Modal.Body>
                     </Modal>
                     <Modal show={!!rejectingEmployer} onHide={() => { if (processingId === null) setRejectingEmployer(null); }} centered>

@@ -4,9 +4,8 @@ const db = require("../models");
 const {
     destroyStoredFile,
     isStoredFileReference,
-    sendStoredFile,
-    getStoredFileOriginalName
 } = require("../services/objectStorage");
+const { sendMessageAttachment } = require("../services/messageAttachmentStorage");
 
 const attachmentsRoot = path.join(__dirname, "..", "private_uploads", "admin_employer");
 const MAX_PAGE_SIZE = Number(process.env.ADMIN_EMPLOYER_MAX_PAGE_SIZE || 100);
@@ -436,7 +435,6 @@ exports.getEmployerMessages = async (req, res, next) => {
 exports.downloadEmployerMessageAttachment = async (req, res, next) => {
     try {
         const identifier = String(req.params.fileName || "").trim();
-        const fileName = path.basename(identifier);
         if (!/^\d+$/.test(identifier)) return res.status(404).json({ msg: "Attachment record not found." });
         const message = await db.EmployerMessage.findByPk(Number(identifier), {
             include: [{ model: db.EmployerConversation, as: "conversation" }]
@@ -447,29 +445,8 @@ exports.downloadEmployerMessageAttachment = async (req, res, next) => {
         }
 
         await assertConversationAccess(req.user, message.conversation.employerId, message.conversation);
-        if (isStoredFileReference(message.attachment) || /^https?:\/\//i.test(String(message.attachment || ""))) {
-            return sendStoredFile(
-                message.attachment,
-                res,
-                getStoredFileOriginalName(message.attachment) || fileName
-            );
-        }
-
-        const storedName = path.basename(String(message.attachment || ""));
-        const storedPath = path.resolve(attachmentsRoot, storedName);
-        if (!storedName || storedName === "." || storedName === ".." || !storedPath.startsWith(path.resolve(attachmentsRoot) + path.sep)) {
-            return res.status(404).json({ msg: "Attachment not found." });
-        }
-        if (!(await fileExists(storedPath))) {
-            return res.status(404).json({ msg: "Attachment not found." });
-        }
-
-        res.setHeader("Content-Type", message.file_mime || "application/octet-stream");
-        res.setHeader("X-Content-Type-Options", "nosniff");
-        if (["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"].includes(message.file_mime)) {
-            return res.sendFile(storedPath);
-        }
-        return res.download(storedPath, message.file_name || fileName);
+        return await sendMessageAttachment({ storedValue: message.attachment, name: message.file_name,
+            mime: message.file_mime, namespace: "admin_employer", download: req.query?.download === "1" }, res);
     } catch (err) {
         return next(err);
     }

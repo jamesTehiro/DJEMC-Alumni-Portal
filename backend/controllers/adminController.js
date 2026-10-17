@@ -2,7 +2,6 @@ const db = require("../models");
 const notificationController = require("./notificationController");
 const { enqueueEmails } = require("../utils/emailQueue");
 const jobController = require("./jobController");
-const { toSecureFileUrl } = require("./fileController");
 const { parseTargetGraduationYear, graduationYearWhere } = require("../utils/targetGraduationYear");
 const auditService = require("../services/auditService");
 
@@ -353,43 +352,9 @@ exports.getEmployerUsers = async (req, res) => {
         const users = await db.User.findAll({
             where: { role: "employer" },
             attributes: ["id", "name", "email", "role", "account_status", "createdAt", "updatedAt"],
-            include: [{ model: db.EmployerProfile }],
+            include: [{ model: db.EmployerProfile, attributes: { include: ["business_permit_documents"] } }],
             order: [["createdAt", "DESC"]]
         });
-
-        const normalizeBusinessPermitPath = (value) => {
-            const str = String(value || "").trim();
-            if (!str) return str;
-
-            // Preserve existing Cloudinary/object-storage references / http urls / already-correct /uploads/*.
-            if (
-                toSecureFileUrl(str) !== str &&
-                (toSecureFileUrl(str).startsWith("/api/") || toSecureFileUrl(str).startsWith("cld:") || toSecureFileUrl(str).startsWith("http"))
-            ) {
-                return str;
-            }
-            if (str.startsWith("/uploads/")) return str;
-            if (str.startsWith("cld:") || /^https?:\/\//i.test(str)) return str;
-
-            // Convert Windows absolute paths like:
-            // C:\...\uploads\documents\business_permit-123.pdf  => /uploads/documents/business_permit-123.pdf
-            const winAbs = str.match(/^[A-Za-z]:\\.*\\uploads\\([^\\/]+)\\([^\\/]+)$/);
-            if (winAbs) {
-                const folder = String(winAbs[1] || "documents");
-                const fileName = winAbs[2];
-                return `/uploads/${folder}/${fileName}`;
-            }
-
-            // Convert file:///C:/.../uploads/documents/file.pdf => /uploads/documents/file.pdf
-            const fileAbs = str.match(/^file:\/\/[A-Za-z]:\\.*\\uploads\\([^\\/]+)\\([^\\/]+)$/i);
-            if (fileAbs) {
-                const folder = String(fileAbs[1] || "documents");
-                const fileName = fileAbs[2];
-                return `/uploads/${folder}/${fileName}`;
-            }
-
-            return str;
-        };
 
         const decisions = await db.AuditLog.findAll({
             where: { target_type: "employer", target_id: users.map((user) => user.id), action: ["employer.verification.approved", "employer.verification.rejected"] },
@@ -409,13 +374,13 @@ exports.getEmployerUsers = async (req, res) => {
                     admin_id: decision.actor_id
                 } : null;
 
-                if (plain.EmployerProfile?.business_permit_path) {
-                    plain.EmployerProfile.business_permit_name = require("../services/objectStorage").getStoredFileOriginalName(plain.EmployerProfile.business_permit_path) || String(plain.EmployerProfile.business_permit_path).split(/[/\\]/).pop();
-                    const normalized = normalizeBusinessPermitPath(plain.EmployerProfile.business_permit_path);
-                    plain.EmployerProfile.business_permit_path = toSecureFileUrl(normalized);
-                    if (!String(plain.EmployerProfile.business_permit_path).startsWith("/api/files/")) {
-                        plain.EmployerProfile.business_permit_path = null;
-                    }
+                if (plain.EmployerProfile) {
+                    const documents = require("../services/employerPermitDocuments").permitDocumentPayload(plain.EmployerProfile, user.id);
+                    plain.EmployerProfile.business_permit_documents = documents;
+                    // Keep the legacy response fields usable without encoding a
+                    // private storage reference into a client-visible URL.
+                    plain.EmployerProfile.business_permit_path = documents[0]?.url || null;
+                    plain.EmployerProfile.business_permit_name = documents[0]?.name || null;
                 }
 
                 return plain;

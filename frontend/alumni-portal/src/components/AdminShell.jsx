@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { FiMenu, FiX } from "react-icons/fi";
 import usePortalDrawer from "../hooks/usePortalDrawer";
@@ -14,11 +14,32 @@ import {
     FaSignOutAlt
 } from "react-icons/fa";
 import { api, API_BASE_URL } from "../services/api";
+import { AdminShellContext } from "./AdminShellContext";
 import styles from "./Sidebar.module.css";
 import alumniStyles from "./AdminShellAlumni.module.css";
 import { isMembershipManagementUser } from "../utils/membershipManagement";
 
-export default function AdminShell({ scope, title, subtitle, eyebrow = "Security Gate", onLogout, children }) {
+// Existing pages supply their header through this adapter when rendered inside
+// the persistent Alumni layout. Employer and Registrar retain their own shells.
+function AdminPage({ title, subtitle, eyebrow = "Security Gate", onLogout, children, setHeader }) {
+    const logoutRef = useRef(onLogout);
+    useLayoutEffect(() => { logoutRef.current = onLogout; });
+    const logout = useCallback(() => logoutRef.current?.(), []);
+    const hasLogout = Boolean(onLogout);
+    useLayoutEffect(() => {
+        setHeader({ title, subtitle, eyebrow, onLogout: hasLogout ? logout : undefined });
+    }, [setHeader, title, subtitle, eyebrow, hasLogout, logout]);
+    return children;
+}
+
+export default function AdminShell(props) {
+    const setHeader = useContext(AdminShellContext);
+    return setHeader && props.scope === "alumni"
+        ? <AdminPage {...props} setHeader={setHeader} />
+        : <StandaloneAdminShell {...props} />;
+}
+
+function StandaloneAdminShell({ scope, title, subtitle, eyebrow = "Security Gate", onLogout, children }) {
     const base = `/admin/${scope}`;
     const isRegistrar = scope === "registrar";
     const [mobileNavOpen, setMobileNavOpen] = useState(false);

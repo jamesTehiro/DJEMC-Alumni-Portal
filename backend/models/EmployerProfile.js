@@ -8,13 +8,17 @@ module.exports = (sequelize, DataTypes) => {
             industry: DataTypes.STRING,
             website_url: DataTypes.STRING,
             business_permit_path: DataTypes.TEXT,
+            business_permit_documents: DataTypes.TEXT,
             address: DataTypes.STRING,
             contact_email: DataTypes.STRING,
             logo_url: DataTypes.TEXT("long"),
             verified: DataTypes.BOOLEAN
         },
         {
-            tableName: "employerprofiles"
+            tableName: "employerprofiles",
+            // Permit references must only be explicitly loaded for authorized
+            // verification/document operations, never general profile responses.
+            defaultScope: { attributes: { exclude: ["business_permit_documents"] } }
         }
     );
 };

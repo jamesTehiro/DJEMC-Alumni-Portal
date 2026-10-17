@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import "./App.css";
 import NavigationBar from "./components/Navbar";
 import DashboardLayout from "./components/DashboardLayout";
+import AdminAlumniLayout from "./components/AdminAlumniLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LandingPage from "./pages/LandingPage";
 import { UndoDeleteProvider } from "./context/UndoDeleteContext";
@@ -90,6 +91,76 @@ function App() {
       <NavigationBar />
       <Suspense fallback={<div className="route-loading">Loading...</div>}>
         <Routes>
+          <Route element={
+            <ProtectedRoute allow={isMembershipManagementUser} redirectTo="/admin">
+              <AdminAlumniLayout />
+            </ProtectedRoute>
+          }>
+          <Route
+            path="/admin/alumni"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
+                <AdminAlumniPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/membership-applications"
+            element={
+              <ProtectedRoute allow={isMembershipManagementUser} redirectTo="/admin">
+                <AdminMembershipApplicationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/verification"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
+                <AdminVerificationPage role="alumni" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/users"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
+                <AdminUsersPage role="alumni" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/moderation"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
+                <AdminModerationPage role="alumni" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/logs"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
+                <AdminLogsPage role="alumni" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/settings"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin/login">
+                <AdminSettingsPage role="alumni" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/alumni/messages"
+            element={
+              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
+                <AdminMessagesPage role="alumni" />
+              </ProtectedRoute>
+            }
+          />
+          </Route>
           <Route path="/login" element={<AlumniLoginPage />} />
           <Route path="/login/alumni" element={<AlumniLoginPage />} />
           <Route path="/login/employer" element={<EmployerLoginPage />} />
@@ -174,14 +245,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin/alumni"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
-                <AdminAlumniPage />
-              </ProtectedRoute>
-            }
-          />
+
           <Route
             path="/admin/employer"
             element={
@@ -214,14 +278,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin/alumni/membership-applications"
-            element={
-              <ProtectedRoute allow={isMembershipManagementUser} redirectTo="/admin">
-                <AdminMembershipApplicationsPage />
-              </ProtectedRoute>
-            }
-          />
+
           <Route path="/admin/registrar/membership-applications" element={<Navigate to="/admin/alumni/membership-applications" replace />} />
           <Route path="/admin/employer/membership-applications" element={<Navigate to="/admin/alumni/membership-applications" replace />} />
           <Route
@@ -256,54 +313,12 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admin/alumni/verification"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
-                <AdminVerificationPage role="alumni" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/alumni/users"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
-                <AdminUsersPage role="alumni" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/alumni/moderation"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
-                <AdminModerationPage role="alumni" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/alumni/logs"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
-                <AdminLogsPage role="alumni" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/alumni/settings"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin/login">
-                <AdminSettingsPage role="alumni" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/alumni/messages"
-            element={
-              <ProtectedRoute allow={(user) => user.role === "admin" && user.admin_scope === "alumni"} redirectTo="/admin">
-                <AdminMessagesPage role="alumni" />
-              </ProtectedRoute>
-            }
-          />
+
+
+
+
+
+
 
           <Route
             element={

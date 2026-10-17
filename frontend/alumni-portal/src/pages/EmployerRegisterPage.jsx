@@ -5,6 +5,8 @@ import { FiGlobe, FiMail, FiUser } from "react-icons/fi";
 import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
+import BusinessPermitInput from "../components/BusinessPermitInput";
+import { validateBusinessPermits } from "../utils/businessPermits";
 import "./AuthPage.css";
 
 export default function EmployerRegisterPage() {
@@ -16,7 +18,7 @@ export default function EmployerRegisterPage() {
         password: "",
         consent: false
     });
-    const [businessPermit, setBusinessPermit] = useState(null);
+    const [businessPermits, setBusinessPermits] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -38,8 +40,9 @@ export default function EmployerRegisterPage() {
                 setLoading(false);
                 return;
             }
-            if (!businessPermit) {
-                setError("Business permit upload is required.");
+            const permitError = validateBusinessPermits(businessPermits);
+            if (permitError) {
+                setError(permitError);
                 setLoading(false);
                 return;
             }
@@ -50,7 +53,7 @@ export default function EmployerRegisterPage() {
             payload.append("role", "employer");
             payload.append("company_address", form.companyAddress);
             payload.append("website_url", form.websiteUrl);
-            payload.append("business_permit", businessPermit);
+            businessPermits.forEach(file => payload.append("business_permit", file));
             await api.post("/auth/register", payload);
             setSuccess(true);
         } catch (err) {
@@ -131,13 +134,7 @@ export default function EmployerRegisterPage() {
                         <span>Password{requiredMark}</span>
                         <PasswordField name="password" value={form.password} onChange={handleChange} placeholder="Create a strong password" required />
                     </label>
-                    <label className="field">
-                        <span>Business Permit (BIR / DTI / SEC){requiredMark}</span>
-                        <input className="employer-file-input" type="file" accept="image/*,application/pdf" required onChange={(e) => setBusinessPermit(e.target.files?.[0] || null)} />
-                        <p className="upload-helper-text">
-                            Upload a valid Business Permit (BIR / DTI / SEC Registration). This will be reviewed by admin before your account is activated.
-                        </p>
-                    </label>
+                    <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading} />
                     <label className="consent-row">
                         <input
                             type="checkbox"

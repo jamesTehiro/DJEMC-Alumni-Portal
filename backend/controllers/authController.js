@@ -127,9 +127,9 @@ exports.register = async (req, res, next) => {
             return res.status(409).json({ msg: "Email is already registered." });
         }
 
-        const businessPermitFile = req.files?.business_permit?.[0];
-        if (role === "employer" && !businessPermitFile) {
-            return res.status(400).json({ msg: "Business permit upload is required." });
+        const businessPermitFiles = req.files?.business_permit || [];
+        if (role === "employer" && (!businessPermitFiles.length || businessPermitFiles.length > 5)) {
+            return res.status(400).json({ msg: "One to five business permit files are required." });
         }
 
         const hashed = await bcrypt.hash(password, 12);
@@ -147,14 +147,9 @@ exports.register = async (req, res, next) => {
 
             if (role === "employer") {
                 const address = company_address || companyAddress || null;
-                const businessPermitPath =
-                    // Preserve cloudinary/object storage behavior via storageRef.
-                    // In local-disk mode, never store multer's absolute Windows path.
-                    businessPermitFile.storageRef ||
-                    `/uploads/documents/${businessPermitFile.filename}`;
-                if (!businessPermitFile.storageRef && !businessPermitFile.filename) {
-                    throw new Error("Business permit storage did not return a file reference. Registration was not completed.");
-                }
+                const documents = businessPermitFiles.map(require("../services/employerPermitDocuments").fileMetadata);
+                const businessPermitPath = documents[0].storage_ref;
+                const permitDocuments = JSON.stringify(documents);
                 const [employerProfile] = await db.EmployerProfile.findOrCreate({
                     where: { user_id: createdUser.id },
                     defaults: {
@@ -162,6 +157,7 @@ exports.register = async (req, res, next) => {
                         organization_name: name,
                         website_url: website_url || websiteUrl || null,
                         business_permit_path: businessPermitPath,
+                        business_permit_documents: permitDocuments,
                         address,
                         contact_email: email,
                         verified: false
@@ -169,9 +165,9 @@ exports.register = async (req, res, next) => {
                     transaction
                 });
                 // Defaults are ignored when a profile already exists.
-                await employerProfile.update({ business_permit_path: businessPermitPath }, { transaction });
-                await employerProfile.reload({ transaction });
-                if (employerProfile.business_permit_path !== businessPermitPath) {
+                await employerProfile.update({ business_permit_path: businessPermitPath, business_permit_documents: permitDocuments }, { transaction });
+                await employerProfile.reload({ transaction, attributes: { include: ["business_permit_documents"] } });
+                if (employerProfile.business_permit_path !== businessPermitPath || employerProfile.business_permit_documents !== permitDocuments) {
                     throw new Error("Business permit could not be saved. Registration was not completed.");
                 }
             }

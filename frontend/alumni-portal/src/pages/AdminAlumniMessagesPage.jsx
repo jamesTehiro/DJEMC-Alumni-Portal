@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
 import { FiArrowLeft, FiPaperclip, FiSend } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { api, API_BASE_URL } from "../services/api";
+import { api, API_BASE_URL, fetchFile } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import useAdaptivePoll from "../hooks/useAdaptivePoll";
@@ -258,20 +258,18 @@ export default function AdminAlumniMessagesPage() {
         }
     };
 
-    const openAttachment = async (message) => {
+    const openAttachment = async (message, disposition = "inline") => {
         if (!message?.file_url) return;
         try {
-            const token = localStorage.getItem("token");
-            const response = await fetch(`${API_BASE_URL.replace(/\/api$/, "")}${message.file_url}`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
-            });
-            if (!response.ok) {
-                throw new Error("Unable to open attachment.");
-            }
-            const blob = await response.blob();
+            const blob = await fetchFile(message.file_url, true);
             const url = URL.createObjectURL(blob);
-            window.open(url, "_blank", "noopener,noreferrer");
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            if (disposition === "download") {
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = message.file_name || "attachment";
+                link.click();
+            } else window.open(url, "_blank", "noopener,noreferrer");
+            setTimeout(() => URL.revokeObjectURL(url), disposition === "download" ? 1000 : 60000);
         } catch (err) {
             setError(err.message);
         }

@@ -98,11 +98,15 @@ const verifyChatAttachment = (req, _res, next) => {
 
 const fileFilter = (_req, file, cb) => {
     if (file.fieldname === "business_permit") {
-        if (process.env.NODE_ENV === "production" && !isObjectStorageEnabled()) {
-            const error = new Error("Business permit storage is unavailable. Registration was not completed."); error.status = 503; return cb(error);
+        // Busboy's legacy multipart filename decoding is Latin-1. Recover UTF-8
+        // names only when the byte round trip is lossless.
+        const decodedName = Buffer.from(file.originalname, "latin1").toString("utf8");
+        if (!decodedName.includes("\uFFFD") && Buffer.from(decodedName, "utf8").toString("latin1") === file.originalname) file.originalname = decodedName;
+        if ((process.env.NODE_ENV === "production" || String(process.env.RENDER).toLowerCase() === "true") && !isObjectStorageEnabled()) {
+            const error = new Error("Business permit storage is unavailable. Registration was not completed."); error.status = 503; error.publicMessage = error.message; return cb(error);
         }
-        if (!["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.mimetype)) {
-            const error = new Error("Business permit must be a PDF, PNG, JPG, WEBP, or GIF file."); error.status = 415; return cb(error);
+        if (!["application/pdf", "image/png", "image/jpeg"].includes(file.mimetype)) {
+            const error = new Error("Business permits must be PNG, JPG, JPEG, or PDF files."); error.status = 415; return cb(error);
         }
         return chatFileFilter(_req, file, cb);
     }
@@ -169,6 +173,12 @@ const createCloudStorageEngine = () => ({
                     signatureVerified: file.fieldname === "attachment"
                 });
             } catch (err) {
+                if (file.fieldname === "attachment") {
+                    const uploadError = new Error("Message attachment storage is unavailable. The file was not saved. Please try again later.");
+                    uploadError.status = 502;
+                    uploadError.publicMessage = uploadError.message;
+                    return cb(uploadError);
+                }
                 if (file.fieldname === "business_permit" && err.status !== 415) {
                     const uploadError = new Error("Business permit storage is unavailable. The document was not saved. Please try again.");
                     uploadError.status = 502;
@@ -199,6 +209,12 @@ const createCloudStorageEngine = () => ({
 
 const localStorage = multer.diskStorage({
     destination: (req, file, cb) => {
+        if (file.fieldname === "attachment" && (process.env.NODE_ENV === "production" || String(process.env.RENDER).toLowerCase() === "true")) {
+            const err = new Error("Persistent messaging attachment storage is unavailable. Please try again later.");
+            err.status = 503;
+            err.publicMessage = err.message;
+            return cb(err);
+        }
         let dest = path.join(root, "documents");
         if (file.fieldname === "resume") dest = path.join(root, "resumes");
         if (file.fieldname === "proof_document") dest = path.join(root, "documents");
@@ -335,24 +351,31 @@ const applicationUpload = (req, res, next) => {
 exports.applicationUpload = applicationUpload;
 
 const withBusinessPermitValidation = parser => (req, res, next) => parser(req, res, async error => {
-    if (error) return next(error);
-    const file = req.files?.business_permit?.[0];
+    if (error) {
+        if (error.code === "LIMIT_UNEXPECTED_FILE" && error.field === "business_permit") return next(Object.assign(new Error("You can upload up to five business permit files."), { status: 400 }));
+        return next(error);
+    }
+    const files = req.files?.business_permit || [];
     try {
-        if (file && !file.storageRef && !hasAllowedChatSignature(await fs.promises.readFile(file.path), file.mimetype)) {
-            await fs.promises.unlink(file.path);
-            const error = new Error("The business permit contents do not match the selected file type."); error.status = 415; throw error;
+        for (const file of files) {
+            if (!file.storageRef && !hasAllowedChatSignature(await fs.promises.readFile(file.path), file.mimetype)) {
+                const error = new Error("The business permit contents do not match the selected file type."); error.status = 415; throw error;
+            }
         }
         next();
-    } catch (error) { next(error); }
+    } catch (error) {
+        await Promise.allSettled(files.map(file => new Promise(resolve => storage._removeFile(req, file, resolve))));
+        next(error);
+    }
 });
 
 exports.registrationUpload = withBusinessPermitValidation(upload.fields([
-    { name: "business_permit", maxCount: 1 },
+    { name: "business_permit", maxCount: 5 },
     { name: "proof_document", maxCount: 1 }
  ]));
 
 exports.employerRegistrationUpload = withBusinessPermitValidation(upload.fields([
-    { name: "business_permit", maxCount: 1 }
+    { name: "business_permit", maxCount: 5 }
  ]));
 
 exports.alumniRegistrationUpload = upload.single("proof_document");
@@ -366,11 +389,8 @@ const requirePersistentMessagingStorage = (req, res, next) => {
     // Render's writable filesystem is ephemeral unless a disk is explicitly
     // mounted. Require shared storage there so newly sent chat files survive a
     // restart or redeploy instead of silently creating another fragile path.
-    if (String(process.env.RENDER || "").toLowerCase() === "true" && !isObjectStorageEnabled()) {
-        const err = new Error("Persistent messaging attachment storage is unavailable. Please try again later.");
-        err.status = 503;
-        return next(err);
-    }
+    // The disk engine rejects attachment writes in production. Parse first so
+    // text-only messages remain available during a storage outage.
     return runChatUpload(req, res, next);
 };
 exports.chatAttachmentUpload = requirePersistentMessagingStorage;

@@ -1,7 +1,7 @@
 "use strict";
 const Sequelize = require("sequelize");
 const migration = require("../migrations/20261017-expand-employer-permit-reference");
-async function run(db, args = process.argv.slice(2)) {
+async function run(db, args = process.argv.slice(2), selectedMigration = migration) {
     const apply = args.includes("--apply");
     const value = flag => { const i = args.indexOf(flag); return i >= 0 ? args[i + 1] : null; };
     const database = value("--database"), host = value("--host");
@@ -11,11 +11,11 @@ async function run(db, args = process.argv.slice(2)) {
     if ((database && identity.database_name !== database) || (host && db.sequelize.config.host !== host)) throw new Error("Database/host identity mismatch; no changes performed.");
     console.log(JSON.stringify({ mode: apply ? "apply" : "check-only", database: identity.database_name }));
     const qi = db.sequelize.getQueryInterface();
-    console.log(JSON.stringify(await migration.inspect(qi, Sequelize)));
+    console.log(JSON.stringify(await selectedMigration.inspect(qi, Sequelize)));
     if (apply) {
-        await migration.up(qi, Sequelize);
+        await selectedMigration.up(qi, Sequelize);
         console.log("Employer permit migration applied and verified; existing rows preserved.");
-        console.log(JSON.stringify(await migration.inspect(qi, Sequelize)));
+        console.log(JSON.stringify(await selectedMigration.inspect(qi, Sequelize)));
     }
 }
 if (require.main === module) {

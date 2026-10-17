@@ -4,6 +4,8 @@ import { api } from "../services/api";
 import { FiGlobe, FiMail, FiShield, FiUser } from "react-icons/fi";
 import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
+import BusinessPermitInput from "../components/BusinessPermitInput";
+import { validateBusinessPermits } from "../utils/businessPermits";
 import "./RegisterPage.css";
 
 export default function RegisterEmployerPage() {
@@ -16,7 +18,7 @@ export default function RegisterEmployerPage() {
         password: "",
         consent: false
     });
-    const [businessPermit, setBusinessPermit] = useState(null);
+    const [businessPermits, setBusinessPermits] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -42,8 +44,9 @@ export default function RegisterEmployerPage() {
                 return;
             }
 
-            if (!businessPermit) {
-                setError("Business permit upload is required.");
+            const permitError = validateBusinessPermits(businessPermits);
+            if (permitError) {
+                setError(permitError);
                 setLoading(false);
                 return;
             }
@@ -56,7 +59,7 @@ export default function RegisterEmployerPage() {
             payload.append("role", "employer");
             payload.append("company_address", form.companyAddress);
             payload.append("website_url", form.websiteUrl);
-            payload.append("business_permit", businessPermit);
+            businessPermits.forEach(file => payload.append("business_permit", file));
 
             await api.post("/auth/register", payload);
             setSuccess("Employer registration submitted. You can now log in.");
@@ -175,18 +178,7 @@ export default function RegisterEmployerPage() {
                                 </div>
 
                                 <div className="col-12">
-                                    <p className="field-label">Business Permit (BIR / DTI / SEC){requiredMark}</p>
-                                    <input
-                                        className="employer-file-input"
-                                        type="file"
-                                        accept="image/*,application/pdf"
-                                        required
-                                        onChange={(e) => setBusinessPermit(e.target.files?.[0] || null)}
-                                    />
-                                    <p className="upload-helper-text">
-                                        Upload a valid Business Permit (BIR / DTI / SEC Registration).
-                                        This will be reviewed by admin before your account is activated.
-                                    </p>
+                                    <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading} />
                                 </div>
                             </div>
 

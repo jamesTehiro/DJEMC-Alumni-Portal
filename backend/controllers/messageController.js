@@ -5,9 +5,8 @@ const db = require("../models");
 const {
     destroyStoredFile,
     isStoredFileReference,
-    sendStoredFile,
-    getStoredFileOriginalName
 } = require("../services/objectStorage");
+const { sendMessageAttachment } = require("../services/messageAttachmentStorage");
 const MAX_PAGE_SIZE = 50;
 const DEFAULT_PAGE_SIZE = 30;
 const fileExists = async (filePath) => {
@@ -995,7 +994,6 @@ exports.deleteMessage = async (req, res, next) => {
 exports.downloadMessageFile = async (req, res, next) => {
     try {
         const identifier = String(req.params.fileName || "").trim();
-        const fileName = path.basename(identifier);
         if (!/^\d+$/.test(identifier)) return res.status(404).json({ msg: "File not found." });
         const message = await db.Message.findByPk(Number(identifier));
 
@@ -1005,33 +1003,8 @@ exports.downloadMessageFile = async (req, res, next) => {
         const conversation = await db.Conversation.findByPk(message.conversation_id);
         await assertConversationAccess(user, conversation);
 
-        if (isStoredFileReference(message.file_url) || /^https?:\/\//i.test(String(message.file_url || ""))) {
-            return sendStoredFile(
-                message.file_url,
-                res,
-                message.file_name || getStoredFileOriginalName(message.file_url) || fileName
-            );
-        }
-
-        if (isStoredFileReference(message.file_url) || /^https?:\/\//i.test(String(message.file_url || ""))) {
-            return sendStoredFile(message.file_url, res, message.file_name || getStoredFileOriginalName(message.file_url) || fileName);
-        }
-
-        const storedName = path.basename(String(message.file_url || ""));
-        if (!storedName || storedName === "." || storedName === "..") return res.status(404).json({ msg: "Stored file not found." });
-        const resolvedFilePath = path.resolve(__dirname, "..", "private_uploads", "chat", storedName);
-        const privateRoot = path.resolve(__dirname, "..", "private_uploads", "chat") + path.sep;
-        if (!resolvedFilePath.startsWith(privateRoot)) return res.status(404).json({ msg: "Stored file not found." });
-        if (!(await fileExists(resolvedFilePath))) {
-            return res.status(404).json({ msg: "Stored file not found." });
-        }
-
-        res.setHeader("Content-Type", message.file_mime || "application/octet-stream");
-        res.setHeader("X-Content-Type-Options", "nosniff");
-        if (["application/pdf", "image/png", "image/jpeg", "image/webp", "image/gif"].includes(message.file_mime)) {
-            return res.sendFile(resolvedFilePath);
-        }
-        return res.download(resolvedFilePath, message.file_name || fileName);
+        return await sendMessageAttachment({ storedValue: message.file_url, name: message.file_name,
+            mime: message.file_mime, namespace: "chat", download: req.query?.download === "1" }, res);
     } catch (err) {
         return next(err);
     }

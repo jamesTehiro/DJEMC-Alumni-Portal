@@ -249,6 +249,49 @@ const getStoredFileOriginalName = (storedValue) => {
     return parsed?.originalName || null;
 };
 
+// VARCHAR(255) chat rows can end before the delivery URL. Recover only a
+// complete asset identity, then ask the configured provider for the real URL.
+// Never guess a missing public ID, recreate a file, or rewrite the stored row.
+const recoverStoredFileReference = async (value, folders) => {
+    if (typeof value !== "string" || !value.startsWith(REF_PREFIX) || !isObjectStorageEnabled()) return null;
+    if (parseStoredFileReference(value)) return value;
+    const decoded = Buffer.from(value.slice(REF_PREFIX.length), "base64url").toString("utf8");
+    const field = key => {
+        const match = decoded.match(new RegExp(`"${key}":("(?:[^"\\\\]|\\\\.)*")`));
+        try { return match ? JSON.parse(match[1]) : null; } catch { return null; }
+    };
+    const resourceType = field("resourceType"), type = field("type"), publicId = field("publicId");
+    if (field("provider") !== "cloudinary" || !["image", "raw"].includes(resourceType) || !["upload", "authenticated"].includes(type)) return null;
+    if (!publicId || !/^[A-Za-z0-9._/-]+$/.test(publicId) || !folders.some(folder => publicId.startsWith(`${folder}/`)) || publicId.split("/").some(part => !part || part === "." || part === "..")) return null;
+    let response;
+    try {
+        response = await fetch(`https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/resources/${resourceType}/${type}/${encodeURIComponent(publicId)}`, {
+            headers: { Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}` }
+        });
+    } catch {
+        const error = new Error("Attachment storage is temporarily unavailable. Please try again later.");
+        error.status = 502;
+        error.publicMessage = error.message;
+        throw error;
+    }
+    if (response.status === 404) return null;
+    if (!response.ok) {
+        const error = new Error("Attachment storage is temporarily unavailable. Please try again later.");
+        error.status = 502;
+        error.publicMessage = error.message;
+        throw error;
+    }
+    const asset = await response.json();
+    if (asset.public_id !== publicId || asset.resource_type !== resourceType || asset.type !== type) return null;
+    let url;
+    try { url = new URL(asset.secure_url); } catch { return null; }
+    if (url.protocol !== "https:" || url.hostname !== "res.cloudinary.com" || !url.pathname.startsWith(`/${cloudName}/${resourceType}/${type}/`)) return null;
+    return encodeStoredFileReference({ provider: "cloudinary", resourceType, type, publicId, url: asset.secure_url });
+};
+
+const recoverChatStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/chat", "private_uploads/admin_employer"]);
+const recoverPermitStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/business_permits", "uploads/documents"]);
+
 const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null) => {
     const sourceUrl = getDownloadSourceUrl(storedValue);
     if (!sourceUrl) {
@@ -283,5 +326,7 @@ module.exports = {
     sendStoredFile,
     isStoredFileReference,
     parseStoredFileReference,
-    getStoredFileOriginalName
+    getStoredFileOriginalName,
+    recoverChatStoredFileReference,
+    recoverPermitStoredFileReference
 };

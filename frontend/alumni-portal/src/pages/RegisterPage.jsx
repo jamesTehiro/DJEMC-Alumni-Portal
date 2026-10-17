@@ -159,30 +159,36 @@ export default function RegisterPage() {
                                     </label>
                                 </div>
 
-                                <div className="col-12 col-sm-12 col-md-6 col-lg-6">
-                                    <p className="field-label">Graduation Year</p>
-                                    <label className="line-input">
-                                        <input
-                                            type="text"
-                                            name="graduationYear"
-                                            value={registerForm.graduationYear}
-                                            onChange={handleRegisterChange}
-                                            placeholder="Enter graduation year"
-                                            inputMode="numeric"
-                                            maxLength={4}
-                                        />
-                                    </label>
-                                </div>
+                               <div className="col-12 col-sm-12 col-md-6 col-lg-6">
+    <label htmlFor="graduationYear" className="field-label">
+        Academic Year
+    </label>
+
+    <label className="line-input">
+        <input
+            id="graduationYear"
+            type="text"
+            name="graduationYear"
+            value={registerForm.graduationYear ?? ""}
+            onChange={handleRegisterChange}
+            placeholder="Enter Academic Year"
+            inputMode="numeric"
+            maxLength={4}
+            pattern="[0-9]{4}"
+            title="Enter a four-digit year."
+        />
+    </label>
+</div>
 
                                 <div className="col-12">
-                                    <p className="field-label">Course / Degree</p>
+                                    <p className="field-label">Program</p>
                                     <label className="line-input">
                                         <input
                                             type="text"
                                             name="course"
                                             value={registerForm.course}
                                             onChange={handleRegisterChange}
-                                            placeholder="Enter course or degree"
+                                            placeholder="Enter Program"
                                         />
                                     </label>
                                 </div>
