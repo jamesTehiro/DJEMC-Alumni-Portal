@@ -7,7 +7,7 @@ process.env.CLOUDINARY_API_SECRET = "fixture-secret";
 const db = require("../models");
 const migration = require("../migrations/20261018-add-employer-permit-documents");
 const { readPermitDocuments, permitDocumentPayload } = require("../services/employerPermitDocuments");
-const { recoverPermitStoredFileReference, parseStoredFileReference } = require("../services/objectStorage");
+const { recoverPermitStoredFileReference, parseStoredFileReference, privateDownloadSourceUrl, sendStoredFile } = require("../services/objectStorage");
 const controller = require("../controllers/employerPermitController");
 const admin = require("../controllers/adminController");
 test.after(() => db.sequelize.close());
@@ -93,6 +93,45 @@ test("truncated permit recovery verifies an existing provider asset and fails sa
     } finally {global.fetch=originalFetch;}
 });
 
+test("private permit download uses the stored Cloudinary resource metadata and permits only supported formats", () => {
+    const makeReference = (resourceType, type, publicId, format) => `cld:${Buffer.from(JSON.stringify({
+        provider:"cloudinary",resourceType,type,publicId,format,
+        url:`https://res.cloudinary.com/permit-fixture/${resourceType}/${type}/v1/${publicId}`
+    })).toString("base64url")}`;
+    for (const [resourceType, publicId, format] of [
+        ["raw","private_uploads/business_permits/permit.pdf","pdf"],
+        ["image","private_uploads/business_permits/permit.png","png"],
+        ["image","private_uploads/business_permits/permit.jpg","jpg"],
+        ["image","private_uploads/business_permits/permit.jpeg","jpeg"]
+    ]) {
+        const url = new URL(privateDownloadSourceUrl(makeReference(resourceType,"authenticated",publicId,format)));
+        assert.equal(url.hostname,"api.cloudinary.com");
+        assert.match(url.pathname,new RegExp(`/${resourceType}/download$`));
+        assert.equal(url.searchParams.get("type"),"authenticated");
+        assert.equal(url.searchParams.get("format"),format);
+        assert.equal(url.searchParams.get("public_id"),publicId);
+        assert.ok(url.searchParams.get("signature"));
+        assert.ok(url.searchParams.get("api_key"));
+        assert.ok(Number(url.searchParams.get("expires_at")) > Math.floor(Date.now()/1000));
+    }
+    assert.equal(privateDownloadSourceUrl(makeReference("image","authenticated","private_uploads/business_permits/permit.pdf","pdf")),null);
+    assert.equal(privateDownloadSourceUrl(makeReference("raw","authenticated","private_uploads/business_permits/permit.exe","exe")),null);
+    const mismatched = makeReference("image","authenticated","private_uploads/business_permits/permit.png","png");
+    const decoded = parseStoredFileReference(mismatched);
+    decoded.url = decoded.url.replace("permit.png","different.png");
+    assert.equal(privateDownloadSourceUrl(`cld:${Buffer.from(JSON.stringify(decoded)).toString("base64url")}`),null);
+    assert.equal(privateDownloadSourceUrl("cld:not-a-reference"),null);
+});
+
+test("private permit download reports a provider 404 as a missing asset", async () => {
+    const reference=`cld:${Buffer.from(JSON.stringify({provider:"cloudinary",resourceType:"raw",type:"authenticated",publicId:"private_uploads/business_permits/missing.pdf",url:"https://res.cloudinary.com/permit-fixture/raw/authenticated/v1/private_uploads/business_permits/missing.pdf"})).toString("base64url")}`;
+    const originalFetch=global.fetch;
+    global.fetch=async()=>new Response("missing",{status:404});
+    try {
+        await assert.rejects(sendStoredFile(reference,{setHeader(){},send(){}},null,"application/pdf",true),error=>error.status===404);
+    } finally {global.fetch=originalFetch;}
+});
+
 test("private permit delivery logs only the provider status and keeps secrets and references out of the client error", async () => {
     const overrides=[];
     const stub=(object,key,value)=>{overrides.push([object,key,object[key]]);object[key]=value;};
@@ -103,7 +142,7 @@ test("private permit delivery logs only the provider status and keeps secrets an
     let forwardedError;
     stub(db.User,"findByPk",async()=>({id:82,role:"employer"}));
     stub(db.EmployerProfile,"findOne",async()=>({user_id:82,business_permit_path:secretReference,business_permit_documents:JSON.stringify([{storage_ref:secretReference,name:"private-fixture.pdf",mime_type:"application/pdf"}])}));
-    global.fetch=async()=>new Response("denied",{status:403});
+    global.fetch=async()=>new Response("denied",{status:400});
     console.error=(...values)=>logs.push(values);
     try {
         const headers={};
@@ -111,7 +150,7 @@ test("private permit delivery logs only the provider status and keeps secrets an
         await controller.getDocument({params:{userId:"82",documentId:"1"},query:{},user:{id:1,role:"admin",admin_scope:"employer"}},response,error=>{forwardedError=error;});
         assert.equal(forwardedError.status,502);
         assert.equal(forwardedError.publicMessage,"Business permit storage is temporarily unavailable. Please try again later.");
-        assert.deepEqual(logs,[["[employer-permit-storage] Cloudinary delivery failed",{upstreamStatus:403,failure:"provider_response"}]]);
+        assert.deepEqual(logs,[["[employer-permit-storage] Cloudinary delivery failed",{upstreamStatus:400,failure:"provider_response"}]]);
         assert.equal(JSON.stringify(logs).includes(secretReference),false);
         assert.equal(JSON.stringify(logs).includes("private-fixture"),false);
         assert.equal(JSON.stringify(logs).includes(process.env.CLOUDINARY_API_SECRET),false);

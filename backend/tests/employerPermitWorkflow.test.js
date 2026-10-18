@@ -50,7 +50,19 @@ test("multipart permit registration, admin preview/replacement, validation and p
     });
     global.fetch = async (url, options) => {
         const address = String(url);
-        if (address.startsWith("https://api.cloudinary.com/")) {
+        if (address.startsWith("https://api.cloudinary.com/") && address.includes("/download?")) {
+            const request = new URL(address);
+            assert.match(request.pathname, /\/(image|raw)\/download$/);
+            assert.equal(request.searchParams.get("type"), "authenticated");
+            assert.ok(request.searchParams.get("api_key"));
+            assert.ok(request.searchParams.get("signature"));
+            const id = request.searchParams.get("public_id");
+            const file = cloudFiles.get(id);
+            return file
+                ? new Response(file.bytes, { status: 200, headers: { "Content-Type": file.type } })
+                : new Response("missing", { status: 404 });
+        }
+        if (address.startsWith("https://api.cloudinary.com/") && address.endsWith("/upload")) {
             uploads++;
             assert.equal(options.body.get("type"), "authenticated");
             const id = options.body.get("public_id");
@@ -58,12 +70,6 @@ test("multipart permit registration, admin preview/replacement, validation and p
             cloudFiles.set(id, { bytes: Buffer.from(await file.arrayBuffer()), type: file.type });
             const resource = address.includes("/image/") ? "image" : "raw";
             return { ok: true, json: async () => ({ public_id: id, resource_type: resource, type: "authenticated", secure_url: `https://res.cloudinary.com/permit-fixture/${resource}/authenticated/v1/${id}` }) };
-        }
-        if (address.startsWith("https://res.cloudinary.com/")) {
-            assert.match(address, /\/s--/);
-            const id = address.split("/v1/")[1];
-            const file = cloudFiles.get(id);
-            return { ok: true, headers: { get: () => file.type }, arrayBuffer: async () => file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) };
         }
         return nativeFetch(url, options);
     };

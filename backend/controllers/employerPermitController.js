@@ -32,7 +32,12 @@ exports.getDocument = async (req, res, next) => {
         }
         setFileResponseHeaders(res, name, req.query?.download === "1");
         if (isStoredFileReference(reference) || /^https?:\/\//i.test(reference) && new URL(reference).hostname === "res.cloudinary.com") {
-            try { return await sendStoredFile(reference, res, null, mime === "application/octet-stream" ? null : mime); }
+            // Authenticated/private permits require Cloudinary's signed
+            // private-download API. Keep legacy public-upload references on
+            // their original server-side retrieval path.
+            const storedAsset = parseStoredFileReference(reference);
+            const privateAsset = ["authenticated", "private"].includes(storedAsset?.type);
+            try { return await sendStoredFile(reference, res, null, mime === "application/octet-stream" ? null : mime, privateAsset); }
             catch (error) {
                 res.removeHeader("Content-Type"); res.removeHeader("Content-Disposition");
                 if (error.status === 404) return missing();

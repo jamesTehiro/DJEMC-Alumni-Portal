@@ -244,6 +244,54 @@ const getDownloadSourceUrl = (storedValue) => {
     return null;
 };
 
+// Cloudinary's authenticated raw files (notably PDFs) are more reliably
+// retrieved through its signed private-download API than through a CDN
+// delivery URL. Keep this URL server-side and short-lived; it is never
+// returned in an API response or written to logs.
+const privateDownloadSourceUrl = (storedValue) => {
+    const parsed = parseStoredFileReference(storedValue);
+    if (!parsed || parsed.provider !== "cloudinary" || !["image", "raw"].includes(parsed.resourceType) || !["authenticated", "private"].includes(parsed.type)) return null;
+    if (!apiKey || !apiSecret || !cloudName || !parsed.publicId) return null;
+    try {
+        const source = new URL(parsed.url);
+        if (source.protocol !== "https:" || source.hostname !== "res.cloudinary.com" || source.port || source.username || source.password) return null;
+        const segments = source.pathname.split("/").filter(Boolean).map(segment => decodeURIComponent(segment));
+        if (segments[0] !== cloudName || segments[1] !== parsed.resourceType || segments[2] !== parsed.type) return null;
+        if (!/^[A-Za-z0-9._/-]+$/.test(parsed.publicId) || parsed.publicId.split("/").some(part => !part || part === "." || part === "..")) return null;
+        if (segments.length < 5 || !/^v\d+$/.test(segments[3])) return null;
+        const sourceAsset = segments.slice(4).join("/");
+        const referenceMatchesSource = sourceAsset === parsed.publicId ||
+            (parsed.resourceType === "image" && sourceAsset.startsWith(`${parsed.publicId}.`) && /^\.(png|jpe?g)$/i.test(sourceAsset.slice(parsed.publicId.length)));
+        if (!referenceMatchesSource) return null;
+
+        const urlFormat = path.extname(decodeURIComponent(segments.at(-1) || "")).slice(1).toLowerCase();
+        const publicIdFormat = parsed.resourceType === "raw" ? path.extname(parsed.publicId).slice(1).toLowerCase() : "";
+        const format = String(parsed.format || publicIdFormat || urlFormat).toLowerCase();
+        if (!/^(pdf|png|jpe?g)$/.test(format)) return null;
+        if (parsed.resourceType === "raw" && format !== "pdf") return null;
+        if (parsed.resourceType === "image" && format === "pdf") return null;
+
+        const timestamp = Math.floor(Date.now() / 1000);
+        const params = {
+            attachment: false,
+            expires_at: timestamp + 300,
+            format,
+            public_id: parsed.publicId,
+            timestamp,
+            type: parsed.type
+        };
+        const payload = Object.entries(params)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, value]) => `${key}=${value}`.replace(/&/g, "%26"))
+            .join("&");
+        const signature = crypto.createHash("sha1").update(`${payload}${apiSecret}`).digest("hex");
+        const query = new URLSearchParams({ ...params, signature, api_key: apiKey });
+        return `https://api.cloudinary.com/v1_1/${encodeURIComponent(cloudName)}/${parsed.resourceType}/download?${query.toString()}`;
+    } catch {
+        return null;
+    }
+};
+
 const getStoredFileOriginalName = (storedValue) => {
     const parsed = parseStoredFileReference(storedValue);
     return parsed?.originalName || null;
@@ -292,8 +340,8 @@ const recoverStoredFileReference = async (value, folders) => {
 const recoverChatStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/chat", "private_uploads/admin_employer"]);
 const recoverPermitStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/business_permits", "uploads/documents"]);
 
-const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null) => {
-    const sourceUrl = getDownloadSourceUrl(storedValue);
+const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null, usePrivateDownloadApi = false) => {
+    const sourceUrl = usePrivateDownloadApi ? privateDownloadSourceUrl(storedValue) : getDownloadSourceUrl(storedValue);
     if (!sourceUrl) {
         const err = new Error("Stored file URL could not be resolved.");
         err.status = 404;
@@ -326,6 +374,7 @@ module.exports = {
     sendStoredFile,
     isStoredFileReference,
     parseStoredFileReference,
+    privateDownloadSourceUrl,
     getStoredFileOriginalName,
     recoverChatStoredFileReference,
     recoverPermitStoredFileReference
