@@ -13,7 +13,7 @@ module.exports = (req, res, next) => {
         // Membership search/filter queries may contain private names and email addresses.
         const loggedUrl = /^\/api\/files\/secure(?:\/|\?|$)/i.test(req.originalUrl)
             ? "/api/files/secure/[redacted]"
-            : /^\/api\/membership(?:\/|\?|$)/i.test(req.originalUrl)
+            : /^\/api\/(?:membership|messages|admin-employer)(?:\/|\?|$)/i.test(req.originalUrl)
             ? req.originalUrl.split("?")[0]
             : req.originalUrl;
         // eslint-disable-next-line no-console

@@ -14,6 +14,7 @@ const allowEmployerOrEmployerAdmin = (req, res, next) => {
     return next();
 };
 
+router.use(require("../middleware/privateMessagingResponse"));
 router.use(authMiddleware);
 router.use(allowEmployerOrEmployerAdmin);
 
@@ -39,4 +40,5 @@ router.delete(
     adminEmployerMessageController.deleteEmployerMessage
 );
 
+router.use(require("../middleware/messagingErrorHandler"));
 module.exports = router;

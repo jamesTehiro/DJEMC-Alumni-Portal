@@ -1,3 +1,4 @@
+import { beginMessageRequest, finishMessageRequest } from "../utils/messageSendRequest";
 import useChatViewport from "../hooks/useChatViewport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
@@ -55,6 +56,7 @@ export default function AdminAlumniMessagesPage() {
     const [selectedProfile, setSelectedProfile] = useState(null);
     const [showProfileModal, setShowProfileModal] = useState(false);
     const fileInputRef = useRef(null);
+    const sendAttemptRef = useRef(null);
     const chatStreamRef = useRef(null);
     const pendingScrollStateRef = useRef(null);
 
@@ -204,10 +206,14 @@ export default function AdminAlumniMessagesPage() {
 
     const sendMessage = async () => {
         if (!forumConversation?.id || (!draft.trim() && !attachment)) return;
+        const attempt = beginMessageRequest(sendAttemptRef, forumConversation.id, draft.trim(), attachment);
+        if (!attempt) return;
+        let sent = false;
         setSending(true);
         setError("");
         try {
             const formData = new FormData();
+            formData.append("client_message_id", attempt.id);
             if (draft.trim()) formData.append("message_text", draft.trim());
             if (attachment) formData.append("attachment", attachment);
 
@@ -226,9 +232,11 @@ export default function AdminAlumniMessagesPage() {
             setDraft("");
             setAttachment(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
+            sent = true;
         } catch (err) {
             setError(err.message);
         } finally {
+            finishMessageRequest(sendAttemptRef, attempt.id, sent);
             setSending(false);
         }
     };
@@ -518,4 +526,3 @@ export default function AdminAlumniMessagesPage() {
         </AdminShell>
     );
 }
-

@@ -63,6 +63,8 @@ test('Alumni Forum and Employer direct messages remain readable', async () => {
 test('Employer direct send preserves attachments and realtime delivery', async () => {
     await fixture(employer, direct, async (replace) => {
         let saved, emitted;
+        replace(db.sequelize, 'transaction', async run => run({ LOCK: { UPDATE: 'UPDATE' } }));
+        replace(db.Message, 'findByPk', async () => saved);
         replace(db.Message, 'create', async payload => { saved = payload; return { id: 9, createdAt: new Date(), toJSON: () => ({ ...payload, id: 9 }) }; });
         replace(db.ConversationParticipant, 'findAll', async () => [{ user_id: 7 }, { user_id: 8 }]);
         const req = request();

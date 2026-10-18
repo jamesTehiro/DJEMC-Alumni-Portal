@@ -4,8 +4,10 @@ const db = require("../models");
 const {
     destroyStoredFile,
     isStoredFileReference,
+    getStoredFileOriginalName,
 } = require("../services/objectStorage");
 const { sendMessageAttachment } = require("../services/messageAttachmentStorage");
+const { persistMessage, requestKey } = require("../services/messagePersistence");
 
 const attachmentsRoot = path.join(__dirname, "..", "private_uploads", "admin_employer");
 const MAX_PAGE_SIZE = Number(process.env.ADMIN_EMPLOYER_MAX_PAGE_SIZE || 100);
@@ -20,6 +22,11 @@ const toAttachmentUrl = (messageOrStoredPath) => {
 };
 
 const isEmployerAdmin = (user) => user?.role === "admin" && user?.admin_scope === "employer";
+const assertEmployerParameterAccess = (user, employerId) => {
+    if (!isEmployerAdmin(user) && !(user?.role === "employer" && Number(user.id) === Number(employerId))) {
+        throw Object.assign(new Error("You are not allowed to access this conversation."), { status: 403 });
+    }
+};
 const parsePositiveInt = (value) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -80,14 +87,22 @@ const assertConversationAccess = async (reqUser, employerId, conversation) => {
     throw err;
 };
 
+const legacyAttachmentName = value => {
+    if (typeof value !== "string" || value.startsWith("cld:")) return null;
+    try {
+        const filename = /^https?:\/\//i.test(value) ? decodeURIComponent(new URL(value).pathname) : value;
+        return path.basename(filename.replace(/\\/g, "/"));
+    } catch { return null; }
+};
+
 const normalizeMessagePayload = (message) => ({
     id: message.id,
     conversationId: message.conversationId,
     senderType: message.senderType,
     senderId: message.senderId,
     message: message.message,
-    attachment: toAttachmentUrl(message),
-    file_name: message.file_name || getStoredFileOriginalName(message.attachment) || (message.attachment && !isStoredFileReference(message.attachment) ? path.basename(String(message.attachment)) : null),
+    attachment: message.attachment ? toAttachmentUrl(message) : null,
+    file_name: message.file_name || getStoredFileOriginalName(message.attachment) || legacyAttachmentName(message.attachment),
     file_mime: message.file_mime || null,
     file_size: message.file_size || null,
     createdAt: message.createdAt,
@@ -198,6 +213,7 @@ exports.sendEmployerMessage = async (req, res, next) => {
         if (!employerId) {
             return res.status(400).json({ msg: "employerId is required." });
         }
+        assertEmployerParameterAccess(req.user, employerId);
 
         const conversation = await exports.ensureEmployerConversation(
             employerId,
@@ -214,7 +230,7 @@ exports.sendEmployerMessage = async (req, res, next) => {
         }
 
         const senderType = isEmployerAdmin(req.user) ? "admin" : "employer";
-        const created = await db.EmployerMessage.create({
+        const values = {
             conversationId: conversation.id,
             senderType,
             senderId: req.user.id,
@@ -223,12 +239,8 @@ exports.sendEmployerMessage = async (req, res, next) => {
             file_name: req.file?.originalname || null,
             file_mime: req.file?.mimetype || null,
             file_size: req.file?.size || null
-        });
-
-        await conversation.update({
-            last_message_text: messageText || req.file?.originalname || "Attachment",
-            last_message_at: created.createdAt
-        });
+        };
+        const { message: created } = await persistMessage({ channel: "admin_employer", conversation, values, key: requestKey(req.body.client_message_id) });
 
         return res.status(201).json({
             conversationId: conversation.id,
@@ -388,6 +400,7 @@ exports.getEmployerMessages = async (req, res, next) => {
         if (!employerId) {
             return res.status(400).json({ msg: "Valid employerId is required." });
         }
+        assertEmployerParameterAccess(req.user, employerId);
 
         const conversation = await exports.ensureEmployerConversation(
             employerId,
@@ -459,6 +472,7 @@ exports.deleteEmployerMessage = async (req, res, next) => {
         if (!employerId || !messageId) {
             return res.status(400).json({ msg: "Valid employerId and messageId are required." });
         }
+        assertEmployerParameterAccess(req.user, employerId);
 
         const conversation = await exports.ensureEmployerConversation(
             employerId,

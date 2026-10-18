@@ -27,8 +27,10 @@ test.before(async () => {
     await fs.writeFile(path.join(directory, filename), bytes, { flag: "wx" });
     stub(db.User, "findByPk", async id => ({ id: Number(id), role: "alumni", account_status: "verified" }));
     const conversation = { id: 9, type: "direct", update: async () => {} };
+    stub(db.sequelize, "transaction", async run => run({ LOCK: { UPDATE: "UPDATE" } }));
     stub(db.Conversation, "findByPk", async () => conversation);
     stub(db.ConversationParticipant, "findOne", async ({ where }) => where.user_id === 1 ? { user_id: 1 } : null);
+    stub(db.ConversationParticipant, "findOrCreate", async () => [{}]);
     stub(db.Message, "create", async data => { storedMessage = { ...data, id: 45, createdAt: new Date(), toJSON() { return { ...this }; } }; return storedMessage; });
     stub(db.Message, "findByPk", async () => storedMessage);
     stub(db.EmployerMessage, "findByPk", async () => storedMessage && ({ ...storedMessage, attachment: storedMessage.file_url, conversation: { employerId: 1 } }));
@@ -129,6 +131,22 @@ test("special-character original filenames use safe UTF-8 download headers", asy
     assert.equal(response.status, 200);
     assert.ok(response.headers.get("content-disposition").includes(`filename*=UTF-8''${encodeURIComponent(filename)}`));
     assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+});
+
+test("legacy local files infer MIME; malformed references are 400 and absent attachments remain 404", async () => {
+    storedMessage = { id: 45, conversation_id: 9, file_url: path.join(directory, filename), file_mime: null };
+    const legacy = await fetch(`${origin}/messages/files/45`);
+    assert.equal(legacy.status, 200);
+    assert.match(legacy.headers.get('content-type'), /^application\/pdf/);
+    assert.equal(legacy.headers.get('cache-control'), 'private, no-store');
+    for (const reference of ['cld:invalid', '../secret.pdf', 'https://untrusted.example/file.pdf']) {
+        storedMessage.file_url = reference;
+        const response = await fetch(`${origin}/messages/files/45`);
+        assert.equal(response.status, 400);
+        assert.match((await response.json()).msg, /Invalid message attachment reference/);
+    }
+    storedMessage.file_url = null;
+    assert.equal((await fetch(`${origin}/messages/files/45`)).status, 404);
 });
 
 test("255-character legacy cloud rows recover only existing assets with complete identifiers", async () => {

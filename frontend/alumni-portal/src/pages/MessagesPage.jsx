@@ -1,3 +1,4 @@
+import { beginMessageRequest, finishMessageRequest } from "../utils/messageSendRequest";
 import useChatViewport from "../hooks/useChatViewport";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner, Row, Col } from "react-bootstrap";
@@ -45,6 +46,7 @@ export default function MessagesPage() {
     const [searching, setSearching] = useState(false);
     const [showSearchResults, setShowSearchResults] = useState(false);
     const fileInputRef = useRef(null);
+    const sendAttemptRef = useRef(null);
     const chatStreamRef = useRef(null);
     const pendingScrollStateRef = useRef(null);
     const preservedMessagesRef = useRef([]);
@@ -392,15 +394,19 @@ export default function MessagesPage() {
 
     const sendMessage = async () => {
         if (!activeConversationId || (!draft.trim() && !attachment)) return;
+        const attempt = beginMessageRequest(sendAttemptRef, activeConversationId, draft.trim(), attachment);
+        if (!attempt) return;
+        let sent = false;
         setSending(true);
         setError("");
         try {
             const formData = new FormData();
+            formData.append("client_message_id", attempt.id);
             if (draft.trim()) formData.append("message_text", draft.trim());
             if (attachment) formData.append("attachment", attachment);
 
             const saved = await api.post(`/messages/${activeConversationId}`, formData, true);
-            setMessages((prev) => {
+            if (activeConversationIdRef.current === activeConversationId) setMessages((prev) => {
                 const result = mergeUniqueById(prev, [saved]);
                 preservedMessagesRef.current = result;
                 return result;
@@ -417,12 +423,16 @@ export default function MessagesPage() {
                         : item
                 )
             );
-            setDraft("");
-            setAttachment(null);
-            if (fileInputRef.current) fileInputRef.current.value = "";
+            if (activeConversationIdRef.current === activeConversationId) {
+                setDraft("");
+                setAttachment(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+            sent = true;
         } catch (err) {
             setError(err.message);
         } finally {
+            finishMessageRequest(sendAttemptRef, attempt.id, sent);
             setSending(false);
         }
     };

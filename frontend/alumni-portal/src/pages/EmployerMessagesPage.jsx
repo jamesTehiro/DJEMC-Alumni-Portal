@@ -1,3 +1,4 @@
+import { beginMessageRequest, finishMessageRequest } from "../utils/messageSendRequest";
 import useChatViewport from "../hooks/useChatViewport";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Spinner, Modal } from "react-bootstrap";
@@ -69,6 +70,7 @@ export default function EmployerMessagesPage() {
     const [imagePreview, setImagePreview] = useState(null);
     const [mobileView, setMobileView] = useState("list");
     const fileInputRef = useRef(null);
+    const sendAttemptRef = useRef(null);
     const chatStreamRef = useRef(null);
     const searchTimeoutRef = useRef(null);
     const activeConversationRef = useRef(null);
@@ -237,11 +239,15 @@ export default function EmployerMessagesPage() {
             setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`);
             return;
         }
+        const attempt = beginMessageRequest(sendAttemptRef, activeConversationId, draft.trim(), attachment);
+        if (!attempt) return;
+        let sent = false;
         setSending(true);
         setError("");
         try {
             if (convo.source === "legacy") {
                 const form = new FormData();
+                form.append("client_message_id", attempt.id);
                 form.append("employerId", convo.employerId);
                 if (draft.trim()) form.append("message", draft.trim());
                 if (attachment) form.append("attachment", attachment);
@@ -252,6 +258,7 @@ export default function EmployerMessagesPage() {
                 await loadConversations();
             } else {
                 const form = new FormData();
+                form.append("client_message_id", attempt.id);
                 if (draft.trim()) form.append("message_text", draft.trim());
                 if (attachment) form.append("attachment", attachment);
                 const rawId = convo.rawId;
@@ -259,12 +266,16 @@ export default function EmployerMessagesPage() {
                 if (activeConversationRef.current === activeConversationId) setMessages((prev) => mergeUniqueById(prev, [saved]));
                 await loadConversations();
             }
-            setDraft("");
-            setAttachment(null);
-            if (fileInputRef.current) fileInputRef.current.value = "";
+            if (activeConversationRef.current === activeConversationId) {
+                setDraft("");
+                setAttachment(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+            sent = true;
         } catch (err) {
             setError(err.message);
         } finally {
+            finishMessageRequest(sendAttemptRef, attempt.id, sent);
             setSending(false);
         }
     };

@@ -170,6 +170,10 @@ const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, is
         const err = new Error("Object storage upload failed. Please try again later.");
         err.status = 502;
         err.publicMessage = err.message;
+        if (["private_uploads/chat", "private_uploads/admin_employer"].includes(folder)) {
+            err.storageDiagnostic = { ...storageDownloadError(null, 502, "upload", response).storageDiagnostic,
+                provider: "cloudinary", resourceType, deliveryType: type, fileFingerprint: null };
+        }
         throw err;
     }
 
@@ -319,7 +323,7 @@ const getStoredFileOriginalName = (storedValue) => {
 // VARCHAR(255) chat rows can end before the delivery URL. Recover only a
 // complete asset identity, then ask the configured provider for the real URL.
 // Never guess a missing public ID, recreate a file, or rewrite the stored row.
-const recoverStoredFileReference = async (value, folders) => {
+const recoverStoredFileReference = async (value, folders, options = {}) => {
     if (typeof value !== "string" || !value.startsWith(REF_PREFIX) || !isObjectStorageEnabled()) return null;
     if (parseStoredFileReference(value)) return value;
     const decoded = Buffer.from(value.slice(REF_PREFIX.length), "base64url").toString("utf8");
@@ -339,13 +343,18 @@ const recoverStoredFileReference = async (value, folders) => {
         const error = new Error("Attachment storage is temporarily unavailable. Please try again later.");
         error.status = 502;
         error.publicMessage = error.message;
+        if (options.reportMissing) error.storageDiagnostic = storageDownloadError(value, 502, "network").storageDiagnostic;
         throw error;
     }
-    if (response.status === 404) return null;
+    if (response.status === 404) {
+        if (options.reportMissing) throw storageDownloadError(value, 404, "provider_response", response);
+        return null;
+    }
     if (!response.ok) {
         const error = new Error("Attachment storage is temporarily unavailable. Please try again later.");
         error.status = 502;
         error.publicMessage = error.message;
+        if (options.reportMissing) error.storageDiagnostic = storageDownloadError(value, 502, "provider_response", response).storageDiagnostic;
         throw error;
     }
     const asset = await response.json();
@@ -356,7 +365,7 @@ const recoverStoredFileReference = async (value, folders) => {
     return encodeStoredFileReference({ provider: "cloudinary", resourceType, type, publicId, url: asset.secure_url });
 };
 
-const recoverChatStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/chat", "private_uploads/admin_employer"]);
+const recoverChatStoredFileReference = (value, options) => recoverStoredFileReference(value, ["private_uploads/chat", "private_uploads/admin_employer"], options);
 const recoverPermitStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/business_permits", "uploads/documents"]);
 
 const storageDownloadError = (storedValue, status, failure, response = null) => {

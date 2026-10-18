@@ -7,6 +7,7 @@ const {
     isStoredFileReference,
 } = require("../services/objectStorage");
 const { sendMessageAttachment } = require("../services/messageAttachmentStorage");
+const { persistMessage, requestKey } = require("../services/messagePersistence");
 const MAX_PAGE_SIZE = 50;
 const DEFAULT_PAGE_SIZE = 30;
 const fileExists = async (filePath) => {
@@ -227,6 +228,7 @@ const getCourseAudience = async (conversation) => {
 };
 
 const assertConversationAccess = async (user, conversation) => {
+    if (!user) throw Object.assign(new Error("Unauthorized"), { status: 401 });
     if (!conversation) {
         const err = new Error("Conversation not found.");
         err.status = 404;
@@ -601,7 +603,6 @@ exports.markConversationAsRead = async (req, res, next) => {
 
 exports.searchEligibleUsers = async (req, res, next) => {
     try {
-        console.log("[SEARCH USERS]", req.query.q);
         const user = await getUserWithProfiles(req.user.id);
         if (!user) return res.status(401).json({ msg: "Unauthorized" });
 
@@ -764,36 +765,23 @@ exports.createOrGetDirectConversation = async (req, res, next) => {
 exports.sendConversationMessage = async (req, res, next) => {
     try {
         const user = await getUserWithProfiles(req.user.id);
+        if (!user) return res.status(401).json({ msg: "Unauthorized" });
         const conversation = await getConversationByIdentifier(user, req.params.conversationId);
         await assertConversationAccess(user, conversation);
         await ensureParticipant(conversation.id, user.id);
 
-        // DEBUG: Log conversation details
-        console.log("[COURSE_DEBUG] sendConversationMessage - Conversation ID:", conversation.id);
-        console.log("[COURSE_DEBUG] sendConversationMessage - Conversation Type:", conversation.type);
-        console.log("[COURSE_DEBUG] sendConversationMessage - Sender ID:", user.id);
-        console.log("[COURSE_DEBUG] sendConversationMessage - Sender Course:", user.AlumniProfile?.course);
-
         // For course conversations, ensure ALL alumni with the same course are participants
         if (conversation.type === "course") {
             const courseAudience = await getCourseAudience(conversation);
-            console.log("[COURSE_DEBUG] sendConversationMessage - Course audience user IDs:", courseAudience);
             for (const audienceUserId of courseAudience) {
                 await ensureParticipant(conversation.id, audienceUserId);
             }
-            // Verify participants after sync
-            const allParticipants = await db.ConversationParticipant.findAll({
-                where: { conversation_id: conversation.id },
-                attributes: ["user_id"]
-            });
-            console.log("[COURSE_DEBUG] sendConversationMessage - Total participants after sync:", allParticipants.length);
-            console.log("[COURSE_DEBUG] sendConversationMessage - Participant User IDs:", allParticipants.map(p => p.user_id));
+
         }
 
         // For batch conversations, ensure ALL alumni with the same batch+course are participants
         if (conversation.type === "batch") {
             const batchAudience = await getBatchAudience(conversation);
-            console.log("[COURSE_DEBUG] sendConversationMessage - Batch audience user IDs:", batchAudience);
             for (const audienceUserId of batchAudience) {
                 await ensureParticipant(conversation.id, audienceUserId);
             }
@@ -820,77 +808,17 @@ exports.sendConversationMessage = async (req, res, next) => {
             is_read: false
         };
 
-        const created = await db.Message.create(messagePayload);
+        const { message: created, replayed } = await persistMessage({ channel: "unified", conversation, values: messagePayload, key: requestKey(req.body.client_message_id) });
 
-        // DEBUG: Log message creation
-        console.log("[COURSE_DEBUG] sendConversationMessage - Message ID after insert:", created.id);
-
-        await conversation.update({
-            last_message_text: messageText || attachment?.originalname || "Attachment",
-            last_message_at: created.createdAt
-        });
-
-        // ---- SOCKET.IO BROADCAST ----
+        // Realtime delivery failure does not undo a committed message.
         try {
             const io = req.app.get("io");
-            if (io) {
-                const room = `conversation:${conversation.id}`;
-
-                // Get total participants
-                const allParticipants = await db.ConversationParticipant.findAll({
-                    where: { conversation_id: conversation.id },
-                    attributes: ["user_id"]
-                });
-                const totalParticipants = allParticipants.length;
-                const participantUserIds = allParticipants.map(p => p.user_id);
-
-                // Get connected sockets in room
-                const roomSockets = io.sockets.adapter.rooms.get(room);
-                const connectedCount = roomSockets ? roomSockets.size : 0;
-                const socketIds = roomSockets ? Array.from(roomSockets) : [];
-
-                // Map socket IDs to user IDs
-                const socketToUserMap = [];
-                for (const sid of socketIds) {
-                    const s = io.sockets.sockets.get(sid);
-                    if (s && s.userId) {
-                        socketToUserMap.push({ socketId: sid, userId: s.userId });
-                    }
-                }
-
-                const messagePayload = buildMessagePayload({
-                    ...created.toJSON(),
-                    sender: user
-                });
-
-                console.log("=== SOCKET BROADCAST ===");
-                console.log("  Conversation ID:", conversation.id);
-                console.log("  Conversation type:", conversation.type);
-                console.log("  Sender ID:", user.id);
-                console.log("  Sender course:", user.AlumniProfile?.course || "N/A");
-                console.log("  Total ConversationParticipants:", totalParticipants);
-                console.log("  Participant User IDs:", participantUserIds.join(", "));
-                console.log("  Connected sockets in room:", connectedCount);
-                console.log("  Socket IDs in room:", socketIds.join(", "));
-                console.log("  Socket-to-User map:", JSON.stringify(socketToUserMap));
-                console.log("  Broadcast emitted:", connectedCount > 0 ? "YES" : "NO (empty room)");
-
-                io.to(room).emit("new-message", messagePayload);
-                console.log("  Emit completed");
-            } else {
-                console.log("[COURSE_DEBUG] sendConversationMessage - io not available on app");
-            }
-        } catch (socketErr) {
-            console.error("[COURSE_DEBUG] sendConversationMessage - Socket broadcast error:", socketErr.message);
+            if (io && !replayed) io.to(`conversation:${conversation.id}`).emit("new-message", buildMessagePayload({ ...created.toJSON(), sender: user }));
+        } catch {
+            console.error("[messaging-realtime]", { failure: "broadcast_unavailable" });
         }
 
-        // Attach sender directly from already-fetched user to avoid redundant findByPk
-        const messageWithSender = {
-            ...created.toJSON(),
-            sender: user
-        };
-
-        return res.status(201).json(buildMessagePayload(messageWithSender));
+        return res.status(201).json(buildMessagePayload({ ...created.toJSON(), sender: user }));
     } catch (err) {
         return next(err);
     }

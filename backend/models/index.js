@@ -19,6 +19,7 @@ db.Comment = require("./Comment")(sequelize, Sequelize);
 db.Conversation = require("./Conversation")(sequelize, Sequelize);
 db.ConversationParticipant = require("./ConversationParticipant")(sequelize, Sequelize);
 db.Message = require("./Message")(sequelize, Sequelize);
+db.MessageSendRequest = require("./MessageSendRequest")(sequelize, Sequelize);
 db.Notification = require("./Notification")(sequelize, Sequelize);
 db.Interview = require("./Interview")(sequelize, Sequelize);
 db.AlumniRecord = require("./AlumniRecord")(sequelize, Sequelize);

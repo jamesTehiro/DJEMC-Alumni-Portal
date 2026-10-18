@@ -3,6 +3,7 @@ const auth = require("../middleware/authMiddleware");
 const messageController = require("../controllers/messageController");
 const { chatAttachmentUpload } = require("../middleware/uploadMiddleware");
 
+router.use(require("../middleware/privateMessagingResponse"));
 router.use(auth);
 
 router.get("/conversations", messageController.getAccessibleConversations);
@@ -30,5 +31,6 @@ router.post("/", messageController.sendLegacyRoomMessage);
 router.post("/:conversationId/read", messageController.markConversationAsRead);
 router.post("/:conversationId", chatAttachmentUpload, messageController.sendConversationMessage);
 router.delete("/:conversationId/messages/:messageId", messageController.deleteMessage);
+router.use(require("../middleware/messagingErrorHandler"));
 
 module.exports = router;

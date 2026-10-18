@@ -1,3 +1,4 @@
+import { beginMessageRequest, finishMessageRequest } from "../utils/messageSendRequest";
 import useChatViewport from "../hooks/useChatViewport";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Form, Modal, Spinner } from "react-bootstrap";
@@ -87,6 +88,9 @@ export default function AdminEmployerMessagesPage() {
     const [showProfileModal, setShowProfileModal] = useState(false);
     const [conversationSearch, setConversationSearch] = useState("");
     const fileInputRef = useRef(null);
+    const sendAttemptRef = useRef(null);
+    const activeThreadRef = useRef(activeThread);
+    useEffect(() => { activeThreadRef.current = activeThread; }, [activeThread]);
     const chatStreamRef = useRef(null);
 
     const currentUser = useMemo(() => {
@@ -311,16 +315,20 @@ export default function AdminEmployerMessagesPage() {
 
     const sendMessage = async () => {
         if (!activeConversation || (!draft.trim() && !attachment)) return;
+        const attempt = beginMessageRequest(sendAttemptRef, activeThread, draft.trim(), attachment);
+        if (!attempt) return;
+        let sent = false;
         setSending(true);
         setError("");
         try {
             if (activeConversation.threadType === "forum") {
                 const formData = new FormData();
+                formData.append("client_message_id", attempt.id);
                 if (draft.trim()) formData.append("message_text", draft.trim());
                 if (attachment) formData.append("attachment", attachment);
 
                 const saved = await api.post(`/messages/${activeConversation.id}`, formData, true);
-                setMessages((prev) => mergeUniqueById(prev, [{ ...saved, threadType: "forum" }]));
+                if (activeThreadRef.current === activeThread) setMessages((prev) => mergeUniqueById(prev, [{ ...saved, threadType: "forum" }]));
                 setForumConversations((prev) =>
                     prev.map((item) =>
                         item.id === activeConversation.id
@@ -334,12 +342,13 @@ export default function AdminEmployerMessagesPage() {
                 );
             } else {
                 const formData = new FormData();
+                formData.append("client_message_id", attempt.id);
                 formData.append("employerId", String(activeConversation.employerId));
                 if (draft.trim()) formData.append("message", draft.trim());
                 if (attachment) formData.append("attachment", attachment);
 
                 const saved = await api.post("/admin-employer/messages", formData, true);
-                setMessages((prev) => mergeUniqueById(prev, [{ ...saved.message, threadType: "private" }]));
+                if (activeThreadRef.current === activeThread) setMessages((prev) => mergeUniqueById(prev, [{ ...saved.message, threadType: "private" }]));
                 setConversations((prev) =>
                     prev.map((item) =>
                         item.employerId === activeConversation.employerId
@@ -352,12 +361,16 @@ export default function AdminEmployerMessagesPage() {
                     )
                 );
             }
-            setDraft("");
-            setAttachment(null);
-            if (fileInputRef.current) fileInputRef.current.value = "";
+            if (activeThreadRef.current === activeThread) {
+                setDraft("");
+                setAttachment(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+            sent = true;
         } catch (err) {
             setError(err.message);
         } finally {
+            finishMessageRequest(sendAttemptRef, attempt.id, sent);
             setSending(false);
         }
     };
@@ -734,4 +747,3 @@ export default function AdminEmployerMessagesPage() {
         </AdminShell>
     );
 }
-

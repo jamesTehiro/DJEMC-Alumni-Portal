@@ -173,6 +173,7 @@ const createCloudStorageEngine = () => ({
                 });
             } catch (err) {
                 if (file.fieldname === "attachment") {
+                    console.error("[message-attachment-upload]", err.storageDiagnostic || { provider: "cloudinary", failure: "upload", upstreamStatus: null });
                     const uploadError = new Error("Message attachment storage is unavailable. The file was not saved. Please try again later.");
                     uploadError.status = 502;
                     uploadError.publicMessage = uploadError.message;
