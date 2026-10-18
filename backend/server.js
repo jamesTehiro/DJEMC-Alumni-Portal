@@ -463,6 +463,13 @@ const ensureDatabaseReady = async () => {
 
     await db.sequelize.authenticate();
 
+    // Employer verification selects business_permit_documents explicitly.
+    // Apply this additive, idempotent migration before any request can query
+    // that field, regardless of Render's NODE_ENV setting.
+    const Sequelize = require("sequelize");
+    const employerPermitDocumentsMigration = require("./migrations/20261018-add-employer-permit-documents");
+    await employerPermitDocumentsMigration.up(db.sequelize.getQueryInterface(), Sequelize);
+
     if (isProduction) {
         // Verify the deployed schema can serve login queries before accepting traffic.
         await verifyAuthSchema(db);

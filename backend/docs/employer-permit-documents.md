@@ -46,19 +46,25 @@ This recovery consumes Cloudinary Admin API quota for each legacy lookup.
 
 ## Deployment
 
-Apply `20261018-add-employer-permit-documents.js` before deploying the new backend.
-It reuses the earlier reference-width migration to widen `business_permit_path`
-to TEXT and adds `business_permit_documents TEXT NULL`. It does not update or
+The backend's standard Render start command is `npm start` (`node server.js`).
+Startup applies `20261018-add-employer-permit-documents.js`
+before schema readiness checks and before the HTTP server accepts requests. This
+reuses the earlier reference-width migration to widen `business_permit_path` to
+TEXT and adds `business_permit_documents TEXT NULL`. It does not update or
 delete existing rows, references, or verification flags. Rerunning is safe; a
 rollback deliberately retains the columns to avoid losing document references.
 
-From the backend directory, inspect the intended Render/Aiven database first:
+Render must use the backend package's standard start command so the startup
+migration runs. The migration is additive and idempotent. For a manual
+pre-deployment run, inspect the intended Render/Aiven database identity and
+schema from the backend directory:
 
 ```sh
 node scripts/applyEmployerPermitDocumentsMigration.js --database ACTUAL_DB_NAME --host ACTUAL_DB_HOST
 ```
 
-After verifying that identity and following the normal database backup process:
+After verifying that identity and following the normal database backup process,
+the manual migration can be applied with:
 
 ```sh
 node scripts/applyEmployerPermitDocumentsMigration.js --apply --database ACTUAL_DB_NAME --host ACTUAL_DB_HOST

@@ -46,6 +46,31 @@ test("legacy and multiple references become document URLs without exposing stora
     assert.throws(()=>readPermitDocuments({business_permit_documents:"broken JSON"}),/could not be read/);
 });
 
+test("employer verification endpoint selects permit metadata and returns all status groups", async () => {
+    const overrides=[];
+    const stub=(object,key,value)=>{overrides.push([object,key,object[key]]);object[key]=value;};
+    const statuses=["pending","verified","rejected"];
+    const users=statuses.map((account_status,index)=>({
+        id:82+index, account_status,
+        toJSON:()=>({id:82+index,account_status,EmployerProfile:{business_permit_path:`/uploads/documents/permit-${index}.pdf`}})
+    }));
+    let query;
+    stub(db.User,"findAll",async options=>{query=options;return users;});
+    stub(db.AuditLog,"findAll",async()=>[]);
+    try {
+        const response={json(body){this.body=body;return this;},status(code){this.code=code;return this;}};
+        await admin.getEmployerUsers({},response);
+        assert.equal(response.code,undefined);
+        assert.deepEqual(response.body.map(user=>user.account_status),statuses);
+        assert.deepEqual(response.body.map(user=>user.EmployerProfile.business_permit_documents[0].url),[
+            "/api/admin/employer/users/82/business-permits/original",
+            "/api/admin/employer/users/83/business-permits/original",
+            "/api/admin/employer/users/84/business-permits/original"
+        ]);
+        assert.equal(query.include[0].attributes.include.includes("business_permit_documents"),true);
+    } finally {for(const [object,key,value] of overrides)object[key]=value;}
+});
+
 test("truncated permit recovery verifies an existing provider asset and fails safely for lost identifiers", async () => {
     const payload={provider:"cloudinary",resourceType:"raw",type:"authenticated",publicId:"private_uploads/business_permits/business-permit-123.pdf",url:"https://res.cloudinary.com/permit-fixture/raw/authenticated/v1/private_uploads/business_permits/business-permit-123.pdf"};
     const reference=`cld:${Buffer.from(JSON.stringify(payload)).toString("base64url")}`.slice(0,255);
