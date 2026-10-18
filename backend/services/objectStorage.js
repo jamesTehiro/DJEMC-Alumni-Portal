@@ -98,15 +98,39 @@ const recoverTruncatedCloudinaryReference = (value) => {
 
 const parseStoredFileReference = (value) => {
     if (!value || typeof value !== "string" || !value.startsWith(REF_PREFIX)) return null;
+    if (!/^[A-Za-z0-9_-]+$/.test(value.slice(REF_PREFIX.length))) return null;
 
     try {
-        return JSON.parse(Buffer.from(value.slice(REF_PREFIX.length), "base64url").toString("utf8"));
+        const parsed = JSON.parse(Buffer.from(value.slice(REF_PREFIX.length), "base64url").toString("utf8"));
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
     } catch {
         return recoverTruncatedCloudinaryReference(value);
     }
 };
 
 const isStoredFileReference = (value) => !!parseStoredFileReference(value);
+
+// Upload responses for authenticated assets can already contain a delivery
+// signature. Read the asset identity separately from that signature/version;
+// neither is part of the public ID returned by the upload API.
+const cloudinaryDeliveryParts = (parsed) => {
+    try {
+        if (parsed?.provider !== "cloudinary" || !["image", "raw", "video"].includes(parsed.resourceType) || !["upload", "authenticated", "private"].includes(parsed.type)) return null;
+        if (typeof parsed.publicId !== "string" || !/^[A-Za-z0-9._/-]+$/.test(parsed.publicId) || parsed.publicId.split("/").some(part => !part || part === "." || part === "..")) return null;
+        const source = new URL(parsed.url);
+        if (source.protocol !== "https:" || source.hostname !== "res.cloudinary.com" || source.port || source.username || source.password || source.search || source.hash) return null;
+        const segments = source.pathname.split("/").filter(Boolean);
+        if (segments[1] !== parsed.resourceType || segments[2] !== parsed.type) return null;
+        let assetIndex = 3;
+        if (/^s--[A-Za-z0-9_-]+--$/.test(segments[assetIndex])) assetIndex++;
+        const deliveryIndex = assetIndex;
+        if (/^v\d+$/.test(segments[assetIndex])) assetIndex++;
+        const assetPath = segments.slice(assetIndex).join("/");
+        const decodedAsset = decodeURIComponent(assetPath);
+        if (decodedAsset !== parsed.publicId && !(parsed.resourceType !== "raw" && decodedAsset.startsWith(`${parsed.publicId}.`) && /^\.[a-z0-9]+$/i.test(decodedAsset.slice(parsed.publicId.length)))) return null;
+        return { source, cloud: segments[0], assetPath, deliveryPath: segments.slice(deliveryIndex).join("/") };
+    } catch { return null; }
+};
 
 const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, isPublic, deliveryType = "upload" }) => {
     ensureObjectStorageConfigured();
@@ -143,8 +167,9 @@ const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, is
 
     const data = await response.json().catch(() => null);
     if (!response.ok || !data?.secure_url || !data?.public_id) {
-        const err = new Error(data?.error?.message || "Object storage upload failed.");
+        const err = new Error("Object storage upload failed. Please try again later.");
         err.status = 502;
+        err.publicMessage = err.message;
         throw err;
     }
 
@@ -154,6 +179,8 @@ const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, is
         type: data.type || type,
         publicId: data.public_id,
         url: data.secure_url,
+        ...(data.format ? { format: data.format } : {}),
+        ...(data.version ? { version: data.version } : {}),
         originalName: originalName || path.basename(publicId)
     });
 
@@ -223,26 +250,25 @@ const destroyStoredFile = async (storedValue) => {
 };
 
 const authenticatedDeliveryUrl = (parsed) => {
-    if (parsed?.type !== "authenticated" || !apiSecret || !cloudName) return null;
-    try {
-        const source = new URL(parsed.url);
-        if (source.protocol !== "https:" || source.hostname !== "res.cloudinary.com" || source.port || source.username || source.password) return null;
-        const segments = source.pathname.split("/").filter(Boolean);
-        const typeIndex = segments.findIndex((segment, index) => index > 1 && segment === "authenticated");
-        if (typeIndex !== 2 || segments[0] !== cloudName || segments[1] !== parsed.resourceType || !segments[typeIndex + 1]) return null;
-        const resourcePath = segments.slice(typeIndex + 1).join("/");
-        const signature = crypto.createHash("sha1").update(`${resourcePath}${apiSecret}`).digest("base64url").slice(0, 8);
-        return `https://res.cloudinary.com/${cloudName}/${parsed.resourceType}/authenticated/s--${signature}--/${resourcePath}`;
-    } catch {
-        return null;
-    }
+    if (!["authenticated", "private"].includes(parsed?.type) || !apiSecret || !cloudName) return null;
+    const parts = cloudinaryDeliveryParts(parsed);
+    if (!parts || parts.cloud !== cloudName) return null;
+    // Match Cloudinary's Node SDK: sign the asset path (including format),
+    // retain the provider's version, and emit exactly one signature segment.
+    const signature = crypto.createHash("sha1").update(`${parts.assetPath}${apiSecret}`).digest("base64url").slice(0, 8);
+    return `https://res.cloudinary.com/${cloudName}/${parsed.resourceType}/${parsed.type}/s--${signature}--/${parts.deliveryPath}`;
 };
 
 const getDownloadSourceUrl = (storedValue) => {
     const parsed = parseStoredFileReference(storedValue);
-    if (parsed?.type === "authenticated") return authenticatedDeliveryUrl(parsed);
-    if (parsed?.url) return parsed.url;
-    if (/^https?:\/\//i.test(String(storedValue || ""))) return storedValue;
+    if (["authenticated", "private"].includes(parsed?.type)) return authenticatedDeliveryUrl(parsed);
+    if (parsed) return cloudinaryDeliveryParts(parsed)?.source.href || null;
+    if (/^https?:\/\//i.test(String(storedValue || ""))) {
+        try {
+            const url = new URL(storedValue);
+            if (!url.username && !url.password) return url.href;
+        } catch { /* Invalid stored URL. */ }
+    }
     return null;
 };
 
@@ -255,18 +281,9 @@ const privateDownloadSourceUrl = (storedValue) => {
     if (!parsed || parsed.provider !== "cloudinary" || !["image", "raw"].includes(parsed.resourceType) || !["authenticated", "private"].includes(parsed.type)) return null;
     if (!apiKey || !apiSecret || !cloudName || !parsed.publicId) return null;
     try {
-        const source = new URL(parsed.url);
-        if (source.protocol !== "https:" || source.hostname !== "res.cloudinary.com" || source.port || source.username || source.password) return null;
-        const segments = source.pathname.split("/").filter(Boolean).map(segment => decodeURIComponent(segment));
-        if (segments[0] !== cloudName || segments[1] !== parsed.resourceType || segments[2] !== parsed.type) return null;
-        if (!/^[A-Za-z0-9._/-]+$/.test(parsed.publicId) || parsed.publicId.split("/").some(part => !part || part === "." || part === "..")) return null;
-        if (segments.length < 5 || !/^v\d+$/.test(segments[3])) return null;
-        const sourceAsset = segments.slice(4).join("/");
-        const referenceMatchesSource = sourceAsset === parsed.publicId ||
-            (parsed.resourceType === "image" && sourceAsset.startsWith(`${parsed.publicId}.`) && /^\.(png|jpe?g)$/i.test(sourceAsset.slice(parsed.publicId.length)));
-        if (!referenceMatchesSource) return null;
-
-        const urlFormat = path.extname(decodeURIComponent(segments.at(-1) || "")).slice(1).toLowerCase();
+        const parts = cloudinaryDeliveryParts(parsed);
+        if (!parts || parts.cloud !== cloudName) return null;
+        const urlFormat = path.extname(decodeURIComponent(parts.assetPath)).slice(1).toLowerCase();
         const publicIdFormat = parsed.resourceType === "raw" ? path.extname(parsed.publicId).slice(1).toLowerCase() : "";
         const format = String(parsed.format || publicIdFormat || urlFormat).toLowerCase();
         if (!/^(pdf|png|jpe?g)$/.test(format)) return null;
@@ -342,23 +359,51 @@ const recoverStoredFileReference = async (value, folders) => {
 const recoverChatStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/chat", "private_uploads/admin_employer"]);
 const recoverPermitStoredFileReference = value => recoverStoredFileReference(value, ["private_uploads/business_permits", "uploads/documents"]);
 
-const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null, usePrivateDownloadApi = false) => {
+const storageDownloadError = (storedValue, status, failure, response = null) => {
+    const parsed = parseStoredFileReference(storedValue);
+    // Provider headers can contain URLs/public IDs. Classify them; never keep
+    // the raw header, body, fetch error/cause, or signed request URL.
+    const hint = String(response?.headers?.get("x-cld-error") || "").toLowerCase();
+    const providerCode = hint.includes("signature") ? "signature_rejected"
+        : hint.includes("transformation") ? "invalid_transformation"
+            : hint.includes("not found") ? "asset_missing"
+                : /denied|blocked/.test(hint) ? "delivery_denied" : hint ? "provider_error" : null;
+    const message = status === 404 ? "Stored file not found." : status === 400 && failure === "invalid_reference"
+        ? "Invalid stored file reference." : "File storage is temporarily unavailable. Please try again later.";
+    const error = Object.assign(new Error(message), { status, publicMessage: message });
+    error.storageDiagnostic = {
+        provider: parsed?.provider === "cloudinary" ? "cloudinary" : "remote",
+        resourceType: ["image", "raw", "video"].includes(parsed?.resourceType) ? parsed.resourceType : null,
+        deliveryType: ["upload", "authenticated", "private"].includes(parsed?.type) ? parsed.type : null,
+        fileFingerprint: crypto.createHash("sha256").update(String(storedValue)).digest("hex").slice(0, 16),
+        upstreamStatus: Number.isInteger(response?.status) ? response.status : null,
+        providerCode, failure
+    };
+    return error;
+};
+
+const fetchStoredFile = async (storedValue, usePrivateDownloadApi) => {
     const sourceUrl = usePrivateDownloadApi ? privateDownloadSourceUrl(storedValue) : getDownloadSourceUrl(storedValue);
     if (!sourceUrl) {
-        const err = new Error("Stored file URL could not be resolved.");
-        err.status = 404;
-        throw err;
+        const parsed = parseStoredFileReference(storedValue);
+        const missingConfiguration = cloudinaryDeliveryParts(parsed) && ["authenticated", "private"].includes(parsed?.type) && (!apiSecret || !cloudName);
+        throw storageDownloadError(storedValue, missingConfiguration ? 503 : usePrivateDownloadApi ? 404 : 400, missingConfiguration ? "configuration" : "invalid_reference");
     }
-
-    const response = await fetch(sourceUrl);
+    let response;
+    try { response = await fetch(sourceUrl, { signal: AbortSignal.timeout(30000) }); }
+    catch { throw storageDownloadError(storedValue, 502, "network"); }
     if (!response.ok) {
-        const err = new Error("Stored file could not be downloaded.");
-        err.status = response.status || 502;
-        throw err;
+        throw storageDownloadError(storedValue, response.status >= 400 && response.status <= 599 ? response.status : 502, "provider_response", response);
     }
+    return response;
+};
 
+const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null, usePrivateDownloadApi = false) => {
+    const response = await fetchStoredFile(storedValue, usePrivateDownloadApi);
     const contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
-    const buffer = Buffer.from(await response.arrayBuffer());
+    let buffer;
+    try { buffer = Buffer.from(await response.arrayBuffer()); }
+    catch { throw storageDownloadError(storedValue, 502, "network"); }
 
     res.setHeader("Content-Type", contentType);
     if (downloadName) {
@@ -372,25 +417,15 @@ const sendStoredFile = async (storedValue, res, downloadName = null, contentType
 // coexist as a complete Buffer in backend memory before the client can receive
 // them. Keep sendStoredFile's buffered contract for existing callers.
 const streamStoredFile = async (storedValue, res, contentTypeOverride = null, usePrivateDownloadApi = false) => {
-    const sourceUrl = usePrivateDownloadApi ? privateDownloadSourceUrl(storedValue) : getDownloadSourceUrl(storedValue);
-    if (!sourceUrl) {
-        const err = new Error("Stored file URL could not be resolved.");
-        err.status = 404;
-        throw err;
-    }
-
-    const response = await fetch(sourceUrl);
-    if (!response.ok || !response.body) {
-        const err = new Error("Stored file could not be downloaded.");
-        err.status = response.status || 502;
-        throw err;
-    }
+    const response = await fetchStoredFile(storedValue, usePrivateDownloadApi);
+    if (!response.body) throw storageDownloadError(storedValue, 502, "empty_response", response);
 
     const contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
     const contentLength = response.headers.get("content-length");
     res.setHeader("Content-Type", contentType);
     if (contentLength && /^\d+$/.test(contentLength)) res.setHeader("Content-Length", contentLength);
-    await pipeline(Readable.fromWeb(response.body), res);
+    try { await pipeline(Readable.fromWeb(response.body), res); }
+    catch { throw storageDownloadError(storedValue, 502, "stream"); }
 };
 
 module.exports = {

@@ -5,6 +5,7 @@ const {
     isStoredFileReference,
     sendStoredFile
 } = require("../services/objectStorage");
+const { normalizeStoredPath, resolveLocalStoredFile } = require("../utils/storedFiles");
 
 const uploadsRoot = path.join(__dirname, "..", "uploads");
 const allowedPublicImageExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
@@ -147,7 +148,11 @@ const canAccessPath = async (reqUser, relativePath) => {
 const encodeStoredPathToken = (storedPath) => Buffer.from(String(storedPath || ""), "utf8").toString("base64url");
 const decodeStoredPathToken = (token = "") => {
     try {
-        return Buffer.from(String(token || ""), "base64url").toString("utf8");
+        if (typeof token !== "string" || token.length > 32768 || !/^[A-Za-z0-9_-]+$/.test(token)) return null;
+        const bytes = Buffer.from(token, "base64url");
+        const decoded = bytes.toString("utf8");
+        if (bytes.toString("base64url") !== token || !Buffer.from(decoded, "utf8").equals(bytes) || /[\x00-\x1f\x7f]/.test(decoded)) return null;
+        return decoded;
     } catch {
         return null;
     }
@@ -155,54 +160,29 @@ const decodeStoredPathToken = (token = "") => {
 
 exports.getSecureFile = async (req, res, next) => {
     try {
-        console.log("\n========== FILE ACCESS DIAGNOSTIC ==========");
-        console.log("[DIAG] req.user:", JSON.stringify(req.user, null, 2));
-        console.log("[DIAG] req.params.folder:", req.params.folder);
-        console.log("[DIAG] req.params.fileName:", req.params.fileName);
-        console.log("[DIAG] Authorization header present:", !!req.headers?.authorization);
-
-        const candidates = getPathCandidates(req.params.folder, req.params.fileName);
-        const requestedFolderRoot = path.join(uploadsRoot, String(req.params.folder || ""));
-
-        console.log("[DIAG] candidates:", JSON.stringify(candidates, null, 2));
-
-        if (!candidates[0].absolutePath.startsWith(requestedFolderRoot)) {
+        if (!req.user) return res.status(401).json({ msg: "Unauthorized" });
+        if (!/^[a-zA-Z0-9_-]+$/.test(req.params.folder || "") || !req.params.fileName || /[\\/\x00-\x1f]/.test(req.params.fileName)) {
             return res.status(400).json({ msg: "Invalid file path." });
         }
-
-        const resolvedCandidate = await (async () => {
-            for (const candidate of candidates) {
-                // eslint-disable-next-line no-await-in-loop
-                if (await fileExists(candidate.absolutePath)) return candidate;
-            }
-            return null;
-        })();
-
-        console.log("[DIAG] resolvedCandidate:", JSON.stringify(resolvedCandidate, null, 2));
-
-        if (!resolvedCandidate) {
+        const candidates = getPathCandidates(req.params.folder, req.params.fileName);
+        for (const candidate of candidates) {
+            if (!await canAccessPath(req.user, candidate.relativePath)) continue;
+            const local = await resolveLocalStoredFile(candidate.relativePath);
+            if (local) return res.sendFile(local, { etag: false, lastModified: false, cacheControl: false });
             return res.status(404).json({ msg: "File not found." });
         }
-
-        const allowed = await canAccessPath(req.user, resolvedCandidate.relativePath);
-        console.log("[DIAG] canAccessPath result:", allowed);
-        console.log("[DIAG] relativePath checked:", resolvedCandidate.relativePath);
-        if (!allowed) {
-            return res.status(403).json({ msg: "You are not allowed to access this file." });
-        }
-
-        return res.sendFile(resolvedCandidate.absolutePath);
+        return res.status(403).json({ msg: "You are not allowed to access this file." });
     } catch (err) {
-        console.error("[DIAG] getSecureFile error:", err);
-        return next(err);
+        return next(Object.assign(new Error("File could not be retrieved."), { status: 500 }));
     }
 };
 
 exports.getSecureStoredFile = async (req, res, next) => {
     try {
+        if (!req.user) return res.status(401).json({ msg: "Unauthorized" });
         const storedPath = decodeStoredPathToken(req.params.token);
         if (!storedPath) {
-            return res.status(404).json({ msg: "File not found." });
+            return res.status(400).json({ msg: "Invalid file token." });
         }
 
         const allowed = await canAccessPath(req.user, storedPath);
@@ -210,13 +190,23 @@ exports.getSecureStoredFile = async (req, res, next) => {
             return res.status(403).json({ msg: "You are not allowed to access this file." });
         }
 
-        if (isStoredFileReference(storedPath) || /^https?:\/\//i.test(storedPath)) {
-            return sendStoredFile(storedPath, res);
+        if (storedPath.startsWith("cld:") || /^https?:\/\//i.test(storedPath)) {
+            return await sendStoredFile(storedPath, res);
         }
-
-        return res.status(404).json({ msg: "Stored file not found." });
+        const normalized = normalizeStoredPath(storedPath);
+        if (!normalized || !/^\/uploads\//.test(normalized)) return res.status(400).json({ msg: "Invalid stored file reference." });
+        const local = await resolveLocalStoredFile(storedPath);
+        if (!local) return res.status(404).json({ msg: "File not found." });
+        return res.sendFile(local, { etag: false, lastModified: false, cacheControl: false });
     } catch (err) {
-        return next(err);
+        if (err.storageDiagnostic) {
+            console.error("[secure-file-storage] Download failed", err.storageDiagnostic);
+            const status = err.status === 404 ? 404 : err.storageDiagnostic.failure === "invalid_reference" ? 400 : err.storageDiagnostic.failure === "configuration" ? 503 : 502;
+            const message = status === 404 ? "File not found." : status === 400 ? "Invalid stored file reference." : "File storage is temporarily unavailable. Please try again later.";
+            return next(Object.assign(new Error(message), { status, publicMessage: message }));
+        }
+        // Database/filesystem errors may embed private paths or query values.
+        return next(Object.assign(new Error("File could not be retrieved."), { status: 500 }));
     }
 };
 
