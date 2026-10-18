@@ -8,8 +8,10 @@ so the verification modal incorrectly reported that no permit was uploaded.
 Registration, upload middleware, and the modal also supported only one file.
 
 Registration now accepts one through five PNG, JPG/JPEG, or PDF files using the
-existing `business_permit` multipart field and existing storage engine. Each file
-retains its reference, original filename, MIME type, and byte size in
+existing `business_permit` multipart field. New permit files are written directly
+to `backend/uploads/business-permits/` with generated UUID-based filenames and
+validated content signatures. Each file retains its relative path, original
+filename, MIME type, and byte size in
 `business_permit_documents` (a JSON array in a nullable TEXT column). The existing
 `business_permit_path` remains the first/original reference for compatibility.
 All metadata is saved in the existing registration transaction and reloaded to
@@ -34,7 +36,10 @@ controller also validates the role/scope, employer identity, and document ID.
 `original` supports legacy registrations. Responses use private/no-store caching,
 safe UTF-8 filenames, and nosniff headers. Local paths pass the shared containment
 and symlink checks. Raw references are excluded from ordinary profile queries and
-are replaced with protected document URLs in the admin response.
+are replaced with protected document URLs in the admin response. New local-file
+references are read only through that endpoint; no static route exposes the
+business-permit directory. Existing Cloudinary references continue to use the
+server-side Cloudinary retrieval path.
 
 Legacy records are read without rewriting their references. When a truncated
 Cloudinary reference retains a complete asset identity, the existing provider
@@ -74,13 +79,21 @@ This standalone runner does not replay unrelated migrations or rewrite
 SequelizeMeta. Deploy the backend and rebuilt frontend together. Existing single
 permit registrations require no data conversion.
 
-Keep the existing backend Cloudinary settings configured:
-`OBJECT_STORAGE_PROVIDER=cloudinary`, `CLOUDINARY_CLOUD_NAME`,
-`CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET`. New permits use authenticated
-delivery. Production/Render rejects new permits when shared storage is missing;
-it does not silently save them to temporary disk. The backend per-file limit is
-`MAX_UPLOAD_MB` (default 10). If changed, set frontend `VITE_MAX_UPLOAD_MB` to the
-same value before building; the backend remains authoritative.
+New permits are stored on the backend filesystem and no longer require Cloudinary
+uploads. Keep Cloudinary credentials configured if older employer permits or
+other private assets still use Cloudinary.
+
+**Render storage warning:** Render's ordinary filesystem is ephemeral. Files in
+`backend/uploads/business-permits/` can disappear after a restart, redeploy, or
+instance replacement unless a persistent disk is mounted at that exact directory.
+This code does not configure or verify a Render disk. Before relying on local
+permit storage in production, attach a persistent disk, mount it at the resolved
+absolute path for `backend/uploads/business-permits/`, and verify that path is
+writable by the service. Without that disk, successful uploads are temporary and
+the preview endpoint will return a missing-file error after the files disappear.
+The backend per-file limit is `MAX_UPLOAD_MB` (default 10). If changed, set
+frontend `VITE_MAX_UPLOAD_MB` to the same value before building; the backend
+remains authoritative.
 
 The connected local database was migrated after saving a reference/verification
 snapshot to `tmp/uploads/employer-permit-backup-1792278631347.json` (ignored by

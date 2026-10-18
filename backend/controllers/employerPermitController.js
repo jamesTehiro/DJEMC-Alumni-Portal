@@ -56,7 +56,7 @@ exports.getDocument = async (req, res, next) => {
         if (/^[^/\\]+$/.test(reference)) reference = `/uploads/documents/${encodeURIComponent(reference)}`;
         const localValue = reference.replace(/%(?![0-9a-f]{2})/gi, "%25");
         const normalized = normalizeStoredPath(localValue);
-        if (!/^\/(uploads\/documents|private_uploads\/business_permits)\//.test(normalized || "")) return missing();
+        if (!/^\/(uploads\/(documents|business-permits)|private_uploads\/business_permits)\//.test(normalized || "")) return missing();
         const local = await resolveLocalStoredFile(localValue);
         if (!local) return missing();
         res.setHeader("Content-Type", mime || "application/octet-stream");

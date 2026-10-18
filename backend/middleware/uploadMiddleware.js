@@ -1,6 +1,7 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 const {
     isObjectStorageEnabled,
     uploadBuffer,
@@ -15,6 +16,7 @@ const ensureDir = async (dir) => {
 };
 
 const root = path.join(__dirname, "..", "uploads");
+const businessPermitRoot = path.join(root, "business-permits");
 const privateChatRoot = path.join(__dirname, "..", "private_uploads", "chat");
 const privateAdminEmployerRoot = path.join(__dirname, "..", "private_uploads", "admin_employer");
 const configuredMaxUploadMb = Number(process.env.MAX_UPLOAD_MB || 10);
@@ -102,9 +104,6 @@ const fileFilter = (_req, file, cb) => {
         // names only when the byte round trip is lossless.
         const decodedName = Buffer.from(file.originalname, "latin1").toString("utf8");
         if (!decodedName.includes("\uFFFD") && Buffer.from(decodedName, "utf8").toString("latin1") === file.originalname) file.originalname = decodedName;
-        if ((process.env.NODE_ENV === "production" || String(process.env.RENDER).toLowerCase() === "true") && !isObjectStorageEnabled()) {
-            const error = new Error("Business permit storage is unavailable. Registration was not completed."); error.status = 503; error.publicMessage = error.message; return cb(error);
-        }
         if (!["application/pdf", "image/png", "image/jpeg"].includes(file.mimetype)) {
             const error = new Error("Business permits must be PNG, JPG, JPEG, or PDF files."); error.status = 415; return cb(error);
         }
@@ -238,7 +237,38 @@ const localStorage = multer.diskStorage({
 });
 
 const storage = isObjectStorageEnabled() ? createCloudStorageEngine() : localStorage;
-const upload = multer({ storage, limits, fileFilter });
+const businessPermitStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => ensureDir(businessPermitRoot)
+        .then(() => cb(null, businessPermitRoot))
+        .catch(() => cb(Object.assign(new Error("Business permit storage is unavailable. The document was not saved."), { status: 503, publicMessage: "Business permit storage is unavailable. The document was not saved." }))),
+    filename: (_req, file, cb) => {
+        const extension = path.extname(file.originalname || "").toLowerCase();
+        const allowed = new Map([["application/pdf", [".pdf"]], ["image/png", [".png"]], ["image/jpeg", [".jpg", ".jpeg"]]]);
+        if (!allowed.get(file.mimetype)?.includes(extension)) {
+            return cb(Object.assign(new Error("Business permits must be PDF, PNG, JPG, or JPEG files."), { status: 415 }));
+        }
+        cb(null, `business-permit-${crypto.randomUUID()}${extension}`);
+    }
+});
+const permitAwareStorage = {
+    _handleFile: (req, file, cb) => {
+        const isPermit = file.fieldname === "business_permit";
+        const engine = isPermit ? businessPermitStorage : storage;
+        engine._handleFile(req, file, (error, info) => {
+            if (error) {
+                if (isPermit) return cb(Object.assign(new Error("Business permit storage is unavailable. The document was not saved."), { status: 503, publicMessage: "Business permit storage is unavailable. The document was not saved." }));
+                return cb(error);
+            }
+            if (isPermit) {
+                info.storageRef = `/uploads/business-permits/${info.filename}`;
+                info.permitDiskFile = true;
+            }
+            cb(null, info);
+        });
+    },
+    _removeFile: (req, file, cb) => (file.permitDiskFile ? businessPermitStorage : storage)._removeFile(req, file, cb)
+};
+const upload = multer({ storage: permitAwareStorage, limits, fileFilter });
 const profileUpload = multer({ storage, limits: { fileSize: MAX_PROFILE_UPLOAD_MB * 1024 * 1024 }, fileFilter: profileFileFilter }).fields([
     { name: "avatar_image", maxCount: 1 },
     { name: "logo_image", maxCount: 1 }
@@ -358,13 +388,21 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
     const files = req.files?.business_permit || [];
     try {
         for (const file of files) {
-            if (!file.storageRef && !hasAllowedChatSignature(await fs.promises.readFile(file.path), file.mimetype)) {
+            let buffer;
+            try { buffer = await fs.promises.readFile(file.path); }
+            catch { throw Object.assign(new Error("Business permit storage is unavailable. The document could not be verified."), { status: 503, publicMessage: "Business permit storage is unavailable. The document could not be verified." }); }
+            if (!hasAllowedChatSignature(buffer, file.mimetype)) {
                 const error = new Error("The business permit contents do not match the selected file type."); error.status = 415; throw error;
             }
         }
+        res.once("finish", () => {
+            if (res.statusCode >= 400) {
+                for (const file of files) if (file.permitDiskFile) fs.promises.unlink(file.path).catch(() => {});
+            }
+        });
         next();
     } catch (error) {
-        await Promise.allSettled(files.map(file => new Promise(resolve => storage._removeFile(req, file, resolve))));
+        await Promise.allSettled(files.map(file => new Promise(resolve => permitAwareStorage._removeFile(req, file, resolve))));
         next(error);
     }
 });

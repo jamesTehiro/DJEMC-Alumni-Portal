@@ -9,6 +9,7 @@ process.env.MAX_UPLOAD_MB = "1";
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const fs = require("node:fs/promises");
+const fsSystem = require("node:fs");
 const path = require("node:path");
 const db = require("../models");
 const { registrationUpload, employerRegistrationUpload } = require("../middleware/uploadMiddleware");
@@ -24,10 +25,8 @@ test.after(() => db.sequelize.close());
 test("multipart permit registration, admin preview/replacement, validation and persistence failure", async () => {
     const saved = [];
     const override = (object, key, value) => { saved.push([object, key, object[key]]); object[key] = value; };
-    const nativeFetch = global.fetch;
     let user = null, profile = null, rejectSave = false;
-    let uploads = 0;
-    const cloudFiles = new Map();
+    const createdPermitPaths = new Set();
     const makeProfile = () => ({ business_permit_path: null, update: async function(values) { if (!rejectSave) Object.assign(this, values); }, reload: async function() { return this; } });
     override(db.User, "findOne", async () => null);
     override(db.User, "create", async values => { user = { id: 82, account_status: "pending", ...values }; profile = makeProfile(); return user; });
@@ -48,35 +47,11 @@ test("multipart permit registration, admin preview/replacement, validation and p
         try { return await callback({ LOCK: { UPDATE: "UPDATE" } }); }
         catch (error) { user = beforeUser; profile = beforeProfile; throw error; }
     });
-    global.fetch = async (url, options) => {
-        const address = String(url);
-        if (address.startsWith("https://api.cloudinary.com/") && address.includes("/download?")) {
-            const request = new URL(address);
-            assert.match(request.pathname, /\/(image|raw)\/download$/);
-            assert.equal(request.searchParams.get("type"), "authenticated");
-            assert.ok(request.searchParams.get("api_key"));
-            assert.ok(request.searchParams.get("signature"));
-            const id = request.searchParams.get("public_id");
-            const file = cloudFiles.get(id);
-            return file
-                ? new Response(file.bytes, { status: 200, headers: { "Content-Type": file.type } })
-                : new Response("missing", { status: 404 });
-        }
-        if (address.startsWith("https://api.cloudinary.com/") && address.endsWith("/upload")) {
-            uploads++;
-            assert.equal(options.body.get("type"), "authenticated");
-            const id = options.body.get("public_id");
-            const file = options.body.get("file");
-            cloudFiles.set(id, { bytes: Buffer.from(await file.arrayBuffer()), type: file.type });
-            const resource = address.includes("/image/") ? "image" : "raw";
-            return { ok: true, json: async () => ({ public_id: id, resource_type: resource, type: "authenticated", secure_url: `https://res.cloudinary.com/permit-fixture/${resource}/authenticated/v1/${id}` }) };
-        }
-        return nativeFetch(url, options);
-    };
     const app = express();
     app.post("/register", registrationUpload, auth.register);
     app.get("/api/files/secure/:token", authentication, files.getSecureStoredFile);
     app.get("/api/files/:folder/:fileName", authentication, files.getSecureFile);
+    app.get("/uploads/:fileName", files.getPublicImage);
     app.get("/admin/employers", authentication, role("admin"), scope("employer"), admin.getEmployerUsers);
     app.get("/api/admin/employer/users/:userId/business-permits/:documentId", authentication, role("admin"), scope("employer"), permits.getDocument);
     app.put("/admin/employers/:userId/permit", authentication, role("admin"), scope("employer"), employerRegistrationUpload, permits.replacePermit);
@@ -93,19 +68,32 @@ test("multipart permit registration, admin preview/replacement, validation and p
     const legacyName = `permit-test-${process.pid}-${Date.now()}.pdf`;
     const legacyDiskPath = path.join(__dirname,"..","uploads","documents",legacyName);
     try {
+        const originalMkdir = fsSystem.promises.mkdir;
+        fsSystem.promises.mkdir = async (target, ...args) => {
+            if (path.resolve(target) === path.join(__dirname,"..","uploads","business-permits")) throw new Error("simulated disk failure");
+            return originalMkdir.call(fsSystem.promises,target,...args);
+        };
+        try {
+            const unavailable = await fetch(`${base}/register`,{method:"POST",body:form(Buffer.from("%PDF-1.7 storage error"),"application/pdf","storage-error.pdf")});
+            assert.equal(unavailable.status,503);
+            assert.match((await unavailable.json()).msg,/Business permit storage is unavailable/);
+        } finally { fsSystem.promises.mkdir = originalMkdir; }
+
         for (const [bytes,type,name] of [[Buffer.from([137,80,78,71,13,10,26,10]),"image/png","permit.png"], [Buffer.from("%PDF-1.7 fixture"),"application/pdf","permit.pdf"]]) {
             const response = await fetch(`${base}/register`, { method: "POST", body: form(bytes,type,name) });
             assert.equal(response.status, 201, await response.text());
-            assert.match(profile.business_permit_path, /^cld:/);
-            assert.ok(profile.business_permit_path.length > 255);
+            assert.match(profile.business_permit_path, /^\/uploads\/business-permits\/business-permit-[0-9a-f-]+\.(pdf|png)$/);
+            createdPermitPaths.add(profile.business_permit_path);
+            assert.deepEqual(await fs.readFile(path.join(__dirname,"..","uploads",profile.business_permit_path.slice("/uploads/".length))),bytes);
             const listed = await (await fetch(`${base}/admin/employers`, { headers: adminHeaders })).json();
-            const path = listed[0].EmployerProfile.business_permit_path;
+            const previewPath = listed[0].EmployerProfile.business_permit_path;
             assert.equal(listed[0].EmployerProfile.business_permit_name, name);
-            const preview = await fetch(`${base}${path}`, { headers: adminHeaders });
+            const preview = await fetch(`${base}${previewPath}`, { headers: adminHeaders });
             assert.equal(preview.status,200); assert.equal(preview.headers.get("content-type").split(";")[0],type);
             assert.deepEqual(Buffer.from(await preview.arrayBuffer()),bytes);
+            assert.equal((await fetch(`${base}${profile.business_permit_path}`)).status,404);
             for (const claims of [null,{id:82,role:"employer"},{id:2,role:"admin",admin_scope:"alumni"}]) {
-                const denied = await fetch(`${base}${path}`, { headers: claims ? headers(claims) : {} });
+                const denied = await fetch(`${base}${previewPath}`, { headers: claims ? headers(claims) : {} });
                 assert.ok([401,403].includes(denied.status));
             }
         }
@@ -115,6 +103,7 @@ test("multipart permit registration, admin preview/replacement, validation and p
             const registered = await fetch(`${base}/register`,{method:"POST",body});
             assert.equal(registered.status,201,await registered.clone().text());
             const stored = JSON.parse(profile.business_permit_documents);
+            stored.forEach(document=>createdPermitPaths.add(document.storage_ref));
             assert.equal(stored.length,count);
             assert.equal(profile.business_permit_path,stored[0].storage_ref);
             assert.equal(user.account_status,"pending");
@@ -129,8 +118,8 @@ test("multipart permit registration, admin preview/replacement, validation and p
                 for (const download of [false,true]) {
                     const result=await fetch(`${base}${document.url}${download?"?download=1":""}`,{headers:adminHeaders});
                     assert.equal(result.status,200);
-                    const reference=require("../services/objectStorage").parseStoredFileReference(stored[index].storage_ref);
-                    assert.deepEqual(Buffer.from(await result.arrayBuffer()),cloudFiles.get(reference.publicId).bytes);
+                    assert.match(stored[index].storage_ref,/^\/uploads\/business-permits\/business-permit-[0-9a-f-]+\.(pdf|jpe?g)$/);
+                    assert.deepEqual(Buffer.from(await result.arrayBuffer()),await fs.readFile(path.join(__dirname,"..","uploads",stored[index].storage_ref.slice("/uploads/".length))));
                     assert.match(result.headers.get("content-disposition"),download?/^attachment;/:/^inline;/);
                     assert.equal(result.headers.get("cache-control"),"private, no-store");
                 }
@@ -147,12 +136,23 @@ test("multipart permit registration, admin preview/replacement, validation and p
         const noPermit=new FormData();
         for(const [key,value] of Object.entries({name:"Missing Permit",email:"missing@example.invalid",password:"test-password",role:"employer"})) noPermit.append(key,value);
         assert.equal((await fetch(`${base}/register`,{method:"POST",body:noPermit})).status,400);
+        const permitFilesBeforeInvalid = await fs.readdir(path.join(__dirname,"..","uploads","business-permits"));
         for (const [bytes,type,name,expected] of [[Buffer.from("invalid"),"image/png","fake.png",415],[Buffer.alloc(2*1024*1024),"application/pdf","huge.pdf",413],[Buffer.from("text"),"text/plain","file.txt",415],[Buffer.from("%PDF-1.7 disguised"),"image/jpeg","wrong.jpg",415],[Buffer.from("%PDF-1.7"),"application/pdf","wrong.png",415],[Buffer.from("GIF89a"),"image/gif","not-allowed.gif",415],[Buffer.from("%PDF-1.7"),"application/pdf","permit.pdf.exe",415]]) {
             const response = await fetch(`${base}/register`, { method:"POST",body:form(bytes,type,name) }); assert.equal(response.status,expected);
         }
+        assert.deepEqual(await fs.readdir(path.join(__dirname,"..","uploads","business-permits")),permitFilesBeforeInvalid);
+        const traversal = await fetch(`${base}/register`,{method:"POST",body:form(Buffer.from("%PDF-1.7 traversal"),"application/pdf","../../outside.pdf")});
+        assert.equal(traversal.status,201,await traversal.clone().text());
+        createdPermitPaths.add(profile.business_permit_path);
+        assert.match(profile.business_permit_path,/^\/uploads\/business-permits\/business-permit-[0-9a-f-]+\.pdf$/);
+        assert.equal(JSON.parse(profile.business_permit_documents)[0].name,"outside.pdf");
+        assert.ok((await fs.readFile(path.join(__dirname,"..","uploads",profile.business_permit_path.slice("/uploads/".length)))).toString().startsWith("%PDF-1.7"));
         rejectSave = true;
+        const filesBeforeFailedSave = await fs.readdir(path.join(__dirname,"..","uploads","business-permits"));
         const failed = await fetch(`${base}/register`,{method:"POST",body:form(Buffer.from("%PDF-1.7"),"application/pdf","failure.pdf")});
         assert.equal(failed.status,500); assert.match((await failed.json()).msg,/could not be saved/);
+        await new Promise(resolve=>setTimeout(resolve,25));
+        assert.deepEqual(await fs.readdir(path.join(__dirname,"..","uploads","business-permits")),filesBeforeFailedSave);
         rejectSave = false;
         profile.business_permit_documents = null;
         const oldUser = user;
@@ -164,9 +164,9 @@ test("multipart permit registration, admin preview/replacement, validation and p
         const savedPermits=await replacement.json();
         assert.match(savedPermits.business_permit_path,/^\/api\/admin\/employer\/users\/82\/business-permits\//);
         assert.equal(JSON.stringify(savedPermits).includes("cld:"),false);
-        const before = uploads;
+        JSON.parse(profile.business_permit_documents).forEach(document=>createdPermitPaths.add(document.storage_ref));
         const denied = await fetch(`${base}/admin/employers/82/permit`,{method:"PUT",headers:headers({id:82,role:"employer"}),body:form(Buffer.from("%PDF-1.7"),"application/pdf","no.pdf",false)});
-        assert.equal(denied.status,403); assert.equal(uploads,before);
+        assert.equal(denied.status,403);
         await fs.mkdir(path.dirname(legacyDiskPath),{recursive:true});
         await fs.writeFile(legacyDiskPath,"%PDF-1.7 legacy fixture",{flag:"wx"});
         profile.business_permit_path = `/api/files/documents/${legacyName}`;
@@ -185,10 +185,13 @@ test("multipart permit registration, admin preview/replacement, validation and p
         const missing=await fetch(`${base}/api/admin/employer/users/82/business-permits/original`,{headers:adminHeaders});
         assert.equal(missing.status,404);
         assert.match((await missing.json()).msg,/could not be found/);
+        profile.business_permit_path="/uploads/business-permits/../../server.js";
+        const traversalPreview=await fetch(`${base}/api/admin/employer/users/82/business-permits/original`,{headers:adminHeaders});
+        assert.equal(traversalPreview.status,404);
     } finally {
         await new Promise(resolve => server.close(resolve));
         await fs.unlink(legacyDiskPath).catch(error => { if(error.code !== "ENOENT") throw error; });
-        global.fetch = nativeFetch;
+        await Promise.all([...createdPermitPaths].map(reference=>fs.unlink(path.join(__dirname,"..","uploads",reference.slice("/uploads/".length))).catch(error=>{if(error.code!=="ENOENT")throw error;})));
         for (const [object,key,value] of saved) object[key]=value;
     }
 });
