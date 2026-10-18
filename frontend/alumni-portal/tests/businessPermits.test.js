@@ -39,5 +39,17 @@ test("both registration entry points append every selected permit and the verifi
     const modal=readFileSync(new URL("../src/pages/admin/AdminVerificationPage.jsx",import.meta.url),"utf8");
     assert.match(modal,/BusinessPermitDocuments profile=\{selectedEmployer\?\.EmployerProfile\}/);
     assert.doesNotMatch(modal,/Upload replacement business permit|No business permit uploaded/);
-    assert.match(modal,/BusinessPermitPreview path=\{previewFile\.url\} name=\{previewFile\.name\}/);
+    assert.match(modal,/BusinessPermitPreview name=\{previewFile\.name\} request=\{previewFile\.request\}/);
+});
+
+test("business permit preview starts an authenticated request immediately and exposes direct image/PDF states",()=>{
+    const page=readFileSync(new URL("../src/pages/admin/AdminVerificationPage.jsx",import.meta.url),"utf8");
+    const preview=readFileSync(new URL("../src/components/BusinessPermitPreview.jsx",import.meta.url),"utf8");
+    assert.match(page,/fetchFile\(document\.url, true\)/);
+    assert.match(page,/BusinessPermitPreview name=\{previewFile\.name\} request=\{previewFile\.request\}/);
+    assert.match(preview,/Loading business permit/);
+    assert.match(preview,/className="permit-pdf-frame"/);
+    assert.match(preview,/className="permit-full-image"/);
+    assert.match(preview,/role="alert"/);
+    assert.doesNotMatch(preview,/Open Document|Download/);
 });

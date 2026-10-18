@@ -2,7 +2,7 @@ const db = require("../models");
 const { getStoredFileOriginalName } = require("../services/objectStorage");
 const { MAX_PERMITS, fileMetadata, readPermitDocuments, permitDocumentPayload, inferMime } = require("../services/employerPermitDocuments");
 const { normalizeStoredPath, resolveLocalStoredFile, setFileResponseHeaders } = require("../utils/storedFiles");
-const { isStoredFileReference, parseStoredFileReference, recoverPermitStoredFileReference, sendStoredFile } = require("../services/objectStorage");
+const { isStoredFileReference, parseStoredFileReference, recoverPermitStoredFileReference, streamStoredFile } = require("../services/objectStorage");
 
 exports.getDocument = async (req, res, next) => {
     try {
@@ -37,7 +37,7 @@ exports.getDocument = async (req, res, next) => {
             // their original server-side retrieval path.
             const storedAsset = parseStoredFileReference(reference);
             const privateAsset = ["authenticated", "private"].includes(storedAsset?.type);
-            try { return await sendStoredFile(reference, res, null, mime === "application/octet-stream" ? null : mime, privateAsset); }
+            try { return await streamStoredFile(reference, res, mime === "application/octet-stream" ? null : mime, privateAsset); }
             catch (error) {
                 res.removeHeader("Content-Type"); res.removeHeader("Content-Disposition");
                 if (error.status === 404) return missing();

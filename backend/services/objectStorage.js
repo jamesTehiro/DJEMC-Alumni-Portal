@@ -1,5 +1,7 @@
 const crypto = require("crypto");
 const path = require("path");
+const { Readable } = require("node:stream");
+const { pipeline } = require("node:stream/promises");
 
 const provider = String(process.env.OBJECT_STORAGE_PROVIDER || "cloudinary").trim().toLowerCase();
 const cloudName = String(process.env.CLOUDINARY_CLOUD_NAME || "").trim();
@@ -366,12 +368,38 @@ const sendStoredFile = async (storedValue, res, downloadName = null, contentType
     return res.send(buffer);
 };
 
+// Stream private object-storage responses so large documents do not need to
+// coexist as a complete Buffer in backend memory before the client can receive
+// them. Keep sendStoredFile's buffered contract for existing callers.
+const streamStoredFile = async (storedValue, res, contentTypeOverride = null, usePrivateDownloadApi = false) => {
+    const sourceUrl = usePrivateDownloadApi ? privateDownloadSourceUrl(storedValue) : getDownloadSourceUrl(storedValue);
+    if (!sourceUrl) {
+        const err = new Error("Stored file URL could not be resolved.");
+        err.status = 404;
+        throw err;
+    }
+
+    const response = await fetch(sourceUrl);
+    if (!response.ok || !response.body) {
+        const err = new Error("Stored file could not be downloaded.");
+        err.status = response.status || 502;
+        throw err;
+    }
+
+    const contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
+    const contentLength = response.headers.get("content-length");
+    res.setHeader("Content-Type", contentType);
+    if (contentLength && /^\d+$/.test(contentLength)) res.setHeader("Content-Length", contentLength);
+    await pipeline(Readable.fromWeb(response.body), res);
+};
+
 module.exports = {
     isObjectStorageEnabled,
     uploadBuffer,
     uploadDataUrl,
     destroyStoredFile,
     sendStoredFile,
+    streamStoredFile,
     isStoredFileReference,
     parseStoredFileReference,
     privateDownloadSourceUrl,

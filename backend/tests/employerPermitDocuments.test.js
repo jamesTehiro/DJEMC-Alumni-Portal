@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { Writable } = require("node:stream");
 process.env.OBJECT_STORAGE_PROVIDER = "cloudinary";
 process.env.CLOUDINARY_CLOUD_NAME = "permit-fixture";
 process.env.CLOUDINARY_API_KEY = "fixture-key";
@@ -7,7 +8,7 @@ process.env.CLOUDINARY_API_SECRET = "fixture-secret";
 const db = require("../models");
 const migration = require("../migrations/20261018-add-employer-permit-documents");
 const { readPermitDocuments, permitDocumentPayload } = require("../services/employerPermitDocuments");
-const { recoverPermitStoredFileReference, parseStoredFileReference, privateDownloadSourceUrl, sendStoredFile } = require("../services/objectStorage");
+const { recoverPermitStoredFileReference, parseStoredFileReference, privateDownloadSourceUrl, sendStoredFile, streamStoredFile } = require("../services/objectStorage");
 const controller = require("../controllers/employerPermitController");
 const admin = require("../controllers/adminController");
 test.after(() => db.sequelize.close());
@@ -129,6 +130,23 @@ test("private permit download reports a provider 404 as a missing asset", async 
     global.fetch=async()=>new Response("missing",{status:404});
     try {
         await assert.rejects(sendStoredFile(reference,{setHeader(){},send(){}},null,"application/pdf",true),error=>error.status===404);
+    } finally {global.fetch=originalFetch;}
+});
+
+test("Cloudinary permit responses stream bytes with MIME type and content length", async () => {
+    const reference=`cld:${Buffer.from(JSON.stringify({provider:"cloudinary",resourceType:"raw",type:"authenticated",publicId:"private_uploads/business_permits/streamed.pdf",format:"pdf",url:"https://res.cloudinary.com/permit-fixture/raw/authenticated/v1/private_uploads/business_permits/streamed.pdf"})).toString("base64url")}`;
+    const originalFetch=global.fetch;
+    const bytes=Buffer.from("%PDF-1.7 streamed fixture");
+    const headers={};
+    const chunks=[];
+    const response=new Writable({write(chunk,_encoding,callback){chunks.push(Buffer.from(chunk));callback();}});
+    response.setHeader=(name,value)=>{headers[name]=value;};
+    global.fetch=async()=>new Response(new ReadableStream({start(controller){controller.enqueue(bytes);controller.close();}}),{headers:{"content-type":"application/pdf","content-length":String(bytes.length)}});
+    try {
+        await streamStoredFile(reference,response,"application/pdf",true);
+        assert.equal(headers["Content-Type"],"application/pdf");
+        assert.equal(headers["Content-Length"],String(bytes.length));
+        assert.deepEqual(Buffer.concat(chunks),bytes);
     } finally {global.fetch=originalFetch;}
 });
 

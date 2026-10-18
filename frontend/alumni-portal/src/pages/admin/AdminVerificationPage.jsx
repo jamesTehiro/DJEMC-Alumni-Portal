@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../../services/api";
+import { api, fetchFile } from "../../services/api";
 
 import useRenderDebug from "../../hooks/useRenderDebug";
 import useStrictSafeEffect from "../../hooks/useStrictSafeEffect";
@@ -21,6 +21,18 @@ export default function AdminVerificationPage({ role }) {
     const [error, setError] = useState("");
     const [selectedEmployer, setSelectedEmployer] = useState(null);
     const [previewFile, setPreviewFile] = useState(null);
+    const previewRequests = useRef(new Map());
+
+    const openPermitPreview = (document) => {
+        let request = previewRequests.current.get(document.url);
+        if (!request) {
+            request = fetchFile(document.url, true)
+                .then(blob => ({ blob }), failure => ({ error: failure }));
+            previewRequests.current.set(document.url, request);
+            request.then(() => previewRequests.current.delete(document.url));
+        }
+        setPreviewFile({ ...document, request });
+    };
 
 
 
@@ -291,7 +303,7 @@ export default function AdminVerificationPage({ role }) {
                                 </div>
                             </div>
 
-                            <BusinessPermitDocuments profile={selectedEmployer?.EmployerProfile} onView={setPreviewFile} />
+                            <BusinessPermitDocuments profile={selectedEmployer?.EmployerProfile} onView={openPermitPreview} />
                         </Modal.Body>
                         <Modal.Footer>
                             {selectedEmployer?.account_status === "pending" && <>
@@ -307,7 +319,7 @@ export default function AdminVerificationPage({ role }) {
                             <Modal.Title>Business Permit Preview</Modal.Title>
                         </Modal.Header>
                         <Modal.Body className="permit-preview-modal">
-                            {previewFile && <BusinessPermitPreview path={previewFile.url} name={previewFile.name} />}
+                            {previewFile && <BusinessPermitPreview name={previewFile.name} request={previewFile.request} />}
                         </Modal.Body>
                     </Modal>
                     <Modal show={!!rejectingEmployer} onHide={() => { if (processingId === null) setRejectingEmployer(null); }} centered>
