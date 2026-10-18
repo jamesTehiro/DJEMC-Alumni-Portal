@@ -93,6 +93,36 @@ test("truncated permit recovery verifies an existing provider asset and fails sa
     } finally {global.fetch=originalFetch;}
 });
 
+test("private permit delivery logs only the provider status and keeps secrets and references out of the client error", async () => {
+    const overrides=[];
+    const stub=(object,key,value)=>{overrides.push([object,key,object[key]]);object[key]=value;};
+    const secretReference=`cld:${Buffer.from(JSON.stringify({provider:"cloudinary",resourceType:"raw",type:"authenticated",publicId:"private_uploads/business_permits/private-fixture.pdf",url:"https://res.cloudinary.com/permit-fixture/raw/authenticated/v1/private_uploads/business_permits/private-fixture.pdf"})).toString("base64url")}`;
+    const originalFetch=global.fetch;
+    const originalError=console.error;
+    const logs=[];
+    let forwardedError;
+    stub(db.User,"findByPk",async()=>({id:82,role:"employer"}));
+    stub(db.EmployerProfile,"findOne",async()=>({user_id:82,business_permit_path:secretReference,business_permit_documents:JSON.stringify([{storage_ref:secretReference,name:"private-fixture.pdf",mime_type:"application/pdf"}])}));
+    global.fetch=async()=>new Response("denied",{status:403});
+    console.error=(...values)=>logs.push(values);
+    try {
+        const headers={};
+        const response={setHeader(name,value){headers[name]=value;},removeHeader(name){delete headers[name];}};
+        await controller.getDocument({params:{userId:"82",documentId:"1"},query:{},user:{id:1,role:"admin",admin_scope:"employer"}},response,error=>{forwardedError=error;});
+        assert.equal(forwardedError.status,502);
+        assert.equal(forwardedError.publicMessage,"Business permit storage is temporarily unavailable. Please try again later.");
+        assert.deepEqual(logs,[["[employer-permit-storage] Cloudinary delivery failed",{upstreamStatus:403,failure:"provider_response"}]]);
+        assert.equal(JSON.stringify(logs).includes(secretReference),false);
+        assert.equal(JSON.stringify(logs).includes("private-fixture"),false);
+        assert.equal(JSON.stringify(logs).includes(process.env.CLOUDINARY_API_SECRET),false);
+        assert.deepEqual(headers,{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"});
+    } finally {
+        global.fetch=originalFetch;
+        console.error=originalError;
+        for(const [object,key,value] of overrides)object[key]=value;
+    }
+});
+
 test("document viewing never changes verification state and approval/rejection preserve all references", async () => {
     const overrides=[];
     const stub=(object,key,value)=>{overrides.push([object,key,object[key]]);object[key]=value;};

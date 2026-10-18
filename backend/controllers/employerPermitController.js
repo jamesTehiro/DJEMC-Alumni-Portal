@@ -36,6 +36,13 @@ exports.getDocument = async (req, res, next) => {
             catch (error) {
                 res.removeHeader("Content-Type"); res.removeHeader("Content-Disposition");
                 if (error.status === 404) return missing();
+                // Keep private URLs, public IDs, and provider credentials out of
+                // Render logs while retaining the signal needed to diagnose a
+                // denied signature, provider outage, or network failure.
+                console.error("[employer-permit-storage] Cloudinary delivery failed", {
+                    upstreamStatus: Number.isInteger(error.status) ? error.status : null,
+                    failure: Number.isInteger(error.status) ? "provider_response" : "network_or_signing"
+                });
                 throw Object.assign(new Error("Business permit storage is temporarily unavailable. Please try again later."), { status: 502, publicMessage: "Business permit storage is temporarily unavailable. Please try again later." });
             }
         }
