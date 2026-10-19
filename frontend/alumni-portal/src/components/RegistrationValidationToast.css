@@ -1,0 +1,12 @@
+.registration-validation-toast--closing .registration-success-toast {
+    animation: registration-validation-out 180ms ease-in both;
+}
+
+@keyframes registration-validation-out {
+    from { opacity: 1; transform: translate3d(0, 0, 0); }
+    to { opacity: 0; transform: translate3d(12px, -4px, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .registration-validation-toast--closing .registration-success-toast { animation: none; }
+}

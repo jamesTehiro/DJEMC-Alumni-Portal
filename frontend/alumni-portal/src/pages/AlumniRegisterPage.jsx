@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import { FiMail, FiUser } from "react-icons/fi";
@@ -6,6 +6,8 @@ import AlumniDataPrivacyModal from "../components/AlumniDataPrivacyModal";
 import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
+import RegistrationValidationToast from "../components/RegistrationValidationToast";
+import useRegistrationValidation from "../hooks/useRegistrationValidation";
 import "./AuthPage.css";
 import { getGraduationYearError, getMaxGraduationYear, isValidGraduationYear } from "../utils/graduationYear";
 
@@ -14,6 +16,7 @@ export default function AlumniRegisterPage() {
         name: "",
         email: "",
         password: "",
+        confirmPassword: "",
         role: "alumni",
         course: "",
         graduationYear: "",
@@ -21,6 +24,9 @@ export default function AlumniRegisterPage() {
         consent: false
     });
     const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const submitting = useRef(false);
+    const { notice, dismiss, validate } = useRegistrationValidation();
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
@@ -31,29 +37,29 @@ export default function AlumniRegisterPage() {
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
     const openConsentModal = (e) => {
+        if (e) e.preventDefault();
         if (e) e.stopPropagation();
         setShowPrivacyModal(true);
     };
 
     const handlePrivacyAgree = () => {
         setConsentEnabled(true);
-        setForm((prev) => ({ ...prev, consent: true }));
         setShowPrivacyModal(false);
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (submitting.current || submitted) return;
         setYearTouched(true);
-        if (yearInvalid) return;
-        setLoading(true);
         setError("");
+        if (!validate(e.currentTarget, {
+            ...form,
+            requiredIssue: yearInvalid ? { field: "graduationYear", title: "Invalid Academic Year", message: getGraduationYearError() } : null
+        })) return;
+        submitting.current = true;
+        setLoading(true);
         setSuccess("");
         try {
-            if (!form.consent) {
-                setError("Please agree to the Data Privacy Consent.");
-                setLoading(false);
-                return;
-            }
             const payload = new FormData();
             payload.append("name", form.name);
             payload.append("email", form.email);
@@ -66,16 +72,19 @@ export default function AlumniRegisterPage() {
             }
 
             await api.post("/auth/register", payload);
+            setSubmitted(true);
             setSuccess(true);
         } catch (err) {
             setError(err.message);
         } finally {
+            submitting.current = false;
             setLoading(false);
         }
     };
 
     return (
         <>
+            <RegistrationValidationToast notice={notice} onClose={dismiss} />
             <RegistrationSuccessToast
                 show={success}
                 title="Account Created Successfully!"
@@ -90,7 +99,7 @@ export default function AlumniRegisterPage() {
                         <p>Join the DJEMC Alumni network</p>
                     </div>
                     {error && <p className="auth-error">{error}</p>}
-                    <form className="auth-form" onSubmit={handleSubmit}>
+                    <form className="auth-form" onSubmit={handleSubmit} noValidate>
                         <label className="field">
                             <span>Full Name</span>
                             <label className="line-input">
@@ -130,6 +139,10 @@ export default function AlumniRegisterPage() {
                             <span>Password</span>
                             <PasswordField name="password" value={form.password} onChange={handleChange} placeholder="Create a strong password" required />
                         </label>
+                        <label className="field" htmlFor="alumni-confirm-password">
+                            <span>Confirm Password *</span>
+                            <PasswordField id="alumni-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Confirm your password" autoComplete="new-password" aria-label="Confirm Password" required />
+                        </label>
                         <label className="consent-row">
                             <input
                                 type="checkbox"
@@ -152,7 +165,7 @@ export default function AlumniRegisterPage() {
                                 and understand how my personal information will be used.
                             </span>
                         </label>
-                        <button className="primary-btn auth-submit" type="submit" disabled={loading}>
+                        <button className="primary-btn auth-submit" type="submit" disabled={loading || submitted}>
                             {loading ? "Creating..." : "Create Account"}
                         </button>
                     </form>

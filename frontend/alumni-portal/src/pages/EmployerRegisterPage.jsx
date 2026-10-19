@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
 import { FiGlobe, FiMail, FiUser } from "react-icons/fi";
 import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
+import RegistrationValidationToast from "../components/RegistrationValidationToast";
+import useRegistrationValidation from "../hooks/useRegistrationValidation";
 import BusinessPermitInput from "../components/BusinessPermitInput";
 import { validateBusinessPermits } from "../utils/businessPermits";
 import "./AuthPage.css";
@@ -16,10 +18,14 @@ export default function EmployerRegisterPage() {
         companyAddress: "",
         websiteUrl: "",
         password: "",
+        confirmPassword: "",
         consent: false
     });
     const [businessPermits, setBusinessPermits] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [submitted, setSubmitted] = useState(false);
+    const submitting = useRef(false);
+    const { notice, dismiss, validate } = useRegistrationValidation();
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [showConsentModal, setShowConsentModal] = useState(false);
@@ -31,21 +37,17 @@ export default function EmployerRegisterPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setLoading(true);
+        if (submitting.current || submitted) return;
         setError("");
+        const permitError = validateBusinessPermits(businessPermits);
+        if (!validate(e.currentTarget, {
+            ...form, employer: true,
+            requiredIssue: permitError ? { field: "document", title: "Business Permit Required", message: permitError } : null
+        })) return;
+        submitting.current = true;
+        setLoading(true);
         setSuccess("");
         try {
-            if (!form.consent) {
-                setError("Please agree to the Data Privacy Consent.");
-                setLoading(false);
-                return;
-            }
-            const permitError = validateBusinessPermits(businessPermits);
-            if (permitError) {
-                setError(permitError);
-                setLoading(false);
-                return;
-            }
             const payload = new FormData();
             payload.append("name", form.name);
             payload.append("email", form.email);
@@ -55,10 +57,12 @@ export default function EmployerRegisterPage() {
             payload.append("website_url", form.websiteUrl);
             businessPermits.forEach(file => payload.append("business_permit", file));
             await api.post("/auth/register", payload);
+            setSubmitted(true);
             setSuccess(true);
         } catch (err) {
             setError(err.message);
         } finally {
+            submitting.current = false;
             setLoading(false);
         }
     };
@@ -75,10 +79,10 @@ export default function EmployerRegisterPage() {
     const handleAgree = () => {
         setShowConsentModal(false);
         setConsentRead(true);
-        setForm((prev) => ({ ...prev, consent: true }));
     };
 
     const openConsentModal = (e) => {
+        if (e) e.preventDefault();
         if (e) e.stopPropagation();
         setConsentEnabled(false);
         setForm((prev) => ({ ...prev, consent: false }));
@@ -87,6 +91,7 @@ export default function EmployerRegisterPage() {
 
         return (
             <>
+            <RegistrationValidationToast notice={notice} onClose={dismiss} />
             <RegistrationSuccessToast
                 show={success}
                 title="Registration Submitted Successfully!"
@@ -101,7 +106,7 @@ export default function EmployerRegisterPage() {
                     <p>Register your organization for the employer portal.</p>
                 </div>
                 {error && <p className="auth-error">{error}</p>}
-                <form className="auth-form" onSubmit={handleSubmit}>
+                <form className="auth-form" onSubmit={handleSubmit} noValidate>
                     <label className="field">
                         <span>Company Name{requiredMark}</span>
                         <label className="line-input">
@@ -134,6 +139,10 @@ export default function EmployerRegisterPage() {
                         <span>Password{requiredMark}</span>
                         <PasswordField name="password" value={form.password} onChange={handleChange} placeholder="Create a strong password" required />
                     </label>
+                    <label className="field" htmlFor="employer-confirm-password">
+                        <span>Confirm Password *</span>
+                        <PasswordField id="employer-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Confirm your password" autoComplete="new-password" aria-label="Confirm Password" required />
+                    </label>
                     <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading} />
                     <label className="consent-row">
                         <input
@@ -151,7 +160,7 @@ export default function EmployerRegisterPage() {
                             and understand how company information and uploaded documents will be used.
                         </span>
                     </label>
-                    <button className="primary-btn auth-submit" type="submit" disabled={loading || !form.consent}>
+                    <button className="primary-btn auth-submit" type="submit" disabled={loading || submitted}>
                         {loading ? "Creating..." : "Create Employer Account"}
                     </button>
                 </form>
