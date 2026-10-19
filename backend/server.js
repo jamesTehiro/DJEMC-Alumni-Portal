@@ -535,6 +535,10 @@ const listRoutes = (app) => {
 };
 
 const startEmailWorker = () => {
+    if (process.env.EMAIL_WORKER_ENABLED === "false") {
+        console.log("Embedded email queue worker disabled; use a separately configured worker.");
+        return;
+    }
     const { fork } = require("child_process");
     const workerPath = path.join(__dirname, "workers", "emailQueueWorker.js");
     const worker = fork(workerPath, [], {

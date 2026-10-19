@@ -26,12 +26,15 @@ test('a database duplicate-key rejection propagates to transactional callers ins
 test('worker retries and success retain the original dedupe key', async () => {
  const emailPath = require.resolve('../utils/email'); const prior = require.cache[emailPath];
  let fail = true;
- require.cache[emailPath] = { id: emailPath, filename: emailPath, loaded: true, exports: async () => { if (fail) throw new Error('temporary mail failure'); } };
+ require.cache[emailPath] = { id: emailPath, filename: emailPath, loaded: true, exports: async () => { if (fail) throw Object.assign(new Error('temporary mail failure'), { retryable: true }); } };
  const workerPath = require.resolve('../workers/emailQueueWorker'); const priorWorker = require.cache[workerPath]; delete require.cache[workerPath];
+ const originalFindOne = db.EmailQueueJob.findOne, originalUpdate = db.EmailQueueJob.update;
  try {
   const { processJob } = require(workerPath);
-  const updates = []; const job = { id: 1, to: 'a@example.invalid', dedupe_key: 'event:1', attempts: 0, max_attempts: 5, scheduled_at: new Date(), update: async values => { updates.push(values); Object.assign(job, values); } };
+  const updates = []; const job = { id: 1, to: 'a@example.invalid', dedupe_key: 'event:1', attempts: 1, max_attempts: 5, scheduled_at: new Date(), processing_started_at: new Date() };
+  db.EmailQueueJob.findOne = async () => job;
+  db.EmailQueueJob.update = async (values, options) => { assert.equal(options.where.attempts, job.attempts); updates.push(values); Object.assign(job, values); return [1]; };
   await processJob(job); assert.equal(job.status, 'pending'); assert.equal(job.attempts, 1); assert.equal(job.dedupe_key, 'event:1');
-  fail = false; await processJob(job); assert.equal(job.status, 'sent'); assert.equal(job.dedupe_key, 'event:1'); assert.ok(updates.every(v => !Object.hasOwn(v, 'dedupe_key')));
- } finally { if (prior) require.cache[emailPath] = prior; else delete require.cache[emailPath]; if (priorWorker) require.cache[workerPath] = priorWorker; else delete require.cache[workerPath]; }
+  fail = false; job.status = 'processing'; job.attempts = 2; job.processing_started_at = new Date(); await processJob(job); assert.equal(job.status, 'sent'); assert.equal(job.dedupe_key, 'event:1'); assert.ok(updates.every(v => !Object.hasOwn(v, 'dedupe_key')));
+ } finally { db.EmailQueueJob.findOne = originalFindOne; db.EmailQueueJob.update = originalUpdate; if (prior) require.cache[emailPath] = prior; else delete require.cache[emailPath]; if (priorWorker) require.cache[workerPath] = priorWorker; else delete require.cache[workerPath]; }
 });

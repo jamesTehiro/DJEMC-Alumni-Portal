@@ -17,6 +17,7 @@ test("SMTP STARTTLS, cache rotation, missing configuration and safe diagnostics"
     try {
         keys.forEach(key => delete process.env[key]);
         process.env.EMAIL_PROVIDER = "smtp";
+        process.env.BREVO_API_KEY = "must-not-select-brevo";
         process.env.SMTP_PORT = "587";
         process.env.SMTP_SECURE = "false";
         process.env.EMAIL_USER = "test@example.invalid";
@@ -134,4 +135,64 @@ test("Brevo malformed success responses do not count as accepted emails", async 
         global.fetch = async () => ({ ok: true, status: 201, json: async () => { throw new SyntaxError("bad json"); } });
         await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_RESPONSE" });
     });
+});
+
+test('explicit Brevo overrides SMTP settings and preserves HTML, text, named recipients and subjects', async () => {
+    await withBrevo(async email => {
+        process.env.EMAIL_PROVIDER = 'brevo';
+        process.env.EMAIL_USER = 'smtp@example.invalid';
+        process.env.EMAIL_PASS = 'unused-smtp-secret';
+        global.fetch = async (url, options) => {
+            assert.equal(url, 'https://api.brevo.com/v3/smtp/email');
+            assert.deepEqual(JSON.parse(options.body), {
+                sender: { email: 'sender@example.invalid', name: 'DJEMC Alumni Portal' },
+                to: [{ email: 'first@example.invalid', name: 'First' }, { email: 'second@example.invalid' }],
+                subject: 'Existing subject', textContent: 'Plain text', htmlContent: '<p>Existing HTML</p>'
+            });
+            return Response.json({ messageId: '<accepted>' }, { status: 201 });
+        };
+        assert.equal(email.validateConfiguration().provider, 'brevo');
+        await email([{ email: 'first@example.invalid', name: 'First' }, 'second@example.invalid'], 'Existing subject', 'Plain text', { html: '<p>Existing HTML</p>' });
+    });
+});
+
+test('Brevo 429 honors Retry-After; permanent and ambiguous failures never switch providers or retry automatically', async () => {
+    await withBrevo(async email => {
+        let requests = 0;
+        for (const status of [400, 401, 403, 408, 429, 500, 502, 503]) {
+            global.fetch = async () => { requests++; return new Response('private provider body', { status, headers: { 'Retry-After': '120' } }); };
+            await assert.rejects(email('recipient@example.invalid', 'subject', 'body'), error => {
+                assert.equal(error.responseCode, status);
+                assert.equal(error.retryable, status === 429);
+                assert.equal(error.retryAfterMs, status === 429 ? 120000 : undefined);
+                assert.doesNotMatch(error.message, /private/);
+                return true;
+            });
+        }
+        assert.equal(requests, 8);
+        const future = new Date(Date.now() + 90000).toUTCString();
+        global.fetch = async () => new Response('', { status: 429, headers: { 'Retry-After': future } });
+        await assert.rejects(email('recipient@example.invalid', 'subject', 'body'), error => error.retryAfterMs > 85000 && error.retryAfterMs <= 90000);
+    });
+});
+
+test('SMTP normalizes authentication, explicit transient rejection and ambiguous socket failures safely', async () => {
+    const keys = ['EMAIL_PROVIDER', 'EMAIL_USER', 'EMAIL_PASS'];
+    const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+    const original = nodemailer.createTransport;
+    let failure;
+    nodemailer.createTransport = () => ({ sendMail: async () => { throw failure; } });
+    delete require.cache[require.resolve('../utils/email')];
+    const email = require('../utils/email');
+    try {
+        process.env.EMAIL_PROVIDER = 'smtp'; process.env.EMAIL_USER = 'fixture@example.invalid'; process.env.EMAIL_PASS = 'fake-secret';
+        for (const [code, responseCode, retryable] of [['EAUTH', 535, false], ['EMESSAGE', 421, true], ['EDNS', undefined, true], ['ESOCKET', undefined, false], ['ETIMEDOUT', undefined, false]]) {
+            failure = Object.assign(new Error('private SMTP recipient and credentials'), { code, responseCode });
+            await assert.rejects(email('recipient@example.invalid', 'subject', 'text'), error => error.code === code && error.retryable === retryable && !error.message.includes('private'));
+        }
+    } finally {
+        nodemailer.createTransport = original;
+        keys.forEach(key => saved[key] === undefined ? delete process.env[key] : process.env[key] = saved[key]);
+        delete require.cache[require.resolve('../utils/email')];
+    }
 });

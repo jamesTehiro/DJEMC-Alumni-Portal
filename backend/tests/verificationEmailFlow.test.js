@@ -164,6 +164,8 @@ test("Employer verification creates in-app notification and enqueues email", asy
 
 // 3. Email Service - Configuration Error on Missing Credentials
 test("sendEmail throws configuration error when SMTP credentials are missing", async () => {
+    const originalProvider = process.env.EMAIL_PROVIDER;
+    process.env.EMAIL_PROVIDER = 'smtp'; // Never fall through to a real Brevo send.
     // Temporarily remove SMTP credentials
     const originalEmailUser = process.env.EMAIL_USER;
     const originalEmailPass = process.env.EMAIL_PASS;
@@ -185,6 +187,7 @@ test("sendEmail throws configuration error when SMTP credentials are missing", a
             { message: /EMAIL_USER and EMAIL_PASS/ }
         );
     } finally {
+        if (originalProvider === undefined) delete process.env.EMAIL_PROVIDER; else process.env.EMAIL_PROVIDER = originalProvider;
         // Restore environment variables
         process.env.EMAIL_USER = originalEmailUser;
         process.env.EMAIL_PASS = originalEmailPass;

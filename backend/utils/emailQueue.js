@@ -2,8 +2,6 @@ const db = require("../models");
 const { safeEmailError } = require("./emailDiagnostics");
 
 const enqueueEmails = async (jobs = [], options = {}) => {
-    console.log("=== [DEBUG] emailQueue.enqueueEmails ===");
-    console.log("[DEBUG] Input jobs count:", jobs.length);
 
     const validJobs = jobs
         .filter((job) => job?.to)
@@ -17,16 +15,14 @@ const enqueueEmails = async (jobs = [], options = {}) => {
             status: "pending"
         }));
 
-    console.log("[DEBUG] Valid (filtered) jobs count:", validJobs.length);
 
     if (!validJobs.length) {
-        console.log("[DEBUG] No valid jobs to enqueue. Returning.");
         return;
     }
 
     try {
         const result = await db.EmailQueueJob.bulkCreate(validJobs, { transaction: options.transaction });
-        console.log("[DEBUG] EmailQueueJob.bulkCreate completed. Records created:", result ? result.length : 0);
+        return result;
 
     } catch (err) {
         console.error("[email] enqueue failed:", safeEmailError(err));

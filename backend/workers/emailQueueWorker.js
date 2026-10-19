@@ -1,114 +1,88 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
-
 const { Op } = require("sequelize");
 const db = require("../models");
 const sendEmail = require("../utils/email");
 const { safeEmailError } = require("../utils/emailDiagnostics");
 let configurationPaused = false;
 
-const pollIntervalMs = Number(process.env.EMAIL_QUEUE_POLL_MS || 2000);
-const batchSize = Number(process.env.EMAIL_QUEUE_BATCH_SIZE || 20);
-const maxConcurrency = Number(process.env.EMAIL_QUEUE_CONCURRENCY || 5);
-const staleProcessingMs = Number(process.env.EMAIL_QUEUE_STALE_MS || 5 * 60 * 1000);
-const retryDelayMs = Number(process.env.EMAIL_QUEUE_RETRY_MS || 30000);
+const setting = (name, fallback) => {
+    const value = Number(process.env[name] || fallback);
+    if (!Number.isSafeInteger(value) || value < 1 || value > 2147483647) {
+        throw Object.assign(new Error(`Invalid positive integer setting: ${name}`), { code: "EMAIL_CONFIG" });
+    }
+    return value;
+};
+const pollIntervalMs = setting("EMAIL_QUEUE_POLL_MS", 2000);
+const batchSize = setting("EMAIL_QUEUE_BATCH_SIZE", 20);
+const maxConcurrency = setting("EMAIL_QUEUE_CONCURRENCY", 5);
+const staleProcessingMs = setting("EMAIL_QUEUE_STALE_MS", 5 * 60 * 1000);
+const retryDelayMs = setting("EMAIL_QUEUE_RETRY_MS", 30000);
+if (staleProcessingMs < Math.ceil(batchSize / maxConcurrency) * 30000 + 10000) {
+    throw Object.assign(new Error("EMAIL_QUEUE_STALE_MS must cover the whole reserved batch and transport timeout."), { code: "EMAIL_CONFIG" });
+}
 
-const reserveJobs = async () =>
-    db.sequelize.transaction(async (transaction) => {
-        const now = new Date();
-        const staleBefore = new Date(now.getTime() - staleProcessingMs);
-        const jobs = await db.EmailQueueJob.findAll({
-            where: {
-                [Op.and]: [
-                    db.sequelize.literal("attempts < max_attempts"),
-                    {
-                        [Op.or]: [
-                            {
-                                [Op.and]: [
-                                    { status: { [Op.in]: ["pending", "failed"] } },
-                                    { scheduled_at: { [Op.lte]: now } }
-                                ]
-                            },
-                            {
-                                [Op.and]: [
-                                    { status: "processing" },
-                                    { processing_started_at: { [Op.lt]: staleBefore } }
-                                ]
-                            }
-                        ]
-                    }
-                ]
-            },
-            order: [["scheduled_at", "ASC"], ["id", "ASC"]],
-            limit: batchSize,
-            lock: true,
-            skipLocked: true,
-            transaction
-        });
-
-        if (!jobs.length) return [];
-
-        const reservedIds = jobs.map((job) => job.id);
-        await db.EmailQueueJob.update(
-            {
-                status: "processing",
-                processing_started_at: new Date(),
-                last_error: null
-            },
-            {
-                where: {
-                    id: {
-                        [Op.in]: reservedIds
-                    }
-                },
-                transaction
-            }
-        );
-
-        return db.EmailQueueJob.findAll({
-            where: {
-                id: {
-                    [Op.in]: reservedIds
-                }
-            },
-            order: [["scheduled_at", "ASC"], ["id", "ASC"]],
-            transaction
-        });
+const reserveJobs = async () => db.sequelize.transaction(async transaction => {
+    const now = new Date();
+    // A crashed worker may already have delivered. Retain the row for explicit
+    // review instead of automatically sending an ambiguous delivery again.
+    const [held] = await db.EmailQueueJob.update({
+        status: "failed", processing_started_at: null,
+        last_error: JSON.stringify({ code: "EMAIL_AMBIGUOUS" })
+    }, { where: { status: "processing", [Op.or]: [
+        { processing_started_at: { [Op.lt]: new Date(now.getTime() - staleProcessingMs) } },
+        { processing_started_at: null }
+    ] }, transaction });
+    if (held) console.warn("[email] stale deliveries held for review", { count: held, code: "EMAIL_AMBIGUOUS" });
+    await db.EmailQueueJob.update({ status: "failed", last_error: JSON.stringify({ code: "EMAIL_EXHAUSTED" }) }, {
+        where: { status: "pending", [Op.and]: [db.sequelize.literal("attempts >= max_attempts")] }, transaction
     });
-
-const markJobSent = async (job) =>
-    job.update({
-        status: "sent",
-        sent_at: new Date(),
-        processing_started_at: null,
-        last_error: null
+    const jobs = await db.EmailQueueJob.findAll({
+        where: { status: "pending", scheduled_at: { [Op.lte]: now }, [Op.and]: [db.sequelize.literal("attempts < max_attempts")] },
+        order: [["scheduled_at", "ASC"], ["id", "ASC"]], limit: batchSize,
+        lock: transaction.LOCK.UPDATE, skipLocked: true, transaction
     });
+    if (!jobs.length) return [];
+    const ids = jobs.map(job => job.id);
+    await db.EmailQueueJob.update({ status: "processing", processing_started_at: now,
+        attempts: db.sequelize.literal("attempts + 1"), last_error: null
+    }, { where: { id: { [Op.in]: ids } }, transaction });
+    return db.EmailQueueJob.findAll({ where: { id: { [Op.in]: ids } }, order: [["scheduled_at", "ASC"], ["id", "ASC"]], transaction });
+});
 
-const markJobFailed = async (job, error) => {
-    const nextAttempts = job.attempts + 1;
-    const hasRemainingAttempts = error?.retryable !== false && nextAttempts < job.max_attempts;
-
-    await job.update({
-        status: hasRemainingAttempts ? "pending" : "failed",
-        attempts: nextAttempts,
-        processing_started_at: null,
+const lease = job => ({ id: job.id, status: "processing", attempts: job.attempts, processing_started_at: job.processing_started_at });
+const writeState = async (job, values) => {
+    const [changed] = await db.EmailQueueJob.update(values, { where: lease(job) });
+    if (!changed) console.warn("[email] delivery lease no longer owned", { jobId: job.id });
+    return changed;
+};
+const markJobSent = job => writeState(job, { status: "sent", sent_at: new Date(), processing_started_at: null, last_error: null });
+const markJobFailed = (job, error) => {
+    const retry = error?.retryable === true && job.attempts < job.max_attempts;
+    const requestedDelay = Number.isFinite(error?.retryAfterMs) ? Math.max(0, error.retryAfterMs) : 0;
+    return writeState(job, {
+        status: retry ? "pending" : "failed", processing_started_at: null,
         last_error: JSON.stringify(safeEmailError(error)),
-        scheduled_at: hasRemainingAttempts ? new Date(Date.now() + retryDelayMs) : job.scheduled_at
+        scheduled_at: retry ? new Date(Date.now() + Math.max(retryDelayMs, requestedDelay)) : job.scheduled_at
     });
 };
-
-const processJob = async (job) => {
+const processJob = async job => {
+    if (!await db.EmailQueueJob.findOne({ where: lease(job), attributes: ["id"] })) return;
     console.log("[email] processing", { jobId: job.id, attempts: job.attempts });
-    try {
-        await sendEmail(job.to, job.subject, job.message);
-        await markJobSent(job);
-        console.log("[email] provider accepted", { jobId: job.id });
-    } catch (error) {
+    try { await sendEmail(job.to, job.subject, job.message); }
+    catch (error) {
         console.error("[email] delivery failed", { jobId: job.id, ...safeEmailError(error) });
         await markJobFailed(job, error);
+        return;
+    }
+    // A failed status write must never turn provider acceptance into a retry.
+    try {
+        const recorded = await markJobSent(job);
+        console.log("[email] provider accepted", { jobId: job.id, recorded: Boolean(recorded) });
+    } catch {
+        console.error("[email] accepted delivery state could not be recorded; held for review", { jobId: job.id, code: "EMAIL_STATE" });
     }
 };
-
 const processBatch = async () => {
     try {
         sendEmail.validateConfiguration?.();
@@ -120,42 +94,32 @@ const processBatch = async () => {
         return;
     }
     const jobs = await reserveJobs();
-    if (!jobs.length) return;
-
     for (let index = 0; index < jobs.length; index += maxConcurrency) {
-        const slice = jobs.slice(index, index + maxConcurrency);
-        // eslint-disable-next-line no-await-in-loop
-        await Promise.allSettled(slice.map((job) => processJob(job)));
+        const results = await Promise.allSettled(jobs.slice(index, index + maxConcurrency).map(processJob));
+        for (const result of results) if (result.status === "rejected") console.error("[email] queue state operation failed", safeEmailError(result.reason));
     }
 };
-
 const main = async () => {
     sendEmail.logConfiguration();
     await db.sequelize.authenticate();
-
-    // eslint-disable-next-line no-console
     console.log("Email queue worker started.");
-
-    const run = async () => {
-        try {
-            await processBatch();
-        } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error("Email queue worker error:", safeEmailError(error));
-        } finally {
-            setTimeout(run, pollIntervalMs);
-        }
-    };
-
-    run();
+    let stopping = false, wake;
+    const stop = () => { stopping = true; wake?.(); };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
+    process.once("disconnect", stop);
+    while (!stopping) {
+        try { await processBatch(); }
+        catch (error) { console.error("Email queue worker error:", safeEmailError(error)); }
+        if (!stopping) await new Promise(resolve => {
+            const timer = setTimeout(resolve, pollIntervalMs);
+            wake = () => { clearTimeout(timer); resolve(); };
+        });
+    }
+    await db.sequelize.close();
 };
-
-if (require.main === module) {
-    main().catch((error) => {
-        // eslint-disable-next-line no-console
-        console.error("Failed to start email queue worker:", safeEmailError(error));
-        process.exit(1);
-    });
-}
-
+if (require.main === module) main().catch(error => {
+    console.error("Failed to start email queue worker:", safeEmailError(error));
+    process.exit(1);
+});
 module.exports = { reserveJobs, processJob, processBatch };

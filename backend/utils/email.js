@@ -5,14 +5,14 @@ const REQUEST_TIMEOUT_MS = 15000;
 let cachedTransporter = null;
 let cachedKey = null;
 
-const emailError = (message, code, responseCode, retryable = true) => Object.assign(new Error(message), {
+const emailError = (message, code, responseCode, retryable = false) => Object.assign(new Error(message), {
     code,
     retryable,
     ...(Number.isInteger(responseCode) ? { responseCode } : {})
 });
 
 const getProvider = () => {
-    const configured = String(process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY ? "brevo" : "smtp")).trim().toLowerCase();
+    const configured = String(process.env.EMAIL_PROVIDER || (process.env.BREVO_API_KEY?.trim() ? "brevo" : "smtp")).trim().toLowerCase();
     if (!["brevo", "smtp"].includes(configured)) {
         throw emailError("Email configuration error: EMAIL_PROVIDER must be brevo or smtp.", "EMAIL_CONFIG");
     }
@@ -77,7 +77,14 @@ const getTransporter = () => {
     return cachedTransporter;
 };
 
-const sendWithBrevo = async (to, subject, text) => {
+const retryAfterMs = response => {
+    const value = response.headers?.get?.("retry-after");
+    if (!value) return undefined;
+    const delay = /^\d+(?:\.\d+)?$/.test(value) ? Number(value) * 1000 : Date.parse(value) - Date.now();
+    return Number.isFinite(delay) && delay >= 0 ? Math.min(delay, 2147483647) : undefined;
+};
+
+const sendWithBrevo = async (to, subject, text, options) => {
     const { apiKey, from, fromName } = getBrevoConfiguration();
     let response;
     try {
@@ -92,7 +99,8 @@ const sendWithBrevo = async (to, subject, text) => {
                 sender: { email: from, name: fromName },
                 to: (Array.isArray(to) ? to : [to]).map(recipient => typeof recipient === "string" ? { email: recipient } : recipient),
                 subject,
-                textContent: text
+                textContent: text,
+                ...(options.html ? { htmlContent: options.html } : {})
             }),
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
         });
@@ -107,7 +115,11 @@ const sendWithBrevo = async (to, subject, text) => {
     }
 
     if (!response.ok) {
-        throw emailError("Brevo rejected the email request.", "EMAIL_API", response.status, false);
+        // 429 explicitly rejects the request. A timeout or 5xx can follow
+        // acceptance, so hold those for review rather than blindly resending.
+        const error = emailError("Brevo rejected the email request.", "EMAIL_API", response.status, response.status === 429);
+        if (error.retryable) error.retryAfterMs = retryAfterMs(response);
+        throw error;
     }
 
     let result;
@@ -122,11 +134,16 @@ const sendWithBrevo = async (to, subject, text) => {
     return result;
 };
 
-const sendEmail = async (to, subject, text) => {
-    if (getProvider() === "brevo") return sendWithBrevo(to, subject, text);
+const sendEmail = async (to, subject, text, options = {}) => {
+    if (getProvider() === "brevo") return sendWithBrevo(to, subject, text, options);
     const transporter = getTransporter();
     const from = process.env.EMAIL_FROM || process.env.EMAIL_USER || process.env.EMAIL;
-    await transporter.sendMail({ from, to, subject, text });
+    try { return await transporter.sendMail({ from, to, subject, text, ...(options.html ? { html: options.html } : {}) }); }
+    catch (error) {
+        const allowed = ["EAUTH", "ECONNECTION", "ETIMEDOUT", "ESOCKET", "EDNS", "ECONNREFUSED", "ECONNRESET", "EENVELOPE", "EMESSAGE", "ETLS"];
+        const retryable = (error.responseCode >= 400 && error.responseCode < 500) || ["EDNS", "ECONNREFUSED", "ECONNECTION"].includes(error.code);
+        throw emailError("SMTP email request failed.", allowed.includes(error.code) ? error.code : "EMAIL_NETWORK", error.responseCode, retryable);
+    }
 };
 
 module.exports = sendEmail;

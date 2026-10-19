@@ -106,13 +106,13 @@ export default function AlumniRegisterPage() {
                             </label>
                         </label>
                         <label className="field">
-                            <span>Course / Degree</span>
+                            <span>Program</span>
                             <label className="line-input">
-                                <input type="text" name="course" value={form.course} onChange={handleChange} placeholder="Enter course or degree" />
+                                <input type="text" name="course" value={form.course} onChange={handleChange} placeholder="Enter program" />
                             </label>
                         </label>
                         <label className="field">
-                            <span>Graduation Year</span>
+                            <span>Academic Year</span>
                             <label className="line-input">
                                 <input type="text" name="graduationYear" value={form.graduationYear} onChange={handleChange} onBlur={() => setYearTouched(true)} placeholder={`1885–${getMaxGraduationYear()}`} inputMode="numeric" aria-invalid={yearTouched && yearInvalid} aria-describedby="graduation-year-error" />
                             </label>
@@ -147,7 +147,7 @@ export default function AlumniRegisterPage() {
                             <span>
                                 I agree to the{" "}
                                 <button type="button" className="inline-link-btn highlight-link" onClick={openConsentModal}>
-                                    Data Privacy Consent
+                                    Privacy Consent
                                 </button>{" "}
                                 and understand how my personal information will be used.
                             </span>

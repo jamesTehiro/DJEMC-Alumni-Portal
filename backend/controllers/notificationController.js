@@ -1,6 +1,11 @@
 // controllers/notificationController.js
 const db = require("../models");
 const { enqueueEmails } = require("../utils/emailQueue");
+const { safeEmailError } = require("../utils/emailDiagnostics");
+const reportFailure = (operation, error, res) => {
+    console.error("[notification] operation failed", { operation, ...safeEmailError(error) });
+    if (res) return res.status(500).json({ msg: "Notifications are temporarily unavailable. Please try again later." });
+};
 
 // Create notifications & send emails
 exports.createNotification = async ({ userIds, message, subject, type, interview_id }) => {
@@ -8,17 +13,17 @@ exports.createNotification = async ({ userIds, message, subject, type, interview
         const normalizedIds = Array.from(new Set((userIds || []).filter(Boolean)));
         if (!normalizedIds.length) return [];
 
-        const notifications = await db.Notification.bulkCreate(
-            normalizedIds.map((userId) => ({ userId, type, message, interview_id })),
-            { returning: true }
-        );
-
-        const users = await db.User.findAll({ where: { id: normalizedIds } });
-        await enqueueEmails(users.map((user) => ({ to: user.email, subject, message })));
-
-        return notifications;
+        return await db.sequelize.transaction(async transaction => {
+            const notifications = await db.Notification.bulkCreate(
+                normalizedIds.map((userId) => ({ userId, type, message, interview_id })),
+                { returning: true, transaction }
+            );
+            const users = await db.User.findAll({ where: { id: normalizedIds }, transaction });
+            await enqueueEmails(users.map((user) => ({ to: user.email, subject, message })), { transaction });
+            return notifications;
+        });
     } catch (err) {
-        console.error("Notification error:", err.message);
+        reportFailure("create", err);
         return [];
     }
 };
@@ -38,7 +43,7 @@ exports.getUserNotifications = async (req, res) => {
         });
         res.json(notifications);
     } catch (err) {
-        res.status(500).json({ msg: err.message });
+        reportFailure("list", err, res);
     }
 };
 
@@ -64,7 +69,7 @@ exports.getNotificationInterview = async (req, res) => {
 
         res.json(notification);
     } catch (err) {
-        res.status(500).json({ msg: err.message });
+        reportFailure("interview", err, res);
     }
 };
 
@@ -97,13 +102,13 @@ exports.markAsRead = async (req, res) => {
                         ip_address: req.ip || null
                     });
                 } catch (auditError) {
-                    console.error("[profile-tracking] Unable to log update request response:", auditError.message);
+                    reportFailure("profile_update_audit", auditError);
                 }
             }
         }
         res.json({ msg: "Notification marked as read" });
     } catch (err) {
-        res.status(500).json({ msg: err.message });
+        reportFailure("read", err, res);
     }
 };
 
@@ -119,6 +124,6 @@ exports.deleteNotification = async (req, res) => {
         await notification.destroy();
         res.json({ msg: "Notification deleted" });
     } catch (err) {
-        res.status(500).json({ msg: err.message });
+        reportFailure("delete", err, res);
     }
 };

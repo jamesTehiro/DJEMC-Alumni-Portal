@@ -22,20 +22,38 @@ and `EMAIL_PASS`; Brevo does not require SMTP hosts or ports.
 
 The API key is sent only in the HTTPS `api-key` header. Diagnostics log the
 selected provider and whether configuration fields are present, never their
-values or email contents. Brevo request failures are not automatically
-retried because a timeout can occur after Brevo has accepted a message; this
-avoids sending duplicates when delivery is uncertain. Existing SMTP queue
-retry behavior remains unchanged.
+values or email contents. Explicit HTTP 429 rejections use the queue retry
+budget and respect Retry-After. Ambiguous network, timeout, 5xx and malformed
+success responses are held as failed for provider-log review. Stale processing
+jobs are also held for review, rather than automatically resent. SMTP explicit
+temporary rejections and known connection failures can retry; permanent and
+ambiguous SMTP failures are held. No failure switches providers automatically.
 
-The verified Gmail sender can be used as configured. A custom sender domain
-with appropriate SPF/DKIM authentication may improve production deliverability;
-no DNS changes are required for this integration.
+The requested sender is EMAIL_FROM=jamestehiro0@gmail.com with
+EMAIL_FROM_NAME=DJEMC Alumni Portal. Its verification/acceptance must be confirmed
+in Brevo; this checkout cannot establish that. Follow Brevo's sender/domain
+verification requirements before claiming production delivery works.
+
+The existing three-argument sendEmail(to, subject, text) contract is preserved.
+An optional fourth argument `{ html }` maps HTML without changing existing text
+templates. Current queue records and notification callers remain plain text.
+
+`npm start` starts an embedded email worker by default. For a separately
+configured worker, set EMAIL_WORKER_ENABLED=false on the web service and use
+`npm run email-worker` for the worker process. Review held deliveries before any
+manual retry; queue status `sent` means provider acceptance, not inbox delivery.
 
 ## Deployment check
 
 After setting the variables, deploy the backend and run
 `node scripts/checkEmailConfig.js --verify` in the backend environment. This
-validates the selected provider configuration and sends no email. Then trigger
+validates local Brevo settings only (not the key or sender with Brevo), and sends
+no email. Use `node scripts/auditNotificationConfig.js` for sanitized configuration
+checks and its `--schema --host <expected_host> --database <expected_name>` mode
+for a read-only database audit. Then trigger
 an existing notification using a controlled test account and check the queue
 job status and Brevo transactional email logs. Do not print or share the API
 key while checking the deployment.
+
+See [the full implementation report](notification-implementation-report.md) for
+the trigger matrix, tests, worker coordination, deployment and rollback details.
