@@ -6,17 +6,6 @@ import usePortalDrawer from "../hooks/usePortalDrawer";
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import "./DashboardLayout.css";
 import styles from "./Sidebar.module.css";
-import MembershipFlowProvider from "../context/MembershipFlowContext";
-import { useMembershipFlow } from "../context/membershipFlow";
-import { canOpenMembershipForm } from "../utils/membershipManagement";
-
-function AlumniMembershipNavigation({ onNavigate }) {
-    const flow = useMembershipFlow();
-    if (!canOpenMembershipForm(flow?.data)) return null;
-    return <button type="button" className="employer-nav-item" onClick={() => { onNavigate(); window.setTimeout(flow.openForm, 0); }}>
-        <FaFileAlt className="dash-icon" />Membership Application
-    </button>;
-}
 
 export default function DashboardLayout() {
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -53,7 +42,7 @@ export default function DashboardLayout() {
     };
 
     return (
-        <MembershipFlowProvider user={user}><div className="dashboard-layout">
+        <div className="dashboard-layout">
             {/* Overlay for mobile */}
             <div
                 className={`${styles.sidebarOverlay}${mobileNavOpen ? " visible" : ""}`}
@@ -135,7 +124,6 @@ export default function DashboardLayout() {
                                 <FaFileAlt className="dash-icon" />
                                 Resume Builder
                             </button>
-                            {isAlumni && <AlumniMembershipNavigation onNavigate={() => setMobileNavOpen(false)} />}
                         </div>
                         <div className="employer-sidebar-divider" />
                         <div className="employer-sidebar-nav">
@@ -158,6 +146,6 @@ export default function DashboardLayout() {
                     <Outlet />
                 </div>
             </div>
-        </div></MembershipFlowProvider>
+        </div>
     );
 }

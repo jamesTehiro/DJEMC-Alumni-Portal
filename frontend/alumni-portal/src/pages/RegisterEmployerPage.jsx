@@ -224,7 +224,7 @@ export default function RegisterEmployerPage() {
                         onClick={(e) => e.stopPropagation()}
                     >
                         <div className="consent-header">
-                            <h4>Employer Data Privacy Consent</h4>
+                            <h4>Terms and Conditions</h4>
                             <button type="button" className="inline-link-btn" onClick={handleConsentModalClose}>
                                 Close
                             </button>

@@ -168,9 +168,9 @@ export default function AdminPortalPage() {
     const alumniExists = !!setupStatus?.alumniAdminExists;
     const employerExists = !!setupStatus?.employerAdminExists;
     const roleOptions = [
-        { value: "registrar", label: "Registrar Admin", disabled: registrarExists },
-        { value: "alumni", label: "Alumni Admin", disabled: alumniExists },
-        { value: "employer", label: "Employer Admin", disabled: employerExists }
+        { value: "registrar", label: "Registrar Officer", disabled: registrarExists },
+        { value: "alumni", label: "Alumni Coordinator", disabled: alumniExists },
+        { value: "employer", label: "Employer Manager", disabled: employerExists }
     ];
     const canCreateAdmin = !(registrarExists && alumniExists && employerExists);
 

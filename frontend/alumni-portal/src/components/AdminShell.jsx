@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { FiMenu, FiX } from "react-icons/fi";
 import usePortalDrawer from "../hooks/usePortalDrawer";
@@ -13,11 +13,10 @@ import {
     FaBriefcase,
     FaSignOutAlt
 } from "react-icons/fa";
-import { api, API_BASE_URL } from "../services/api";
+import { API_BASE_URL } from "../services/api";
 import { AdminShellContext } from "./AdminShellContext";
 import styles from "./Sidebar.module.css";
 import alumniStyles from "./AdminShellAlumni.module.css";
-import { isMembershipManagementUser } from "../utils/membershipManagement";
 
 // Existing pages supply their header through this adapter when rendered inside
 // the persistent Alumni layout. Employer and Registrar retain their own shells.
@@ -43,7 +42,6 @@ function StandaloneAdminShell({ scope, title, subtitle, eyebrow = "Security Gate
     const base = `/admin/${scope}`;
     const isRegistrar = scope === "registrar";
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
-    const [membershipAccess, setMembershipAccess] = useState({ scope: null, allowed: false });
     const currentUser = useMemo(() => {
         try {
             return JSON.parse(localStorage.getItem("user") || "null");
@@ -51,18 +49,6 @@ function StandaloneAdminShell({ scope, title, subtitle, eyebrow = "Security Gate
             return null;
         }
     }, []);
-    const isMembershipScope = scope === "alumni" && isMembershipManagementUser(currentUser);
-    const canManageMembership = isMembershipScope && membershipAccess.scope === scope && membershipAccess.allowed;
-    useEffect(() => {
-        let active = true;
-        if (isMembershipScope) {
-            api.get("/membership/access", true).then((data) => {
-                if (active) setMembershipAccess({ scope, allowed: data?.scope === "alumni" && data?.can_view === true });
-            }).catch(() => { /* Backend authorization still protects the page. */ });
-        }
-        return () => { active = false; };
-    }, [scope, isMembershipScope]);
-
     usePortalDrawer({ open: mobileNavOpen, onClose: () => setMobileNavOpen(false) });
 
 
@@ -88,7 +74,6 @@ function StandaloneAdminShell({ scope, title, subtitle, eyebrow = "Security Gate
         alumni: [
             { label: "Dashboard", path: "", end: true, icon: <FaTachometerAlt /> },
             { label: "Alumni Records", path: "users", icon: <FaUsers /> },
-            ...(canManageMembership ? [{ label: "Membership Applications", path: "membership-applications", icon: <FaClipboardList /> }] : []),
             { label: "Messages", path: "messages", icon: <FaEnvelope /> },
             { label: "Post Announcement ", path: "moderation", icon: <FaBullhorn /> },
             { label: "System Logs", path: "logs", icon: <FaClipboardList /> },

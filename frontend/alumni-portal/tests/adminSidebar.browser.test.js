@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 import puppeteer from "puppeteer";
 
-test("Alumni sidebar retains its nodes and granted Membership Applications link through route transitions", async () => {
+test("Admin Alumni sidebar omits membership navigation and preserves its nodes on desktop and mobile", async () => {
     const result = await build({
         stdin: { resolveDir: fileURLToPath(new URL("..", import.meta.url)), loader: "jsx", contents: `
             import React, { lazy, Suspense } from 'react';
@@ -20,7 +20,7 @@ test("Alumni sidebar retains its nodes and granted Membership Applications link 
             localStorage.setItem('user', JSON.stringify(user));
             localStorage.setItem('token', 'test-fixture-token');
             function Page({title}) { return <AdminShell scope={window.scope} title={title} subtitle={title+' content'} onLogout={()=>{window.logoutCalled=true}}><div data-page={title}>{title} content</div></AdminShell>; }
-            const titles = {'':'Dashboard',users:'Alumni Records','membership-applications':'Membership Applications',messages:'Messages',moderation:'Post Announcement',logs:'System Logs',settings:'Profile'};
+            const titles = {'':'Dashboard',users:'Alumni Records',messages:'Messages',moderation:'Post Announcement',logs:'System Logs',settings:'Profile'};
             const Delayed = lazy(() => new Promise(resolve => { window.finishLoading = () => resolve({default:()=> <Page title="Post Announcement"/>}); }));
             createRoot(document.getElementById('root')).render(<MemoryRouter initialEntries={['/admin/'+window.scope]}><Routes>
                 {window.scope==='alumni' ? <Route element={<AdminAlumniLayout/>}>{Object.entries(titles).map(([path,title])=><Route key={path} path={'/admin/alumni'+(path?'/'+path:'')} element={path==='moderation'?<Delayed/>:<Page title={title}/>}/>)}</Route> : <Route path="*" element={<Page title="Dashboard"/>}/>}
@@ -50,47 +50,42 @@ test("Alumni sidebar retains its nodes and granted Membership Applications link 
         const url = `http://127.0.0.1:${server.address().port}`;
         await page.evaluateOnNewDocument(() => { window.scope = "alumni"; window.allowed = true; });
         await page.goto(url);
-        await page.waitForFunction(() => typeof window.grantAccess === "function");
-        await page.evaluate(() => window.grantAccess());
-        await page.waitForFunction(() => [...document.querySelectorAll("aside a")].some(a => a.textContent === "Membership Applications"));
+        await page.waitForSelector("aside");
         await page.evaluate(() => {
             window.originalAside = document.querySelector("aside");
-            window.membershipLink = [...document.querySelectorAll("aside a")].find(a => a.textContent === "Membership Applications");
+            window.membershipLinks = [...document.querySelectorAll("aside a")].filter(a => /membership application/i.test(a.textContent));
             window.removals = 0;
-            new MutationObserver(records => { for (const record of records) for (const node of record.removedNodes) if (node === window.originalAside || node === window.membershipLink || node.contains?.(window.membershipLink)) window.removals++; }).observe(document.getElementById("root"), { childList: true, subtree: true });
+            new MutationObserver(records => { for (const record of records) for (const node of record.removedNodes) if (node === window.originalAside) window.removals++; }).observe(document.getElementById("root"), { childList: true, subtree: true });
         });
-        for (const title of ["Post Announcement", "Membership Applications", "Alumni Records", "Dashboard", "Messages", "System Logs", "Profile"]) {
+        assert.deepEqual(await page.evaluate(() => window.membershipLinks.map(link => link.textContent.trim())), []);
+        for (const title of ["Post Announcement", "Alumni Records", "Dashboard", "Messages", "System Logs", "Profile"]) {
             await page.evaluate(title => [...document.querySelectorAll("aside a")].find(a => a.textContent.trim() === title).click(), title);
             if (title === "Post Announcement") {
                 await page.waitForFunction(() => typeof window.finishLoading === "function");
-                assert.equal(await page.evaluate(() => window.membershipLink.isConnected && document.querySelector("aside") === window.originalAside), true);
+                assert.equal(await page.evaluate(() => document.querySelector("aside") === window.originalAside), true);
                 await page.evaluate(() => window.finishLoading());
             }
             await page.waitForFunction(title => document.querySelector("[data-page]")?.getAttribute("data-page") === title, {}, title);
-            const state = await page.evaluate(() => ({ sameAside: document.querySelector("aside") === window.originalAside, sameLink: window.membershipLink.isConnected, removals: window.removals, calls: window.accessCalls, active: document.querySelector('aside a[aria-current="page"]')?.textContent.trim(), heading: document.querySelector("h1")?.textContent }));
-            assert.deepEqual(state, { sameAside: true, sameLink: true, removals: 0, calls: 1, active: title, heading: title });
+            const state = await page.evaluate(() => ({ sameAside: document.querySelector("aside") === window.originalAside, removals: window.removals, calls: window.accessCalls, active: document.querySelector('aside a[aria-current="page"]')?.textContent.trim(), heading: document.querySelector("h1")?.textContent }));
+            assert.deepEqual(state, { sameAside: true, removals: 0, calls: 0, active: title, heading: title });
         }
         await page.setViewport({ width: 390, height: 844 });
-        for (const title of ["Post Announcement", "Membership Applications", "Alumni Records", "Dashboard", "Messages", "System Logs", "Profile"]) {
+        for (const title of ["Post Announcement", "Alumni Records", "Dashboard", "Messages", "System Logs", "Profile"]) {
             await page.click('button[aria-label="Open navigation"]');
             await page.waitForFunction(() => document.body.style.overflow === "hidden");
             assert.equal(await page.$eval('button[aria-label="Close navigation"]', button => button.getAttribute("aria-expanded")), "true");
             await page.evaluate(title => [...document.querySelectorAll("aside a")].find(a => a.textContent.trim() === title).click(), title);
             await page.waitForFunction(title => document.querySelector("[data-page]")?.getAttribute("data-page") === title && document.body.style.overflow !== "hidden", {}, title);
-            const state = await page.evaluate(() => ({ sameAside: document.querySelector("aside") === window.originalAside, sameLink: window.membershipLink.isConnected, removals: window.removals, calls: window.accessCalls, active: document.querySelector('aside a[aria-current="page"]')?.textContent.trim(), expanded: document.querySelector('button[aria-label="Open navigation"]')?.getAttribute("aria-expanded") }));
-            assert.deepEqual(state, { sameAside: true, sameLink: true, removals: 0, calls: 1, active: title, expanded: "false" });
+            const state = await page.evaluate(() => ({ sameAside: document.querySelector("aside") === window.originalAside, removals: window.removals, calls: window.accessCalls, active: document.querySelector('aside a[aria-current="page"]')?.textContent.trim(), expanded: document.querySelector('button[aria-label="Open navigation"]')?.getAttribute("aria-expanded") }));
+            assert.deepEqual(state, { sameAside: true, removals: 0, calls: 0, active: title, expanded: "false" });
         }
         await page.evaluate(() => [...document.querySelectorAll("aside button")].find(button => button.textContent.trim() === "Logout").click());
         assert.equal(await page.evaluate(() => window.logoutCalled), true);
         for (const scope of ["employer", "registrar", "alumni"]) {
             const denied = await browser.newPage();
-            await denied.evaluateOnNewDocument(scope => { window.scope = scope; window.allowed = false; }, scope);
+            await denied.evaluateOnNewDocument(scope => { window.scope = scope; }, scope);
             await denied.goto(url);
             await denied.waitForSelector("aside");
-            if (scope === "alumni") {
-                await denied.waitForFunction(() => typeof window.grantAccess === "function");
-                await denied.evaluate(() => window.grantAccess());
-            }
             const labels = await denied.$$eval("aside a", links => links.map(a => a.textContent.trim()));
             assert.equal(labels.includes("Membership Applications"), false);
             assert.deepEqual(labels, scope === "employer" ? ["Dashboard", "Verification History", "Manage Posted Jobs", "Messages", "Post Job", "System Logs", "Profile"] : scope === "registrar" ? ["Dashboard", "Verification History", "Alumni Records", "Profile"] : ["Dashboard", "Alumni Records", "Messages", "Post Announcement", "System Logs", "Profile"]);

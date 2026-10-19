@@ -148,6 +148,19 @@
     background: #287b32;
 }
 
+.post-btn:disabled {
+    opacity: 0.82;
+    cursor: wait;
+}
+
+.post-btn-spinner {
+    animation: post-button-spin 0.8s linear infinite;
+}
+
+@keyframes post-button-spin {
+    to { transform: rotate(360deg); }
+}
+
 .post-card {
     position: relative;
     background: #ffffff;
@@ -503,17 +516,27 @@
 .modal-overlay {
     position: fixed;
     inset: 0;
+    z-index: 1200;
     background: rgba(0, 0, 0, 0.45);
     display: grid;
     place-items: center;
-    z-index: 1000;
+    overflow-y: auto;
+    padding: 16px;
 }
 
-.modal-overlay .modal {
+.feed-edit-dialog {
+    position: relative;
+    z-index: 1;
+    display: block;
+    pointer-events: auto;
     width: min(420px, calc(100vw - 24px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    margin: auto;
     background: #ffffff;
     border-radius: 14px;
     padding: 18px;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
 }
 
 .post-edit-modal {
@@ -523,6 +546,12 @@
 .post-edit-modal h3 {
     margin-top: 0;
     margin-bottom: 14px;
+}
+
+.feed-edit-error {
+    margin: 0 0 12px;
+    color: #b42318;
+    font-size: 0.9rem;
 }
 
 .edit-textarea {
@@ -572,6 +601,18 @@
     text-align: center;
     color: #4b5563;
     font-size: 14px;
+}
+
+.post-submit-notice {
+    margin: 10px 0 0;
+}
+
+.post-submit-notice.is-error {
+    color: #b42318;
+}
+
+.post-submit-notice.is-success {
+    color: #137333;
 }
 
 @media (max-width: 640px) {

@@ -334,7 +334,7 @@ function App() {
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/notifications" element={<NotificationPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/membership-application" element={<Navigate to="/dashboard" replace state={{ openMembershipApplication: true }} />} />
+            <Route path="/membership-application" element={<Navigate to="/dashboard" replace />} />
             <Route path="/profile/:userId" element={<ProfilePage />} />
             <Route path="/resume-builder" element={<ResumeBuilderPage />} />
           </Route>

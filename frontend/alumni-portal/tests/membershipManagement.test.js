@@ -33,9 +33,12 @@ test("management table has the required columns and no application number column
     const headers = [...source.matchAll(/<th scope="col">([^<]+)<\/th>/g)].map(match => match[1]);
     assert.deepEqual(headers, ["#", "Name", "Email", "Graduation Year", "Date Submitted", "Status", "Actions"]);
 });
-test("legacy alumni URL opens the modal over the dashboard and preserves form sections", () => {
+test("legacy alumni URL only redirects to the dashboard while preserving the dormant form implementation", () => {
     const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
-    assert.match(app, /path="\/membership-application" element=\{<Navigate to="\/dashboard" replace state=\{\{ openMembershipApplication: true \}\}/);
+    assert.match(app, /path="\/membership-application" element=\{<Navigate to="\/dashboard" replace \/>/);
+    assert.doesNotMatch(app, /openMembershipApplication/);
+    const dashboard = readFileSync(new URL("../src/components/DashboardLayout.jsx", import.meta.url), "utf8");
+    assert.doesNotMatch(dashboard, /MembershipFlowProvider|Membership Application/);
     const modal = readFileSync(new URL("../src/components/membership/MembershipApplicationModal.jsx", import.meta.url), "utf8");
     assert.match(modal, /MembershipApplicationForm embedded/);
     const form = readFileSync(new URL("../src/pages/MembershipApplicationPage.jsx", import.meta.url), "utf8");
@@ -56,16 +59,17 @@ test("management route belongs to Admin Alumni and legacy staff routes redirect 
     }
     assert.equal([...app.matchAll(/<AdminMembershipApplicationsPage/g)].length, 1);
 });
-test("only the Admin Alumni sidebar offers membership management and the page has its breadcrumb", () => {
+test("Admin Alumni hides membership navigation while preserving its guarded route", () => {
     const shell = readFileSync(new URL("../src/components/AdminShell.jsx", import.meta.url), "utf8");
     const menu = shell.slice(shell.indexOf("const itemsByScope"), shell.indexOf("const items ="));
     const alumni = menu.slice(menu.indexOf("alumni: ["), menu.indexOf("employer: ["));
     const employer = menu.slice(menu.indexOf("employer: ["), menu.indexOf("registrar: ["));
     const registrar = menu.slice(menu.indexOf("registrar: ["));
-    assert.match(alumni, /label: "Membership Applications"/);
+    assert.doesNotMatch(alumni, /Membership Applications/);
     assert.doesNotMatch(employer, /Membership Applications/); assert.doesNotMatch(registrar, /Membership Applications/);
-    assert.match(shell, /scope === "alumni" && isMembershipManagementUser\(currentUser\)/);
-    assert.match(shell, /data\?\.scope === "alumni" && data\?\.can_view === true/);
+    assert.doesNotMatch(shell, /membership\/access/);
+    const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+    assert.match(app, /path="\/admin\/alumni\/membership-applications"/);
     const page = readFileSync(new URL("../src/pages/admin/AdminMembershipApplicationsPage.jsx", import.meta.url), "utf8");
     assert.match(page, /const scope = "alumni"/);
     assert.match(page, /const allowedRole = isMembershipManagementUser\(user\)/);

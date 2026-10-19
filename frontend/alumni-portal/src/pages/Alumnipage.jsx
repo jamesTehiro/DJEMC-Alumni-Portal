@@ -1,5 +1,5 @@
 import { applicationStatusLabel } from "../utils/applicationStatus";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Row, Col, Card } from "react-bootstrap";
 import { MdMail, MdCampaign } from "react-icons/md";
@@ -10,7 +10,6 @@ import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import { getEmploymentTypeLabel } from "../utils/employmentTypes";
-import MembershipOnboarding from "../components/membership/MembershipOnboarding";
 
 import "./Alumnipage.css";
 
@@ -96,7 +95,6 @@ export default function AlumniPage() {
         <div className="alumni-shell">
             <main className="alumni-main">
                 <div className="alumni-layout">
-                    <MembershipOnboarding />
                     <div className="welcome-banner">
                         <div className="welcome-text">
                             <h2>Welcome back, {user?.name || "Alumni"}!</h2>

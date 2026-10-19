@@ -159,26 +159,26 @@ export default function RegisterPage() {
                                     </label>
                                 </div>
 
-                               <div className="col-12 col-sm-12 col-md-6 col-lg-6">
-    <label htmlFor="graduationYear" className="field-label">
-        Academic Year
-    </label>
+                                <div className="col-12 col-sm-12 col-md-6 col-lg-6">
+                                    <label htmlFor="graduationYear" className="field-label">
+                                        Academic Year
+                                    </label>
 
-    <label className="line-input">
-        <input
-            id="graduationYear"
-            type="text"
-            name="graduationYear"
-            value={registerForm.graduationYear ?? ""}
-            onChange={handleRegisterChange}
-            placeholder="Enter Academic Year"
-            inputMode="numeric"
-            maxLength={4}
-            pattern="[0-9]{4}"
-            title="Enter a four-digit year."
-        />
-    </label>
-</div>
+                                    <label className="line-input">
+                                        <input
+                                            id="graduationYear"
+                                            type="text"
+                                            name="graduationYear"
+                                            value={registerForm.graduationYear ?? ""}
+                                            onChange={handleRegisterChange}
+                                            placeholder="Enter Academic Year"
+                                            inputMode="numeric"
+                                            maxLength={4}
+                                            pattern="[0-9]{4}"
+                                            title="Enter a four-digit year."
+                                        />
+                                    </label>
+                                </div>
 
                                 <div className="col-12">
                                     <p className="field-label">Program</p>
@@ -228,7 +228,7 @@ export default function RegisterPage() {
                                         className="inline-link-btn highlight-link"
                                         onClick={openConsentModal}
                                     >
-                                        Data Privacy Consent
+                                        Terms and Condition
                                     </button>{" "}
                                     and understand how my personal information will be used.
                                 </span>

@@ -5,7 +5,7 @@ export default function AlumniDataPrivacyModal({ show, onHide, onAgree }) {
     return (
         <Modal show={show} onHide={onHide} size="lg" centered scrollable>
             <Modal.Header closeButton>
-                <Modal.Title>Alumni Data Privacy Consent</Modal.Title>
+                <Modal.Title>Terms and Condition</Modal.Title>
             </Modal.Header>
 
             <Modal.Body>

@@ -5,15 +5,19 @@ import "./FeedPage.css";
 import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
-import { FiMessageCircle, FiSend } from "react-icons/fi";
+import { FiLoader, FiMessageCircle, FiSend } from "react-icons/fi";
 import ProfileActionMenu from "../components/profile/ProfileActionMenu";
 import ProfilePreviewModal from "../components/profile/ProfilePreviewModal";
+import { runSingleFlight } from "../utils/postSubmission";
 
 export default function FeedPage() {
     useRenderDebug("FeedPage");
     const navigate = useNavigate();
     const [posts, setPosts] = useState([]);
     const [text, setText] = useState("");
+    const [isPosting, setIsPosting] = useState(false);
+    const [postNotice, setPostNotice] = useState(null);
+    const postSubmissionRef = useRef(false);
     const [activeJob, setActiveJob] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadingMorePosts, setLoadingMorePosts] = useState(false);
@@ -40,6 +44,7 @@ export default function FeedPage() {
     const [editImage, setEditImage] = useState(null);
     const [editImagePreview, setEditImagePreview] = useState("");
     const [editSaving, setEditSaving] = useState(false);
+    const [editError, setEditError] = useState("");
     const [deleteConfirmPost, setDeleteConfirmPost] = useState(null);
     const [deletingPostId, setDeletingPostId] = useState(null);
     const editFileInputRef = useRef(null);
@@ -316,39 +321,49 @@ export default function FeedPage() {
             reader.readAsDataURL(file);
         });
 
-    const submitPost = async () => {
-        if (!text.trim()) return;
-
-        try {
-            const created = await api.post(
-                "/posts",
-                { text },
-                true
-            );
-
-            const newPost = {
-                id: `post-${created.id}`,
-                sourceId: created.id,
-                type: "post",
-                author: created.User?.name || currentName,
-                role: created.User?.role === "admin" || created.User?.admin_scope ? "admin" : (created.User?.role || "alumni"),
-                adminScope: created.User?.admin_scope || "",
-                authorId: created.User?.id || currentUser?.id || null,
-                authorImage: getProfileImage(created.User) || getProfileImage(currentUser),
-                text: created.text || text,
-                image: created.image_url || "",
-                comments: [],
-                commentCount: 0,
-                likes: 0,
-                createdAt: created.createdAt || new Date().toISOString(),
-                likedByMe: false
-            };
-
-            setPosts((prev) => [newPost, ...prev]);
-            setText("");
-        } catch (err) {
-            setActionMessage(err.message);
+    const submitPost = () => {
+        if (!text.trim()) {
+            setPostNotice({ type: "error", message: "Post content cannot be empty." });
+            return;
         }
+
+        setPostNotice(null);
+        void runSingleFlight(postSubmissionRef, async () => {
+            setIsPosting(true);
+            try {
+                const created = await api.post(
+                    "/posts",
+                    { text },
+                    true
+                );
+
+                const newPost = {
+                    id: `post-${created.id}`,
+                    sourceId: created.id,
+                    type: "post",
+                    author: created.User?.name || currentName,
+                    role: created.User?.role === "admin" || created.User?.admin_scope ? "admin" : (created.User?.role || "alumni"),
+                    adminScope: created.User?.admin_scope || "",
+                    authorId: created.User?.id || currentUser?.id || null,
+                    authorImage: getProfileImage(created.User) || getProfileImage(currentUser),
+                    text: created.text || text,
+                    image: created.image_url || "",
+                    comments: [],
+                    commentCount: 0,
+                    likes: 0,
+                    createdAt: created.createdAt || new Date().toISOString(),
+                    likedByMe: false
+                };
+
+                setPosts((prev) => [newPost, ...prev]);
+                setText("");
+                setPostNotice({ type: "success", message: "Post created successfully." });
+            } catch (err) {
+                setPostNotice({ type: "error", message: err.message || "Your post could not be created. Please try again." });
+            } finally {
+                setIsPosting(false);
+            }
+        });
     };
 
     const addComment = async (postId, text) => {
@@ -516,6 +531,7 @@ export default function FeedPage() {
         setEditText(post?.text || "");
         setEditImage(null);
         setEditImagePreview(post?.image || "");
+        setEditError("");
     };
 
     const closeEditPost = () => {
@@ -523,15 +539,17 @@ export default function FeedPage() {
         setEditText("");
         setEditImage(null);
         setEditImagePreview("");
+        setEditError("");
     };
 
     const savePostEdit = async () => {
-        if (!editingPost?.sourceId) return;
+        if (!editingPost?.sourceId || editSaving) return;
         if (!editText.trim()) {
-            setActionMessage("Post content cannot be empty.");
+            setEditError("Post content cannot be empty.");
             return;
         }
         setEditSaving(true);
+        setEditError("");
         try {
             const imageUrl = editImage ? editImagePreview : editingPost.image || "";
             const updated = await api.put(
@@ -554,7 +572,7 @@ export default function FeedPage() {
             setActionMessage("Post updated.");
             closeEditPost();
         } catch (err) {
-            setActionMessage(err.message);
+            setEditError(err.message || "Your changes could not be saved. Please try again.");
         } finally {
             setEditSaving(false);
         }
@@ -651,15 +669,37 @@ export default function FeedPage() {
                     <textarea
                         placeholder={`What's on your mind, ${currentName}?`}
                         value={text}
-                        onChange={(e) => setText(e.target.value)}
+                        disabled={isPosting}
+                        onChange={(e) => { setText(e.target.value); setPostNotice(null); }}
                     />
 
                     <div className="composer-actions feed-text-composer-actions">
-                        <button className="post-btn" onClick={submitPost}>
-                            <FiSend />
-                            <span>Post</span>
+                        <button
+                            type="button"
+                            className="post-btn"
+                            onClick={submitPost}
+                            disabled={isPosting}
+                            aria-busy={isPosting}
+                            aria-label={isPosting ? "Posting your post" : "Post"}
+                        >
+                            {isPosting ? (
+                                <>
+                                    <FiLoader className="post-btn-spinner" aria-hidden="true" />
+                                    <span>Posting...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <FiSend aria-hidden="true" />
+                                    <span>Post</span>
+                                </>
+                            )}
                         </button>
                     </div>
+                    {postNotice && (
+                        <p className={`feed-message post-submit-notice is-${postNotice.type}`} role={postNotice.type === "error" ? "alert" : "status"}>
+                            {postNotice.message}
+                        </p>
+                    )}
                 </div>
 
                 {loading && <p>Loading feed...</p>}
@@ -894,15 +934,24 @@ export default function FeedPage() {
 
             {editingPost && (
                 <div className="modal-overlay">
-                    <div className="modal post-edit-modal">
-                        <h3>Edit Post</h3>
+                    <section
+                        className="feed-edit-dialog post-edit-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="feed-edit-title"
+                        onMouseDown={(event) => event.stopPropagation()}
+                    >
+                        <h3 id="feed-edit-title">Edit Post</h3>
                         <textarea
                             value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
+                            onChange={(e) => { setEditText(e.target.value); setEditError(""); }}
                             rows={5}
                             className="edit-textarea"
                             placeholder="Update your post"
+                            aria-label="Post content"
+                            autoFocus
                         />
+                        {editError && <p className="feed-edit-error" role="alert">{editError}</p>}
                         {editingPost.image && (
                             <div className="edit-preview">
                                 <img src={editImagePreview || editingPost.image} alt="Current post" />
@@ -925,17 +974,17 @@ export default function FeedPage() {
                             }}
                         />
                         <div className="modal-actions">
-                            <button type="button" onClick={() => editFileInputRef.current?.click()}>
+                            <button type="button" onClick={() => editFileInputRef.current?.click()} disabled={editSaving}>
                                 {editImage ? "Change Image" : "Replace Image"}
                             </button>
                             <button type="button" onClick={savePostEdit} disabled={editSaving}>
-                                {editSaving ? "Saving..." : "Save"}
+                                {editSaving ? "Saving..." : "Save Changes"}
                             </button>
-                            <button type="button" className="cancel" onClick={closeEditPost}>
+                            <button type="button" className="cancel" onClick={closeEditPost} disabled={editSaving}>
                                 Cancel
                             </button>
                         </div>
-                    </div>
+                    </section>
                 </div>
             )}
 
