@@ -11,7 +11,7 @@ import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
 import JobPostingAdvertisement from "../components/jobs/JobPostingAdvertisement";
 import { getJobCompanyName, getJobPostingMeta } from "../utils/jobDisplay";
 import { APPLICATION_SUCCESS_MESSAGE, APPLICATION_SUCCESS_TITLE, APPLICATION_TOAST_DELAY } from "../utils/jobApplicationSubmission";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { EMPLOYMENT_TYPE_OPTIONS, getEmploymentTypeLabel, normalizeEmploymentType } from "../utils/employmentTypes";
 
 export default function JobsPage() {
@@ -28,12 +28,15 @@ export default function JobsPage() {
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [selectedJob, setSelectedJob] = useState(null);
+    const [selectedJobError, setSelectedJobError] = useState("");
     const [brokenAuthorImages, setBrokenAuthorImages] = useState({});
     const [previewRequirements, setPreviewRequirements] = useState([]);
     const [requirementsLoading, setRequirementsLoading] = useState(false);
     const [requirementsError, setRequirementsError] = useState("");
     const [requirementsAttempt, setRequirementsAttempt] = useState(0);
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const requestedJobId = searchParams.get("jobId");
 
     useEffect(() => {
         if (!applicationNotice) return;
@@ -79,6 +82,19 @@ export default function JobsPage() {
     );
 
     useEffect(() => {
+        if (!requestedJobId || loading) return;
+        const job = jobs.find((item) => String(item.id) === requestedJobId);
+        if (!job) {
+            setSelectedJob(null);
+            setShowPreviewModal(false);
+            setSelectedJobError("That job is unavailable or may have been removed. You can continue browsing the job list.");
+            return;
+        }
+        setSelectedJobError("");
+        handleOpenJobDetails(job);
+    }, [requestedJobId, loading, jobs]);
+
+    useEffect(() => {
         let cancelled = false;
 
         if (!showPreviewModal || !selectedJob?.id) return;
@@ -111,6 +127,15 @@ export default function JobsPage() {
         setRequirementsLoading(true);
         setRequirementsError("");
         setShowPreviewModal(true);
+    };
+
+    const closeJobDetails = () => {
+        setShowPreviewModal(false);
+        if (searchParams.has("jobId")) {
+            const next = new URLSearchParams(searchParams);
+            next.delete("jobId");
+            setSearchParams(next, { replace: true });
+        }
     };
 
     const handleOpenApply = (job) => {
@@ -319,6 +344,12 @@ export default function JobsPage() {
                 ))}
             </div>
 
+            {selectedJobError && (
+                <div className="alert alert-warning" role="status">
+                    {selectedJobError} <Button variant="outline-secondary" size="sm" onClick={() => { setSelectedJobError(""); closeJobDetails(); }}>Return to job list</Button>
+                </div>
+            )}
+
             {actionMessage && <p>{actionMessage}</p>}
 
             <JobApplicationModal
@@ -340,7 +371,7 @@ export default function JobsPage() {
 
             <Modal
                 show={showPreviewModal}
-                onHide={() => setShowPreviewModal(false)}
+                onHide={closeJobDetails}
                 centered
                 size="lg"
                 dialogClassName="job-preview-dialog"
@@ -358,7 +389,7 @@ export default function JobsPage() {
                     {requirementsError && <div className="alert alert-danger" role="alert">{requirementsError} <Button variant="outline-danger" size="sm" onClick={() => { setRequirementsError(""); setRequirementsLoading(true); setRequirementsAttempt(value => value + 1); }}>Retry</Button></div>}
                 </Modal.Body>
                 <Modal.Footer className="job-preview-footer">
-                    <Button variant="outline-secondary" onClick={() => setShowPreviewModal(false)}>
+                    <Button variant="outline-secondary" onClick={closeJobDetails}>
                         Close
                     </Button>
                     <Button className="job-preview-apply" disabled={requirementsLoading || Boolean(requirementsError) || appliedJobIds.includes(selectedJob?.id)} onClick={handleStartApplication}>

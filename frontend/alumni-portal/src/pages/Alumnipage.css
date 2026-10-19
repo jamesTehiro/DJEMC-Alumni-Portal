@@ -398,6 +398,21 @@
     font-size: 0.78rem;
 }
 
+.alu-job-footer-link {
+    width: 100%;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.alu-job-footer-link:hover,
+.alu-job-footer-link:focus-visible {
+    color: #176b43;
+    background-color: #f0f8f3;
+    outline: none;
+}
+
 .alu-job-date {
     color: #94a3b8;
 }

@@ -6,7 +6,6 @@ import { api } from "../services/api";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useStrictSafeEffect from "../hooks/useStrictSafeEffect";
 import { FiMessageCircle, FiSend } from "react-icons/fi";
-import { useUndoDelete } from "../hooks/useUndoDelete";
 import ProfileActionMenu from "../components/profile/ProfileActionMenu";
 import ProfilePreviewModal from "../components/profile/ProfilePreviewModal";
 
@@ -20,7 +19,6 @@ export default function FeedPage() {
     const [loadingMorePosts, setLoadingMorePosts] = useState(false);
     const [error, setError] = useState("");
     const [actionMessage, setActionMessage] = useState("");
-    const { scheduleDelete } = useUndoDelete();
     const [commentDrafts, setCommentDrafts] = useState({});
     const [openCommentPosts, setOpenCommentPosts] = useState({});
     const [commentCursors, setCommentCursors] = useState({});
@@ -42,8 +40,10 @@ export default function FeedPage() {
     const [editImage, setEditImage] = useState(null);
     const [editImagePreview, setEditImagePreview] = useState("");
     const [editSaving, setEditSaving] = useState(false);
+    const [deleteConfirmPost, setDeleteConfirmPost] = useState(null);
+    const [deletingPostId, setDeletingPostId] = useState(null);
     const editFileInputRef = useRef(null);
-    const postMenuRef = useRef(null);
+    const postMenuRefs = useRef({});
 
     const currentUser = useMemo(() => {
         try {
@@ -500,7 +500,8 @@ export default function FeedPage() {
     useEffect(() => {
         const handleOutsideClick = (event) => {
             if (!postMenuOpenId) return;
-            if (postMenuRef.current && !postMenuRef.current.contains(event.target)) {
+            const openMenu = postMenuRefs.current[postMenuOpenId];
+            if (openMenu && !openMenu.contains(event.target)) {
                 setPostMenuOpenId(null);
             }
         };
@@ -526,6 +527,10 @@ export default function FeedPage() {
 
     const savePostEdit = async () => {
         if (!editingPost?.sourceId) return;
+        if (!editText.trim()) {
+            setActionMessage("Post content cannot be empty.");
+            return;
+        }
         setEditSaving(true);
         try {
             const imageUrl = editImage ? editImagePreview : editingPost.image || "";
@@ -556,25 +561,26 @@ export default function FeedPage() {
     };
 
     const handleDeletePost = (post) => {
-        if (!post?.sourceId) return;
-
-        // Remove from UI immediately
-        setPosts((prev) => prev.filter((item) => item.id !== post.id));
+        if (!post?.sourceId || deletingPostId) return;
         setPostMenuOpenId(null);
+        setDeleteConfirmPost(post);
+    };
 
-        scheduleDelete({
-            item: post,
-            itemName: "Post",
-            message: "The post was deleted.",
-            deleteAction: () => api.delete(`/posts/${post.sourceId}`, true),
-            restoreAction: () => {
-                setPosts((prev) => {
-                    const exists = prev.find((p) => p.id === post.id);
-                    if (exists) return prev;
-                    return [post, ...prev].slice(0, 100);
-                });
-            },
-        });
+    const confirmDeletePost = async () => {
+        const post = deleteConfirmPost;
+        if (!post?.sourceId || deletingPostId) return;
+        setDeletingPostId(post.sourceId);
+        setActionMessage("");
+        try {
+            await api.delete(`/posts/${post.sourceId}`, true);
+            setPosts((prev) => prev.filter((item) => item.id !== post.id));
+            setDeleteConfirmPost(null);
+            setActionMessage("Post deleted.");
+        } catch (err) {
+            setActionMessage(err.message || "The post could not be deleted. Please try again.");
+        } finally {
+            setDeletingPostId(null);
+        }
     };
 
     const submitApplication = async () => {
@@ -703,7 +709,7 @@ export default function FeedPage() {
                             </div>
 
                             {post.type === "post" && (canEditPost(post) || canDeletePost(post)) && (
-                                <div className="post-actions" ref={postMenuRef}>
+                                <div className="post-actions" ref={(element) => { postMenuRefs.current[post.id] = element; }}>
                                     <button
                                         type="button"
                                         className="post-actions-trigger"
@@ -932,6 +938,21 @@ export default function FeedPage() {
                     </div>
                 </div>
             )}
+
+            <Modal show={Boolean(deleteConfirmPost)} onHide={() => { if (!deletingPostId) setDeleteConfirmPost(null); }} centered>
+                <Modal.Header closeButton={!deletingPostId}>
+                    <Modal.Title>Delete post?</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    This permanently deletes this post and its comments. This action cannot be undone.
+                </Modal.Body>
+                <Modal.Footer>
+                    <button type="button" className="cancel" onClick={() => setDeleteConfirmPost(null)} disabled={Boolean(deletingPostId)}>Cancel</button>
+                    <button type="button" className="danger" onClick={confirmDeletePost} disabled={Boolean(deletingPostId)}>
+                        {deletingPostId ? "Deleting..." : "Delete permanently"}
+                    </button>
+                </Modal.Footer>
+            </Modal>
 
             {/* ProfileActionMenu - shown when clicking an avatar/author name */}
             {profileMenuPostId && profileMenuAnchor && (() => {

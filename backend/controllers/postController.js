@@ -22,10 +22,11 @@ const parsePositiveInt = (value, fallback) => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-const canEditPost = (user, post) => user?.id === post.user_id;
+const isPostOwner = (user, post) => Number(user?.id) === Number(post?.user_id);
+const canEditPost = (user, post) => isPostOwner(user, post);
 
 const canDeletePost = (user, post) => {
-    if (user?.id === post.user_id) return true;
+    if (isPostOwner(user, post)) return true;
     return user?.role === "admin" && String(user?.admin_scope || "").toLowerCase() === "alumni";
 };
 
@@ -188,13 +189,15 @@ exports.updatePost = async (req, res) => {
             return res.status(403).json({ msg: "You can only edit your own post." });
         }
 
-        const { text, image_url } = req.body;
-        if (!String(text || "").trim() && !String(image_url || "").trim()) {
+        const { text } = req.body;
+        if (!String(text || "").trim()) {
             return res.status(400).json({ msg: "Post content is required" });
         }
 
         post.text = String(text || "").trim();
-        post.image_url = String(image_url || "").trim();
+        if (Object.prototype.hasOwnProperty.call(req.body, "image_url")) {
+            post.image_url = String(req.body.image_url || "").trim();
+        }
         await post.save();
 
         const updatedPost = await db.Post.findByPk(post.id, { include: postInclude });

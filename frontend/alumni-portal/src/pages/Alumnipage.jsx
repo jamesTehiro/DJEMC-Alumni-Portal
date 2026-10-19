@@ -194,10 +194,15 @@ export default function AlumniPage() {
                                                     <span className="alu-job-date">{formatDate(job.createdAt)}</span>
                                                 </div>
                                                 <p className="alu-job-desc">{shortText(job.description)}</p>
-                                                <div className="alu-job-footer">
-
+                                                <button
+                                                    type="button"
+                                                    className="alu-job-footer alu-job-footer-link"
+                                                    aria-label={`View details for ${job.title || "this job"}`}
+                                                    onClick={() => navigate(`/jobs?jobId=${encodeURIComponent(job.id)}`)}
+                                                >
                                                     <span className="alu-job-qual">{job.course_target || "Open to All"}</span>
-                                                </div>
+                                                    <span aria-hidden="true">View details →</span>
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
