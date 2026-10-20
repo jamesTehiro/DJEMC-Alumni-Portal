@@ -409,10 +409,14 @@ const fetchStoredFile = async (storedValue, usePrivateDownloadApi) => {
 
 const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null, usePrivateDownloadApi = false) => {
     const response = await fetchStoredFile(storedValue, usePrivateDownloadApi);
-    const contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
+    let contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
     let buffer;
     try { buffer = Buffer.from(await response.arrayBuffer()); }
     catch { throw storageDownloadError(storedValue, 502, "network"); }
+
+    // Serve original PDF bytes as a PDF even when a legacy provider response
+    // or stored metadata still labels the document as an image/octet-stream.
+    if (buffer.subarray(0, 5).toString("ascii") === "%PDF-") contentType = "application/pdf";
 
     res.setHeader("Content-Type", contentType);
     if (downloadName) {

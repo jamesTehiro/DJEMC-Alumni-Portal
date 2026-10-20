@@ -3,12 +3,15 @@ import { Button, Modal, Spinner } from "react-bootstrap";
 import { FiDownload, FiFile, FiImage } from "react-icons/fi";
 import { fetchFile } from "../services/api";
 import { formatAttachmentSize, isImageAttachment } from "../utils/messageAttachments";
+import DocumentPreview from "./DocumentPreview";
+import { prepareDocumentBlob } from "../utils/documentPreview";
 
 export default function MessageAttachment({ message, openAttachment }) {
     const [previewUrl, setPreviewUrl] = useState("");
     const [imageState, setImageState] = useState("idle");
     const [imageError, setImageError] = useState("");
     const [showPreview, setShowPreview] = useState(false);
+    const [previewBlob, setPreviewBlob] = useState(null);
     const imageButtonRef = useRef(null);
     const image = isImageAttachment(message);
     const name = message?.file_name || "Shared file";
@@ -25,8 +28,10 @@ export default function MessageAttachment({ message, openAttachment }) {
         const load = () => {
             if (!active) return;
             setImageState("loading");
-            fetchFile(message.file_url, true).then((blob) => {
+            fetchFile(message.file_url, true).then(prepareDocumentBlob).then(({ blob, image: actualImage }) => {
                 if (!active) return;
+                setPreviewBlob(blob);
+                if (!actualImage) { setImageState("document"); return; }
                 objectUrl = URL.createObjectURL(blob);
                 setPreviewUrl(objectUrl);
                 setImageState("loaded");
@@ -61,6 +66,10 @@ export default function MessageAttachment({ message, openAttachment }) {
     };
 
     if (image) {
+        if (imageState === "document") return <>
+            <button type="button" className="attachment-action" onClick={() => setShowPreview(true)}><FiFile /> Open {name}</button>
+            <Modal show={showPreview} onHide={() => setShowPreview(false)} centered size="xl"><Modal.Header closeButton><Modal.Title>{name}</Modal.Title></Modal.Header><Modal.Body>{showPreview && <DocumentPreview blob={previewBlob} name={name} />}</Modal.Body></Modal>
+        </>;
         return (
             <>
                 <div className="message-attachment is-image">
@@ -80,20 +89,22 @@ export default function MessageAttachment({ message, openAttachment }) {
                         <Modal.Title>Image preview</Modal.Title>
                         <Button type="button" variant="light" onClick={downloadImage} aria-label="Download image"><FiDownload /></Button>
                     </Modal.Header>
-                    <Modal.Body className="message-image-lightbox"><img src={previewUrl || undefined} alt="Image attachment preview" /></Modal.Body>
+                    <Modal.Body>{showPreview && <DocumentPreview blob={previewBlob} name={name} />}</Modal.Body>
                 </Modal>
             </>
         );
     }
 
     return (
-        <div className="message-attachment">
+        <><div className="message-attachment">
             <div className="attachment-file-row">
                 <FiFile aria-hidden="true" />
                 <div className="attachment-file-copy"><strong title={name}>{name}</strong><small>{message?.file_mime || "File"}{size ? ` · ${size}` : ""}</small></div>
-                <button type="button" className="attachment-action" onClick={() => openAttachment(message)}>{"Open"}</button>
+                <button type="button" className="attachment-action" onClick={() => setShowPreview(true)}>{"Open"}</button>
                 <button type="button" className="attachment-action" onClick={() => openAttachment(message, "download")} aria-label={`Download ${name}`}><FiDownload /></button>
             </div>
         </div>
+        <Modal show={showPreview} onHide={() => setShowPreview(false)} centered size="xl"><Modal.Header closeButton><Modal.Title>{name}</Modal.Title></Modal.Header><Modal.Body>{showPreview && <DocumentPreview path={message?.file_url || message?.attachment} name={name} />}</Modal.Body></Modal>
+        </>
     );
 }

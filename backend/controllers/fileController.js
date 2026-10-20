@@ -6,6 +6,8 @@ const {
     sendStoredFile
 } = require("../services/objectStorage");
 const { normalizeStoredPath, resolveLocalStoredFile } = require("../utils/storedFiles");
+const { setFileResponseHeaders } = require("../utils/storedFiles");
+const { getStoredFileOriginalName } = require("../services/objectStorage");
 
 const uploadsRoot = path.join(__dirname, "..", "uploads");
 const allowedPublicImageExtensions = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
@@ -131,10 +133,10 @@ const canAccessProfileAsset = async (reqUser, relativePath) => {
 };
 
 const canAccessAlumniProofDocument = async (reqUser, relativePath) => {
+    if (reqUser?.role !== "admin" || reqUser.admin_scope !== "registrar") return false;
     const alumniProfile = await db.AlumniProfile.findOne({ where: { proof_document_path: relativePath } });
     if (!alumniProfile) return false;
-    if (reqUser.role === "admin") return true;
-    return false;
+    return true;
 };
 
 const canAccessPath = async (reqUser, relativePath) => {
@@ -168,7 +170,10 @@ exports.getSecureFile = async (req, res, next) => {
         for (const candidate of candidates) {
             if (!await canAccessPath(req.user, candidate.relativePath)) continue;
             const local = await resolveLocalStoredFile(candidate.relativePath);
-            if (local) return res.sendFile(local, { etag: false, lastModified: false, cacheControl: false });
+            if (local) {
+                setFileResponseHeaders(res, path.basename(local), req.query?.download === "1" || /\.docx?$/i.test(local));
+                return res.sendFile(local, { etag: false, lastModified: false, cacheControl: false });
+            }
             return res.status(404).json({ msg: "File not found." });
         }
         return res.status(403).json({ msg: "You are not allowed to access this file." });
@@ -190,15 +195,20 @@ exports.getSecureStoredFile = async (req, res, next) => {
             return res.status(403).json({ msg: "You are not allowed to access this file." });
         }
 
+        const name = getStoredFileOriginalName(storedPath) || path.basename(storedPath);
         if (storedPath.startsWith("cld:") || /^https?:\/\//i.test(storedPath)) {
+            setFileResponseHeaders(res, storedPath.startsWith("cld:") ? getStoredFileOriginalName(storedPath) || "Document" : name, req.query?.download === "1" || /\.docx?$/i.test(name));
             return await sendStoredFile(storedPath, res);
         }
         const normalized = normalizeStoredPath(storedPath);
         if (!normalized || !/^\/uploads\//.test(normalized)) return res.status(400).json({ msg: "Invalid stored file reference." });
         const local = await resolveLocalStoredFile(storedPath);
         if (!local) return res.status(404).json({ msg: "File not found." });
+        setFileResponseHeaders(res, path.basename(local), req.query?.download === "1" || /\.docx?$/i.test(local));
         return res.sendFile(local, { etag: false, lastModified: false, cacheControl: false });
     } catch (err) {
+        res.removeHeader?.("Content-Disposition");
+        res.removeHeader?.("Content-Type");
         if (err.storageDiagnostic) {
             console.error("[secure-file-storage] Download failed", err.storageDiagnostic);
             const status = err.status === 404 ? 404 : err.storageDiagnostic.failure === "invalid_reference" ? 400 : err.storageDiagnostic.failure === "configuration" ? 503 : 502;
@@ -240,6 +250,16 @@ exports.getPublicImage = async (req, res, next) => {
 
 exports.toSecureFileUrl = (storedPath) => {
     if (!storedPath) return storedPath;
+    // Preserve the exact database reference for private legacy machine paths.
+    // Reducing these to a basename makes the later ownership lookup fail.
+    if (/^\/(?:uploads\/(?:documents|business-permits|resumes)|private_uploads)\//.test(normalizeStoredPath(storedPath) || "")) {
+        return `/api/files/secure/${encodeStoredPathToken(storedPath)}`;
+    }
+    // Preserve the exact database reference for private legacy machine paths.
+    // Reducing these to a basename makes the later ownership lookup fail.
+    if (/^\/(?:uploads\/(?:documents|business-permits|resumes)|private_uploads)\//.test(normalizeStoredPath(storedPath) || "")) {
+        return `/api/files/secure/${encodeStoredPathToken(storedPath)}`;
+    }
     if (isStoredFileReference(storedPath) || /^https?:\/\//i.test(String(storedPath))) {
         return `/api/files/secure/${encodeStoredPathToken(storedPath)}`;
     }

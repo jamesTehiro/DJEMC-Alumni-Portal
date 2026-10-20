@@ -46,6 +46,11 @@ async function inspect(qi, DataTypes) {
     else {
         const columns = await qi.describeTable('message_send_requests');
         if (Object.keys(ledgerDefinition(DataTypes)).some(field => !columns[field])) throw new Error('The existing retry ledger has an unsupported definition.');
+        const expected = { id: /^INT(?:EGER)?(?:\(\d+\))?$/i, sender_id: /^INT(?:EGER)?(?:\(\d+\))?$/i, conversation_id: /^INT(?:EGER)?(?:\(\d+\))?$/i, message_id: /^INT(?:EGER)?(?:\(\d+\))?$/i,
+            channel: /^VARCHAR\(20\)$/i, request_key: /^VARCHAR\(64\)$/i, payload_hash: /^VARCHAR\(64\)$/i, createdAt: /^DATETIME(?:\(0\))?$/i, updatedAt: /^DATETIME(?:\(0\))?$/i };
+        if (Object.entries(expected).some(([field, type]) => !type.test(String(columns[field].type)) || columns[field].allowNull !== false) || !columns.id.primaryKey || !columns.id.autoIncrement) {
+            throw new Error('The existing retry ledger has incompatible types, nullability or primary-key properties. Manual review is required.');
+        }
         const indexes = await qi.showIndex('message_send_requests');
         const matches = indexes.some(index => index.unique && index.fields.map(field => field.attribute).join(',') === identityIndex.fields.join(','));
         if (!matches) throw new Error('The existing retry ledger requires a reviewed unique index.');
@@ -63,8 +68,13 @@ module.exports = {
                 // discarding existing charset, collation, comments or nullability.
                 await require('./20261017-expand-chat-attachment-references').up(qi, DataTypes);
             } else if (item.action === 'create_ledger') {
-                await qi.createTable(item.table, ledgerDefinition(DataTypes), { engine: 'InnoDB' });
-                await qi.addIndex(item.table, identityIndex.fields, { name: identityIndex.name, unique: true });
+                // Include retry uniqueness in the same CREATE TABLE statement.
+                // An interruption cannot leave a newly created ledger without
+                // its required unique index between two separate DDL calls.
+                await qi.createTable(item.table, ledgerDefinition(DataTypes), {
+                    engine: 'InnoDB', charset: 'utf8mb4', collate: 'utf8mb4_bin',
+                    uniqueKeys: { [identityIndex.name]: { fields: identityIndex.fields } }
+                });
             }
         }
         if ((await inspect(qi, DataTypes)).length) throw new Error('Messaging schema verification failed.');

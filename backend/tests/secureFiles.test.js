@@ -168,11 +168,22 @@ test("secure files enforce authorization, provider identity and no-store deliver
                 const response = await originalFetch(`${base}/api/files/secure/${token}`, { headers: headers() });
                 assert.equal(response.status, 400); noStore(response);
             }
-            for (const userHeaders of [{}, { Authorization: "Bearer invalid" }, headers({ id: 8, role: "alumni" }), headers({ id: 9, role: "employer" })]) {
+            for (const userHeaders of [{}, { Authorization: "Bearer invalid" }, headers({ id: 8, role: "alumni" }), headers({ id: 9, role: "employer" }), headers({ id: 2, role: "admin", admin_scope: "employer" }), headers({ id: 3, role: "admin", admin_scope: "alumni" }), headers({ id: 4, role: "admin" })]) {
                 const response = await get(reference, { "If-None-Match": "*" }, userHeaders);
                 assert.ok([401, 403].includes(response.status)); noStore(response);
             }
             assert.equal((await get(encode(asset({ publicId: "somebody-elses-file" })))).status, 403);
+            assert.equal(requested.length, before);
+        });
+        await t.test("proof upload rejects mismatched extensions and signatures before provider upload", async () => {
+            const before = requested.length;
+            for (const [name, type, contents] of [["fake.pdf", "application/pdf", "<html>private</html>"], ["image.png", "application/pdf", "%PDF-1.7"]]) {
+                const form = new FormData();
+                form.append("role", "alumni");
+                form.append("proof_document", new Blob([contents], { type }), name);
+                const response = await originalFetch(`${base}/api/auth/register`, { method: "POST", body: form });
+                assert.equal(response.status, 415);
+            }
             assert.equal(requested.length, before);
         });
         await t.test("application ownership and employer job scope stay enforced", async () => {

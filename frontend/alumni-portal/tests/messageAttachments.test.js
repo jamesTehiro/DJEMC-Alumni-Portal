@@ -37,6 +37,16 @@ test("attachment fetch reports missing files, expired sessions and denied access
     } finally { globalThis.fetch = originalFetch; }
 });
 
+test("protected file fetching never forwards credentials to another origin", async () => {
+    const originalFetch = globalThis.fetch;
+    let called = false;
+    globalThis.fetch = async () => { called = true; throw new Error("Unexpected request"); };
+    try {
+        await assert.rejects(fetchFile("https://untrusted.example/private.pdf", true), /portal API/);
+        assert.equal(called, false);
+    } finally { globalThis.fetch = originalFetch; }
+});
+
 test("all messaging pages use protected file fetching and honor the download action", () => {
     for (const name of ["MessagesPage", "EmployerMessagesPage", "AdminAlumniMessagesPage", "AdminEmployerMessagesPage"]) {
         const source = readFileSync(new URL(`../src/pages/${name}.jsx`, import.meta.url), "utf8");

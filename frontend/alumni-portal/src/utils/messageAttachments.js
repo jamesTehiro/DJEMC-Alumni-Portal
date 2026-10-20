@@ -4,9 +4,12 @@ export const MAX_ATTACHMENT_MB = Number.isFinite(configuredAttachmentLimit) && c
 export const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024;
 export const ALLOWED_ATTACHMENT_TYPES = ".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif";
 
-export const isImageAttachment = (message) =>
-    String(message?.file_mime || "").toLowerCase().startsWith("image/") ||
-    /\.(png|jpe?g|webp|gif)$/i.test(message?.file_name || "");
+export const isImageAttachment = (message) => {
+    const mime = String(message?.file_mime || "").toLowerCase().split(";")[0].trim();
+    return mime && mime !== "application/octet-stream"
+        ? ["image/png", "image/jpeg", "image/webp", "image/gif"].includes(mime)
+        : /\.(png|jpe?g|webp|gif)$/i.test(message?.file_name || "");
+};
 
 export const formatAttachmentSize = (size) => {
     const bytes = Number(size);

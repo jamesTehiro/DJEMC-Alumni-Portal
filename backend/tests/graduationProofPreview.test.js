@@ -45,7 +45,7 @@ test("new private PNG/PDF proofs retain names, proxy bytes for admins, and deny 
         const expectedSignature = crypto.createHash("sha1").update(assetPath + "fixture-secret").digest("base64url").slice(0, 8);
         const expectedPath = `/proof-fixture/${providerAsset.resource_type}/authenticated/s--${expectedSignature}--/v1700000000/${assetPath}`;
         if (new URL(url).pathname !== expectedPath) return new Response(null, { status: 400, headers: { "X-Cld-Error": "Invalid signature" } });
-        return new Response(bytes, { headers: { "Content-Type": currentMime } });
+        return new Response(bytes, { headers: { "Content-Type": currentMime === "application/pdf" ? "application/octet-stream" : currentMime } });
     };
     try {
         for (const [name, mime, data] of [["proof.png", "image/png", Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])], ["proof.pdf", "application/pdf", Buffer.from("%PDF-1.7 fixture")]]) {
@@ -88,7 +88,9 @@ test("new private PNG/PDF proofs retain names, proxy bytes for admins, and deny 
             }
           }
         }
-        assert.equal(files.toSecureFileUrl("/uploads/documents/old-proof.pdf"), "/api/files/documents/old-proof.pdf");
+        for (const value of ["/uploads/documents/old-proof.pdf", "C:\\Alumni\\backend\\uploads\\documents\\old proof.pdf"]) {
+            assert.equal(files.toSecureFileUrl(value), "/api/files/secure/" + Buffer.from(value).toString("base64url"));
+        }
     } finally {
         global.fetch = originalFetch;
         [db.Application.findOne, db.EmployerProfile.findOne, db.EmployerProfile.findAll, db.AlumniProfile.findOne, db.User.findAll] = originals;

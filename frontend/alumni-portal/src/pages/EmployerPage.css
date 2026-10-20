@@ -2336,3 +2336,157 @@
         width: calc(100vw - 16px);
     }
 }
+
+/* Keep the employer header clear of the fixed mobile sidebar toggle and
+   prevent the bell from inheriting the full-width stacked header column. */
+@media (max-width: 575.98px) {
+    .employer-page {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .employer-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 40px;
+        align-items: start;
+        gap: 10px;
+        padding-left: 52px;
+    }
+
+    .employer-header > div:first-child {
+        width: auto;
+        min-width: 0;
+    }
+
+    .employer-header h2,
+    .employer-header p {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .employer-header p {
+        margin-bottom: 0;
+    }
+
+    .employer-header > .employer-bell {
+        width: 40px;
+        height: 40px;
+        align-self: start;
+        justify-self: end;
+        border: 1px solid #dce8de;
+        border-radius: 12px;
+        background: #fffdf6;
+        box-shadow: 0 3px 10px rgba(21, 90, 67, 0.08);
+        font-size: 1.1rem;
+    }
+
+    .employer-manage-jobs-page,
+    .employer-manage-jobs-page .jobs-card,
+    .employer-manage-jobs-page .jobs-card .card-body,
+    .employer-jobs-scrollable {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .employer-manage-jobs-page .jobs-card .card-body {
+        padding: 14px;
+    }
+
+    .employer-manage-jobs-page .jobs-head {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .employer-manage-jobs-page .jobs-head h4 {
+        min-width: 0;
+        font-size: 1rem;
+    }
+
+    .employer-manage-jobs-page .jobs-head span {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
+    .employer-manage-jobs-page .employer-record-search {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        margin-bottom: 10px;
+    }
+
+    .employer-manage-jobs-page .employer-jobs-scrollable {
+        max-height: min(56vh, 385px);
+        padding-right: 0;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .employer-manage-jobs-page .emp-list-item {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 8px;
+        min-width: 0;
+        margin-bottom: 8px;
+        padding: 11px 12px;
+        border: 1px solid #e3eadf;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #fffefa 0%, #ffffff 100%);
+        box-shadow: 0 2px 8px rgba(21, 90, 67, 0.045);
+    }
+
+    .employer-manage-jobs-page .emp-list-item:last-child {
+        margin-bottom: 0;
+        border-bottom: 1px solid #e3eadf;
+    }
+
+    .employer-manage-jobs-page .emp-list-item-left {
+        width: 100%;
+        min-width: 0;
+        flex: 0 1 auto;
+    }
+
+    .employer-manage-jobs-page .emp-list-item-left strong {
+        font-size: 0.98rem;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+
+    .employer-manage-jobs-page .emp-list-item-left p {
+        margin-top: 3px;
+        font-size: 0.82rem;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .employer-manage-jobs-page .emp-job-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 6px;
+        width: 100%;
+        min-width: 0;
+        flex: 0 1 auto;
+    }
+
+    .employer-manage-jobs-page .emp-type-tag {
+        background: #edf5ea;
+        color: #315d3b;
+        border: 1px solid #dce9d9;
+    }
+
+    .employer-manage-jobs-page .emp-manage-applicants-btn,
+    .employer-manage-jobs-page .emp-stop-btn,
+    .employer-manage-jobs-page .emp-reactivate-btn {
+        max-width: 100%;
+        min-width: 0;
+        white-space: normal;
+        line-height: 1.25;
+    }
+}

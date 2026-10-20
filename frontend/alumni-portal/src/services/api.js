@@ -204,6 +204,9 @@ export const fetchFile = async (path, auth = false) => {
     const headers = {};
 
     if (auth) {
+        if (new URL(url).origin !== new URL(API_BASE_URL).origin) {
+            throw new Error("Private documents must be retrieved through the portal API.");
+        }
         ensureAuth();
 
         const token = getAuthToken();

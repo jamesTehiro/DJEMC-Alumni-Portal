@@ -99,6 +99,7 @@ const verifyChatAttachment = (req, _res, next) => {
 };
 
 const fileFilter = (_req, file, cb) => {
+    if (file.fieldname === "proof_document") return chatFileFilter(_req, file, cb);
     if (file.fieldname === "business_permit") {
         // Busboy's legacy multipart filename decoding is Latin-1. Recover UTF-8
         // names only when the byte round trip is lossless.
@@ -145,7 +146,7 @@ const createCloudStorageEngine = () => ({
         file.stream.on("end", async () => {
             try {
                 const buffer = Buffer.concat(chunks);
-                if (["attachment", "business_permit"].includes(file.fieldname) && !hasAllowedChatSignature(buffer, file.mimetype)) {
+                if (["attachment", "business_permit", "proof_document"].includes(file.fieldname) && !hasAllowedChatSignature(buffer, file.mimetype)) {
                     const err = new Error("The file contents do not match a supported file type.");
                     err.status = 415;
                     return cb(err);
@@ -169,7 +170,7 @@ const createCloudStorageEngine = () => ({
                     publicUrl: uploaded.publicUrl || null,
                     mimetype: file.mimetype,
                     originalname: file.originalname,
-                    signatureVerified: file.fieldname === "attachment"
+                    signatureVerified: ["attachment", "proof_document"].includes(file.fieldname)
                 });
             } catch (err) {
                 if (file.fieldname === "attachment") {
@@ -394,6 +395,11 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
         if (res.statusCode >= 400) for (const file of proofs) storage._removeFile(req, file, () => {});
     });
     try {
+        for (const file of proofs) {
+            if (!file.signatureVerified && !hasAllowedChatSignature(await fs.promises.readFile(file.path), file.mimetype)) {
+                throw Object.assign(new Error("The proof contents do not match the selected file type."), { status: 415 });
+            }
+        }
         for (const file of files) {
             let buffer;
             try { buffer = await fs.promises.readFile(file.path); }
@@ -409,6 +415,7 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
         });
         next();
     } catch (error) {
+        await Promise.allSettled(proofs.map(file => new Promise(resolve => storage._removeFile(req, file, resolve))));
         await Promise.allSettled(files.map(file => new Promise(resolve => permitAwareStorage._removeFile(req, file, resolve))));
         next(error);
     }

@@ -21,7 +21,13 @@ const fixture = () => {
         describeTable: async table => { assert.ok(schemas[table], `Case-sensitive table lookup: ${table}`); return schemas[table]; },
         showIndex: async table => indexes[table] || [],
         addColumn: async (table, field, definition) => { writes.push(['add', table, field]); schemas[table][field] = definition; },
-        createTable: async (table, definition) => { writes.push(['create', table]); assert.equal(table, 'message_send_requests'); schemas[table] = definition; },
+        createTable: async (table, definition, options) => {
+            writes.push(['create', table]); assert.equal(table, 'message_send_requests');
+            schemas[table] = Object.fromEntries(Object.entries(definition).map(([field, attribute]) => [field, { ...attribute, type: attribute.type === Sequelize.DATE ? 'DATETIME' : String(attribute.type) }]));
+            assert.equal(options.engine, 'InnoDB');
+            assert.equal(options.collate, 'utf8mb4_bin');
+            indexes[table] = Object.entries(options.uniqueKeys).map(([name, index]) => ({ name, unique: true, fields: index.fields.map(attribute => ({ attribute })) }));
+        },
         addIndex: async (table, fields, options) => { writes.push(['index', table]); indexes[table] = [{ ...options, fields: fields.map(attribute => ({ attribute })) }]; }
     };
     return { schemas, writes, qi, indexes };

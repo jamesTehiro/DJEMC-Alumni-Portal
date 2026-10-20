@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const db = require('../models');
 const { parseStoredFileReference, sendStoredFile } = require('../services/objectStorage');
 const { resolveMessageAttachment } = require('../services/messageAttachmentStorage');
-const models = ['Message', 'EmployerMessage', 'Conversation', 'EmployerConversation', 'ConversationParticipant'];
+const models = ['Message', 'EmployerMessage', 'Conversation', 'EmployerConversation', 'ConversationParticipant', 'MessageSendRequest'];
 const code = error => /^[A-Z0-9_]+$/.test(error.original?.code || error.code || '') ? error.original?.code || error.code : null;
 const columns = new Map();
 async function inspectAttachment(model, row, field, sample) {
