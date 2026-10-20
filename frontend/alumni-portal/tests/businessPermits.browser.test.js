@@ -1,4 +1,5 @@
 import test from "node:test";
+import process from "node:process";
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
 import {mkdtemp,writeFile,rm} from "node:fs/promises";
@@ -52,7 +53,7 @@ test("employer registration selects/removes up to five files and the admin modal
         await page.waitForFunction(()=>document.querySelectorAll('[aria-label="Selected business permit documents"] li').length===5);
         await page.type('input[name="name"]','Fixture Employer');await page.type('input[name="email"]','fixture@example.invalid');await page.type('input[name="companyAddress"]','Fixture Address');await page.type('input[name="password"]','Valid-password-123');
         await page.type('input[name="confirmPassword"]','Valid-password-123');
-        await page.evaluate(()=>[...document.querySelectorAll('[role="button"]')].find(element=>element.textContent==='Data Privacy Consent').click());
+        await page.click('.consent-row .highlight-link');
         await page.waitForSelector('.consent-body');
         await page.$eval('.consent-body',element=>{element.scrollTop=element.scrollHeight;element.dispatchEvent(new Event('scroll',{bubbles:true}));});
         await page.waitForFunction(()=>[...document.querySelectorAll('button')].some(button=>button.textContent.trim()==='I Understand & Agree'&&!button.disabled));

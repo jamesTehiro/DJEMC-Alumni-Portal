@@ -6,6 +6,7 @@ process.env.JWT_SECRET = "test-only-jwt-secret";
 
 const db = require("../models");
 const authController = require("../controllers/authController");
+const { otp } = require("../controllers/registrationOtpController");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
 const createRes = () => ({
@@ -70,9 +71,11 @@ test("registration responds successfully only after its transaction completes", 
         userFindOne: db.User.findOne,
         userCreate: db.User.create,
         alumniFindOrCreate: db.AlumniProfile.findOrCreate,
-        transaction: db.sequelize.transaction
+        transaction: db.sequelize.transaction,
+        consume: otp.consume
     };
     let transactionCompleted = false;
+    otp.consume = async () => ({ verified_at: new Date(), update: async () => {} });
     db.User.findOne = async () => null;
     db.User.create = async () => ({
         id: 8183,
@@ -91,7 +94,7 @@ test("registration responds successfully only after its transaction completes", 
     try {
         const res = createRes();
         await authController.register({
-            body: { name: "Test Registration", email: "registration-test@example.invalid", password: "test-password", role: "alumni", graduationYear: "2023" },
+            body: { name: "Test Registration", email: "registration.test@gmail.com", password: "test-password", role: "alumni", graduationYear: "2023" },
             files: {}
         }, res, (err) => { throw err; });
         assert.equal(transactionCompleted, true);
@@ -102,6 +105,7 @@ test("registration responds successfully only after its transaction completes", 
         db.User.create = originals.userCreate;
         db.AlumniProfile.findOrCreate = originals.alumniFindOrCreate;
         db.sequelize.transaction = originals.transaction;
+        otp.consume = originals.consume;
     }
 });
 
@@ -109,9 +113,11 @@ test("registration database insert failure returns an error and never reports su
     const originals = {
         userFindOne: db.User.findOne,
         userCreate: db.User.create,
-        transaction: db.sequelize.transaction
+        transaction: db.sequelize.transaction,
+        consume: otp.consume
     };
     let transactionCompleted = false;
+    otp.consume = async () => ({ verified_at: new Date(), update: async () => {} });
     db.User.findOne = async () => null;
     db.User.create = async () => {
         const err = new Error("database insert failed");
@@ -129,7 +135,7 @@ test("registration database insert failure returns an error and never reports su
         const res = createRes();
         let forwardedError;
         await authController.register({
-            body: { name: "Test Registration", email: "failure-test@example.invalid", password: "test-password", role: "alumni", graduationYear: "2023" },
+            body: { name: "Test Registration", email: "failure.test@gmail.com", password: "test-password", role: "alumni", graduationYear: "2023" },
             files: {}
         }, res, (err) => { forwardedError = err; });
         assert.equal(transactionCompleted, false);
@@ -140,6 +146,7 @@ test("registration database insert failure returns an error and never reports su
         db.User.findOne = originals.userFindOne;
         db.User.create = originals.userCreate;
         db.sequelize.transaction = originals.transaction;
+        otp.consume = originals.consume;
     }
 });
 

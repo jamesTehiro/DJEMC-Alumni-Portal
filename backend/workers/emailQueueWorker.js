@@ -3,7 +3,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const { Op } = require("sequelize");
 const db = require("../models");
 const sendEmail = require("../utils/email");
-const { safeEmailError } = require("../utils/emailDiagnostics");
+const { safeEmailError, safeMessageId } = require("../utils/emailDiagnostics");
 let configurationPaused = false;
 
 const setting = (name, fallback) => {
@@ -69,7 +69,8 @@ const markJobFailed = (job, error) => {
 const processJob = async job => {
     if (!await db.EmailQueueJob.findOne({ where: lease(job), attributes: ["id"] })) return;
     console.log("[email] processing", { jobId: job.id, attempts: job.attempts });
-    try { await sendEmail(job.to, job.subject, job.message); }
+    let receipt;
+    try { receipt = await sendEmail(job.to, job.subject, job.message); }
     catch (error) {
         console.error("[email] delivery failed", { jobId: job.id, ...safeEmailError(error) });
         await markJobFailed(job, error);
@@ -78,9 +79,9 @@ const processJob = async job => {
     // A failed status write must never turn provider acceptance into a retry.
     try {
         const recorded = await markJobSent(job);
-        console.log("[email] provider accepted", { jobId: job.id, recorded: Boolean(recorded) });
+        console.log("[email] provider accepted", { jobId: job.id, recorded: Boolean(recorded), messageId: safeMessageId(receipt?.messageId) });
     } catch {
-        console.error("[email] accepted delivery state could not be recorded; held for review", { jobId: job.id, code: "EMAIL_STATE" });
+        console.error("[email] accepted delivery state could not be recorded; held for review", { jobId: job.id, code: "EMAIL_STATE", messageId: safeMessageId(receipt?.messageId) });
     }
 };
 const processBatch = async () => {

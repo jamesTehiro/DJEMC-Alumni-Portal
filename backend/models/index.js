@@ -29,6 +29,7 @@ db.EmployerMessage = require("./EmployerMessage")(sequelize, Sequelize);
 db.PasswordResetToken = require("./PasswordResetToken")(sequelize, Sequelize);
 db.EmailQueueJob = require("./EmailQueueJob")(sequelize, Sequelize);
 db.RateLimitEntry = require("./RateLimitEntry")(sequelize, Sequelize);
+db.RegistrationEmailVerification = require("./RegistrationEmailVerification")(sequelize, Sequelize);
 db.RequirementLibrary = require("./RequirementLibrary")(sequelize, Sequelize);
 db.RequirementGroup = require("./RequirementGroup")(sequelize, Sequelize);
 db.JobRequirement = require("./JobRequirement")(sequelize, Sequelize);

@@ -4,6 +4,8 @@ const jwt = require("jsonwebtoken");
 const db = require("../models");
 const { enqueueEmails } = require("../utils/emailQueue");
 const { consumeRateLimit } = require("../utils/rateLimitStore");
+const { otp: registrationOtp } = require("./registrationOtpController");
+const { normalizeEmail: normalizeRegistrationEmail, isGmail } = require("../utils/registrationEmail");
 
 const ADMIN_SCOPES = ["registrar", "employer", "alumni"];
 const RESET_ROLES = new Set(["employer", "alumni"]);
@@ -100,7 +102,8 @@ const getFrontendBaseUrl = (req) =>
 
 exports.register = async (req, res, next) => {
     try {
-        const { name, email, password, role, company_address, companyAddress, website_url, websiteUrl, course, graduationYear, graduation_year } = req.body;
+        const { name, password, role, company_address, companyAddress, website_url, websiteUrl, course, graduationYear, graduation_year } = req.body;
+        const email = normalizeRegistrationEmail(req.body.email);
         const proofDocumentFile = req.files?.proof_document?.[0];
         const { isValidGraduationYear, getGraduationYearError } = require("../utils/graduationYear");
         if (role === "alumni" && (!isValidGraduationYear(graduationYear ?? graduation_year) ||
@@ -122,9 +125,12 @@ exports.register = async (req, res, next) => {
             return res.status(400).json({ msg: "Invalid role" });
         }
 
-        const existing = await db.User.findOne({ where: { email } });
+        if (role === "alumni" && !isGmail(email)) return res.status(400).json({ msg: "Enter a valid @gmail.com address." });
+        const existing = await registrationOtp.findAccount(email);
         if (existing) {
-            return res.status(409).json({ msg: "Email is already registered." });
+            return res.status(409).json({ msg: existing.account_status === "rejected"
+                ? "This Gmail belongs to a rejected registration. Contact the Registrar Officer for review or resubmission. Your records are preserved."
+                : "Email is already registered, including pending accounts." });
         }
 
         const businessPermitFiles = req.files?.business_permit || [];
@@ -135,15 +141,19 @@ exports.register = async (req, res, next) => {
         const hashed = await bcrypt.hash(password, 12);
 
         const user = await db.sequelize.transaction(async (transaction) => {
+            const verification = role === "alumni" ? await registrationOtp.consume(email, req.body.session_token, req.body.registration_authorization, transaction) : null;
             const createdUser = await db.User.create(
                 {
                     name,
                     email,
                     password: hashed,
-                    role
+                    role,
+                    account_status: "pending",
+                    ...(verification ? { email_verified_at: verification.verified_at } : {})
                 },
                 { transaction }
             );
+            if (verification) await verification.update({ consumed_by_user_id: createdUser.id }, { transaction });
 
             if (role === "employer") {
                 const address = company_address || companyAddress || null;
@@ -211,7 +221,8 @@ exports.register = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const { email, password } = req.body;
+        const { password } = req.body;
+        const email = normalizeRegistrationEmail(req.body.email);
 
         if (!email || !password) {
             return res.status(400).json({ msg: "Email and password are required." });
@@ -227,6 +238,9 @@ exports.login = async (req, res, next) => {
 
         if (user.account_status === "pending" && user.role !== "admin") {
             return res.status(403).json({ msg: "Your account is pending verification by administrator." });
+        }
+        if (user.role === "alumni" && user.account_status !== "verified") {
+            return res.status(403).json({ msg: "Your account is not approved. Please contact the Registrar Officer." });
         }
 
         const match = await bcrypt.compare(password, user.password);

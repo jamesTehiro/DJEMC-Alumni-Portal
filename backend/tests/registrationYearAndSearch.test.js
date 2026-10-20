@@ -2,12 +2,14 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const db = require("../models");
 const auth = require("../controllers/authController");
+const { otp } = require("../controllers/registrationOtpController");
 const records = require("../controllers/alumniRecordController");
 const { isValidGraduationYear, getGraduationYearError, getMaxGraduationYear, MIN_GRADUATION_YEAR } = require("../utils/graduationYear");
 const { nameTokens, tolerantNameWhere } = require("../utils/alumniNameSearch");
 test.after(() => db.sequelize.close());
 test("registration persists the minimum and current maximum years through the normal transaction", async () => {
-    const saved = [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.AlumniProfile.findOne, db.sequelize.transaction];
+    const saved = [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.AlumniProfile.findOne, db.sequelize.transaction, otp.consume];
+    otp.consume = async () => ({ verified_at: new Date(), update: async () => {} });
     let storedYear;
     let storedProfile;
     const profile = { save: async () => {} };
@@ -19,13 +21,13 @@ test("registration persists the minimum and current maximum years through the no
     try {
         for (const year of [String(MIN_GRADUATION_YEAR), String(getMaxGraduationYear())]) {
             const res = { status(code) { this.code = code; return this; }, json(body) { this.body = body; } };
-            await auth.register({ body: { name: "Test Alumni", email: "year@example.invalid", password: "test-password", role: "alumni", course: "BSIT", graduationYear: year }, files: { proof_document: [{ filename: "proof.pdf" }] } }, res, error => { throw error; });
+            await auth.register({ body: { name: "Test Alumni", email: "year.test@gmail.com", password: "test-password", role: "alumni", course: "BSIT", graduationYear: year }, files: { proof_document: [{ filename: "proof.pdf" }] } }, res, error => { throw error; });
             assert.equal(res.code, 201);
             assert.equal(storedYear, year);
             assert.equal(storedProfile.course, "BSIT");
             assert.equal(profile.proof_document_path, "/uploads/documents/proof.pdf");
         }
-    } finally { [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.AlumniProfile.findOne, db.sequelize.transaction] = saved; }
+    } finally { [db.User.findOne, db.User.create, db.AlumniProfile.findOrCreate, db.AlumniProfile.findOne, db.sequelize.transaction, otp.consume] = saved; }
 });
 test("both validators accept 1885, 2023, and the current year, and reject out-of-range or malformed values", async () => {
     const frontend = await import("../../frontend/alumni-portal/src/utils/graduationYear.js");

@@ -10,7 +10,7 @@ const { safeEmailError } = require("../utils/emailDiagnostics");
         email.validateConfiguration();
         if (process.argv.includes("--verify")) {
             await email.verify();
-            console.log("[email] provider configuration verified; no email sent");
+            console.log("[email] local transport check passed; no email sent; API authentication and inbox delivery are not verified");
         }
     } catch (error) {
         console.error("[email] check failed", safeEmailError(error));

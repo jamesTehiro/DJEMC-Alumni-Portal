@@ -387,6 +387,12 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
         return next(error);
     }
     const files = req.files?.business_permit || [];
+    const proofs = req.files?.proof_document || [];
+    // A rejected registration must not leave a newly uploaded private proof
+    // behind. This listener only touches files parsed by this request.
+    res.once("finish", () => {
+        if (res.statusCode >= 400) for (const file of proofs) storage._removeFile(req, file, () => {});
+    });
     try {
         for (const file of files) {
             let buffer;

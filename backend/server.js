@@ -16,7 +16,7 @@ const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
 const fileController = require("./controllers/fileController");
 const healthController = require("./controllers/healthController");
-const { verifyAuthSchema } = require("./utils/databaseReadiness");
+const { verifyAuthSchema, verifyRegistrationOtpSchema } = require("./utils/databaseReadiness");
 
 let helmet;
 try {
@@ -414,7 +414,7 @@ const ensureApplicationSchema = async (queryInterface) => {
     if (missingColumns.length > 0) {
         // eslint-disable-next-line no-console
         console.warn(
-            `Application schema missing columns: ${missingColumns.join(", ")}. Run migrations or start once with ENABLE_DB_SYNC=true if you explicitly want schema changes.`
+            `Application schema missing columns: ${missingColumns.join(", ")}. Apply the reviewed migrations separately.`
         );
     }
 };
@@ -432,7 +432,7 @@ const ensureInterviewSchema = async (queryInterface) => {
     if (missingColumns.length > 0) {
         // eslint-disable-next-line no-console
         console.warn(
-            `Interview schema missing columns: ${missingColumns.join(", ")}. Run migrations or start once with ENABLE_DB_SYNC=true if you explicitly want schema changes.`
+            `Interview schema missing columns: ${missingColumns.join(", ")}. Apply the reviewed migrations separately.`
         );
     }
 };
@@ -458,17 +458,15 @@ const ensureDatabaseReady = async () => {
         if (isProduction) {
             throw new Error("ENABLE_DB_SYNC is not allowed in production. Apply reviewed migrations instead.");
         }
-        return db.sequelize.sync({ alter: true });
+        throw new Error("Database synchronization is disabled during startup. Use reviewed migration commands.");
     }
 
     await db.sequelize.authenticate();
 
-    // Employer verification selects business_permit_documents explicitly.
-    // Apply this additive, idempotent migration before any request can query
-    // that field, regardless of Render's NODE_ENV setting.
-    const Sequelize = require("sequelize");
-    const employerPermitDocumentsMigration = require("./migrations/20261018-add-employer-permit-documents");
-    await employerPermitDocumentsMigration.up(db.sequelize.getQueryInterface(), Sequelize);
+    // Startup is read-only. Schema changes belong to separately approved
+    // migration commands, including the employer permit and OTP migrations.
+    await db.EmployerProfile.findOne({ attributes: ["business_permit_documents"], where: { id: -1 }, raw: true });
+    await verifyRegistrationOtpSchema(db);
 
     if (isProduction) {
         // Verify the deployed schema can serve login queries before accepting traffic.
@@ -489,16 +487,14 @@ const ensureDatabaseReady = async () => {
 
     if (!hasUsersTable) {
         throw new Error(
-            "Users table not found. Refusing automatic schema creation. Run migrations or start once with ENABLE_DB_SYNC=true."
+            "Users table not found. Refusing automatic schema creation. Apply the reviewed migrations separately."
         );
     }
 
     for (const entry of requiredOptionalTables) {
         if (!existingTables.includes(entry.name)) {
             // eslint-disable-next-line no-console
-            console.warn(`${entry.name} table not found. Creating it without full schema sync.`);
-            // eslint-disable-next-line no-await-in-loop
-            await entry.model.sync();
+            console.warn(`${entry.name} table not found. Apply its reviewed migration before using the related feature.`);
         }
     }
 

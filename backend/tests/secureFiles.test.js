@@ -38,6 +38,8 @@ test("secure files enforce authorization, provider identity and no-store deliver
     const originalError = console.error;
     const restore = [];
     const stub = (object, key, value) => { const original = object[key]; restore.push(() => { object[key] = original; }); object[key] = value; };
+    stub(require("../utils/rateLimitStore"), "consumeRateLimit", async () => ({ allowed: true }));
+    stub(require("../controllers/registrationOtpController").otp, "consume", async () => ({ verified_at: new Date(), update: async () => {} }));
     let reference = encode(asset());
     let mime = "image/png";
     let bytes = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -128,7 +130,7 @@ test("secure files enforce authorization, provider identity and no-store deliver
             for (const [name, type, contents] of [["My graduation.png", "image/png", Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])], ["My graduation.pdf", "application/pdf", Buffer.from("%PDF-1.7 fixture")]]) {
                 mime = type; bytes = contents;
                 const form = new FormData();
-                for (const [key, value] of Object.entries({ name: "Fixture Alumni", email: "fixture@example.invalid", password: "test-password", role: "alumni", graduationYear: "2023" })) form.append(key, value);
+                for (const [key, value] of Object.entries({ name: "Fixture Alumni", email: "fixture.test@gmail.com", password: "test-password", role: "alumni", graduationYear: "2023" })) form.append(key, value);
                 form.append("proof_document", new Blob([bytes], { type }), name);
                 const registered = await originalFetch(`${base}/api/auth/register`, { method: "POST", body: form });
                 assert.equal(registered.status, 201, await registered.text());

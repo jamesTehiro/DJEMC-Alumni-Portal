@@ -3,8 +3,13 @@ const router = require("express").Router();
 const authController = require("../controllers/authController");
 const { registrationUpload } = require("../middleware/uploadMiddleware");
 const bootstrapGuard = require("../middleware/bootstrapGuard");
+const registrationOtp = require("../controllers/registrationOtpController");
 
-router.post("/register", registrationUpload, authController.register);
+router.post("/registration-otp/send", registrationOtp.rateLimit("send"), registrationOtp.send);
+router.post("/registration-otp/resend", registrationOtp.rateLimit("send"), registrationOtp.resend);
+router.post("/registration-otp/verify", registrationOtp.rateLimit("verify"), registrationOtp.verify);
+router.post("/registration-otp/status", registrationOtp.rateLimit("status"), registrationOtp.status);
+router.post("/register", registrationOtp.rateLimit("submit", ["ip"]), registrationUpload, registrationOtp.rateLimit("submit", ["email", "session"]), authController.register);
 router.post("/login", authController.login);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);

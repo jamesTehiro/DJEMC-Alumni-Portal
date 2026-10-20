@@ -114,6 +114,11 @@ exports.rejectAlumniUser = async (req, res) => {
             ipAddress: req.ip
         });
 
+        await notificationController.createNotification({
+            userIds: [user.id],
+            message: "Your DJEMC alumni registration was not approved. Please contact the Registrar Officer for review or resubmission. Your account history has been preserved.",
+            subject: "DJEMC Alumni Registration Not Approved"
+        });
         res.json({ msg: "Alumni user rejected without deleting account history.", user });
     } catch (err) {
         res.status(500).json({ msg: err.message });

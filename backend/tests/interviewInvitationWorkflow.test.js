@@ -286,8 +286,8 @@ test("email delivery check reports current state and retries only exhausted fail
             [db.Application, { findByPk: async () => application }],
             [db.Interview, { findOne: async () => interview }],
             [db.EmailQueueJob, {
-                findOne: async () => ({ id: 100 + status.length, status }),
-                update: async (...args) => { updateArgs = args; },
+                findOne: async () => ({ id: 100 + status.length, status, attempts: 3, last_error: JSON.stringify({ code: "EMAIL_API", responseCode: 429 }) }),
+                update: async (...args) => { updateArgs = args; return [1]; },
                 findByPk: async () => ({ status: "pending" })
             }]
         ], async () => {
@@ -298,7 +298,7 @@ test("email delivery check reports current state and retries only exhausted fail
                 (error) => { throw error; }
             );
             if (status === "failed") {
-                assert.deepEqual(updateArgs[1].where, { id: 100 + status.length, status: "failed" });
+                assert.deepEqual(updateArgs[1].where, { id: 100 + status.length, status: "failed", attempts: 3, last_error: JSON.stringify({ code: "EMAIL_API", responseCode: 429 }) });
                 assert.equal(res.body.email_status, "pending");
             } else {
                 assert.equal(updateArgs, null);

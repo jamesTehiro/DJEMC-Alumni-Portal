@@ -57,6 +57,7 @@ const withBrevo = async callback => {
     const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
     const originalFetch = global.fetch;
     keys.forEach(key => delete process.env[key]);
+    process.env.EMAIL_PROVIDER = "brevo";
     process.env.BREVO_API_KEY = "test-brevo-api-key";
     process.env.EMAIL_FROM = "sender@example.invalid";
     process.env.EMAIL_FROM_NAME = "DJEMC Alumni Portal";
@@ -103,7 +104,7 @@ test("Brevo sends the existing text notification over HTTPS using configured sen
 test("Brevo API rejection is returned as a safe delivery failure", async () => {
     await withBrevo(async email => {
         global.fetch = async () => ({ ok: false, status: 401, json: async () => ({ message: "secret response" }) });
-        await assert.rejects(email("recipient", "subject", "message"), error => error.code === "EMAIL_API" && error.responseCode === 401 && error.retryable === false && !error.message.includes("secret"));
+        await assert.rejects(email("recipient@example.invalid", "subject", "message"), error => error.code === "EMAIL_API" && error.responseCode === 401 && error.retryable === false && !error.message.includes("secret"));
     });
 });
 
@@ -122,18 +123,18 @@ test("Brevo rejects missing configuration without making a request", async () =>
 test("Brevo network failures and timeouts reject without exposing request details", async () => {
     await withBrevo(async email => {
         global.fetch = async () => { throw new Error("private network details"); };
-        await assert.rejects(email("recipient", "subject", "message"), error => error.code === "EMAIL_NETWORK" && error.retryable === false && !error.message.includes("private"));
+        await assert.rejects(email("recipient@example.invalid", "subject", "message"), error => error.code === "EMAIL_NETWORK" && error.retryable === false && !error.message.includes("private"));
         global.fetch = async () => { throw Object.assign(new Error("private timeout details"), { name: "TimeoutError" }); };
-        await assert.rejects(email("recipient", "subject", "message"), error => error.code === "ETIMEDOUT" && error.retryable === false && !error.message.includes("private"));
+        await assert.rejects(email("recipient@example.invalid", "subject", "message"), error => error.code === "ETIMEDOUT" && error.retryable === false && !error.message.includes("private"));
     });
 });
 
 test("Brevo malformed success responses do not count as accepted emails", async () => {
     await withBrevo(async email => {
         global.fetch = async () => ({ ok: true, status: 201, json: async () => ({}) });
-        await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_RESPONSE" });
+        await assert.rejects(email("recipient@example.invalid", "subject", "message"), { code: "EMAIL_RESPONSE" });
         global.fetch = async () => ({ ok: true, status: 201, json: async () => { throw new SyntaxError("bad json"); } });
-        await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_RESPONSE" });
+        await assert.rejects(email("recipient@example.invalid", "subject", "message"), { code: "EMAIL_RESPONSE" });
     });
 });
 

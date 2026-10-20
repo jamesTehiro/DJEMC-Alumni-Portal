@@ -3,6 +3,22 @@
    ============================================ */
 
 /* 1. Background: subtle depth */
+.registration-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+}
+.registration-otp-modal .modal-title { color: #1f6b49; font-size: 1.25rem; }
+.registration-otp-modal .otp-email { overflow-wrap: anywhere; }
+.registration-otp-modal .modal-content { background: #f6f2e9; border: 1px solid rgb(31 107 73 / 20%); }
+.registration-otp-modal .otp-digits { display: flex; gap: clamp(4px, 2vw, 10px); }
+.registration-otp-modal .otp-digit { flex: 1; min-width: 0; padding: 10px 0; text-align: center; font-size: 1.5rem; background: #fff; }
+.registration-otp-modal .otp-digit:focus { border-color: #1f6b49; box-shadow: 0 0 0 0.2rem rgb(31 107 73 / 15%); }
+
 .auth-shell {
     min-height: calc(100vh - 70px);
     display: flex;

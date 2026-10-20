@@ -6,9 +6,13 @@ module.exports = (sequelize, DataTypes) => {
             name: DataTypes.STRING,
             email: {
                 type: DataTypes.STRING,
-                unique: true
+                unique: true,
+                set(value) {
+                    this.setDataValue("email", typeof value === "string" ? value.trim().toLowerCase() : value);
+                }
             },
             password: DataTypes.STRING,
+            email_verified_at: { type: DataTypes.DATE, allowNull: true, defaultValue: null },
             role: DataTypes.STRING,
             admin_scope: DataTypes.STRING,
             admin_department: DataTypes.STRING,

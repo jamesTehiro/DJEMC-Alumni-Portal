@@ -1051,15 +1051,26 @@ exports.retryInterviewInvitationEmail = async (req, res, next) => {
         const dedupeKey = `interview-invitation:${interview.id}`;
         const emailJob = await db.EmailQueueJob.findOne({ where: { dedupe_key: dedupeKey } });
         if (!emailJob) return res.status(404).json({ msg: "The invitation email is not in the delivery queue." });
-        if (emailJob.status === "sent") return res.json({ msg: "The invitation email has already been delivered.", email_status: "sent" });
+        if (emailJob.status === "sent") return res.json({ msg: "The email provider has accepted the invitation. Inbox delivery is not confirmed.", email_status: "sent" });
         if (emailJob.status !== "failed") return res.json({ msg: "The invitation email is already queued for delivery.", email_status: emailJob.status });
 
-        await db.EmailQueueJob.update({
+        if (require("../utils/emailDiagnostics").requiresDeliveryReview(emailJob.last_error)) {
+            return res.status(409).json({
+                msg: "This email may already have been accepted. Contact the administrator to review the provider logs before retrying.",
+                code: "EMAIL_REVIEW_REQUIRED", email_status: "failed"
+            });
+        }
+
+        const [requeued] = await db.EmailQueueJob.update({
             status: "pending", attempts: 0, scheduled_at: new Date(),
             last_error: null, processing_started_at: null
-        }, { where: { id: emailJob.id, status: "failed" } });
+        }, { where: { id: emailJob.id, status: "failed", attempts: emailJob.attempts, last_error: emailJob.last_error } });
         const refreshed = await db.EmailQueueJob.findByPk(emailJob.id);
         const emailStatus = refreshed?.status || "pending";
+        if (!requeued && emailStatus === "failed") return res.status(409).json({
+            msg: "The email state changed. Ask the administrator to review the latest failure before retrying.",
+            code: "EMAIL_REVIEW_REQUIRED", email_status: "failed"
+        });
         return res.json({
             msg: emailStatus === "pending" ? "Invitation email queued for retry." : "Invitation email delivery is already in progress.",
             email_status: emailStatus

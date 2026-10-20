@@ -1,5 +1,11 @@
 # DJEMC Alumni Portal notification implementation report
 
+Current configuration update (20 October 2026): use the
+[Brevo API migration report](brevo-api-migration-report.md) for release instructions.
+Brevo now requires explicit EMAIL_PROVIDER=brevo; a key alone no longer selects
+it. The interview retry endpoint also holds uncertain deliveries for provider-log
+review. The implementation record below describes the preceding checkpoint.
+
 Date: 2026-10-19, Asia/Manila. Scope: repository audit, focused backend fixes,
 mocked provider tests, local schema metadata and isolated temporary-table MySQL
 tests. No real email was sent, production environment changed, production data

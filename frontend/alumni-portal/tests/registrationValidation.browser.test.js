@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
 import { build } from 'esbuild';
 import puppeteer from 'puppeteer';
 
@@ -23,7 +24,17 @@ test('both routed registration forms validate before requests, retain documents,
                 import EmployerRegisterPage from './src/pages/EmployerRegisterPage';
                 import 'bootstrap/dist/css/bootstrap.min.css';
                 window.registrationCalls=[];
+                window.otpFixtureSessions=new Map();
                 window.fixturePost=(url,payload)=>{
+                    if(url.startsWith('/auth/registration-otp/')){
+                        const row=window.otpFixtureSessions.get(payload.session_token)||{email:payload.email,verified:false};
+                        if(url.endsWith('/verify'))row.verified=true;
+                        window.otpFixtureSessions.set(payload.session_token,row);
+                        return Promise.resolve({email:row.email,status:row.verified?'verified':'sent',verified:row.verified,
+                            server_time:new Date().toISOString(),expires_at:new Date(Date.now()+300000).toISOString(),
+                            verification_expires_at:new Date(Date.now()+600000).toISOString(),resend_at:new Date(Date.now()+60000).toISOString(),
+                            attempts_remaining:5,resends_remaining:3,registration_authorization:row.verified?'fixture-authorization':undefined});
+                    }
                     window.registrationCalls.push({url,fields:Array.from(payload.entries()).map(([name,value])=>[name,value instanceof File?{name:value.name,type:value.type,size:value.size}:value])});
                     return new Promise((resolve,reject)=>{window.acceptRegistration=()=>resolve({msg:'Existing success'});window.rejectRegistration=()=>reject(new Error('Existing server validation error'));});
                 };
@@ -77,7 +88,7 @@ test('both routed registration forms validate before requests, retain documents,
                 assert.equal(await page.$eval('[type="submit"]', button => button.disabled), false);
                 await submit(); await warning('Required Information');
                 await put('name', employer ? 'Fixture Company' : 'Fixture Alumni');
-                await put('email', 'fixture@example.invalid');
+                await put('email', employer ? 'fixture@example.invalid' : 'fixture.validation@gmail.com');
                 if (employer) await put('companyAddress', 'Fixture Address');
                 else { await put('graduationYear', '2024'); await put('course', 'BSIT'); }
                 await (await page.$('input[type="file"]')).uploadFile(document);
@@ -122,17 +133,17 @@ test('both routed registration forms validate before requests, retain documents,
                 }
                 await page.waitForSelector('.registration-validation-toast', { hidden: true, timeout: 6500 });
                 assert.equal((await fields()).files[0], 'Registration proof.pdf');
-                const openPrivacy = () => page.evaluate(() => [...document.querySelectorAll('.consent-row button,.consent-row [role="button"]')].find(element => /Privacy Consent/.test(element.textContent)).click());
+                const openPrivacy = () => page.click('.consent-row .highlight-link');
                 await openPrivacy();
                 await page.waitForSelector(employer ? '.consent-body' : '.modal.show');
                 assert.equal(await page.$eval('[name="consent"]', input => input.checked), false);
-                assert.equal(await page.evaluate(expected => document.body.textContent.includes(expected), employer ? 'Employer Data Privacy Consent' : 'Alumni Data Privacy Consent'), true);
+                assert.equal(await page.evaluate(expected => document.body.textContent.includes(expected), employer ? 'Terms and Conditions' : 'Terms and Condition'), true);
                 if (employer) {
                     await page.$eval('.consent-body', body => { body.scrollTop = body.scrollHeight; body.dispatchEvent(new Event('scroll', { bubbles: true })); });
                     await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent.trim() === 'I Understand & Agree' && !button.disabled));
                 }
                 await page.evaluate(() => [...document.querySelectorAll('button')].find(button => button.textContent.trim() === 'I Understand & Agree').click());
-                await page.waitForSelector(employer ? '.consent-backdrop' : '.modal.show', { hidden: true });
+                await page.waitForSelector(employer ? '.consent-backdrop' : '.modal', { hidden: true });
                 assert.equal(await page.$eval('[name="consent"]', input => input.checked), false);
                 assert.equal(await page.$eval('[name="consent"]', input => input.disabled), false);
                 await openPrivacy(); // An enabled checkbox must not toggle from label/link activation either.
@@ -140,10 +151,18 @@ test('both routed registration forms validate before requests, retain documents,
                 assert.equal(await page.$eval('[name="consent"]', input => input.checked), false);
                 if (employer) await page.evaluate(() => [...document.querySelectorAll('.consent-header button')].find(button => button.textContent.trim() === 'Close').click());
                 else await page.click('.modal-header .btn-close');
-                await page.waitForSelector(employer ? '.consent-backdrop' : '.modal.show', { hidden: true });
+                await page.waitForSelector(employer ? '.consent-backdrop' : '.modal', { hidden: true });
                 await page.click('[name="consent"]');
                 assert.equal(await page.$eval('[name="consent"]', input => input.checked), true);
                 await page.$eval('form', form => { form.requestSubmit(); form.requestSubmit(); form.requestSubmit(); });
+                if (!employer) {
+                    await page.waitForFunction(() => !document.querySelector('input[aria-label="Digit 1 of 6"]')?.disabled);
+                    await page.focus('input[aria-label="Digit 1 of 6"]');
+                    await page.keyboard.type('123456');
+                    await page.$eval('.registration-otp-modal form', form => form.requestSubmit());
+                    await page.waitForFunction(() => document.body.textContent.includes('Gmail verified successfully'));
+                    await page.click('.registration-otp-modal .modal-footer .primary-btn');
+                }
                 await page.waitForFunction(() => window.registrationCalls.length === 1);
                 assert.equal(await page.$eval('[type="submit"]', button => button.disabled), true);
                 const request = await page.evaluate(() => window.registrationCalls[0]);
