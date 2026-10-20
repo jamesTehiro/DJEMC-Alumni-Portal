@@ -2,7 +2,152 @@
 const { EMAIL_KEY_SQL } = require("../utils/registrationEmail");
 const table = "registration_email_verifications";
 const indexName = "users_normalized_email_uq";
-const compact = value => String(value).toLowerCase().replace(/_(?:utf8mb4|utf8mb3|utf8|latin1|ascii)(?=')/g, "").replace(/\blcase\b/g, "lower").replace(/[\s`()]/g, "");
+
+// MySQL 8 may render stored generated expressions with redundant grouping,
+// LCASE for LOWER, _utf8mb4 introducers, and escaped quote delimiters. Parse
+// the small expression grammar used by EMAIL_KEY_SQL instead of deleting all
+// punctuation: removing every parenthesis can make different expressions look
+// alike. The resulting AST preserves function/argument/operator structure and
+// literal values while normalizing only those MySQL representation changes.
+function expressionTokens(expression) {
+    if (typeof expression !== "string" || !expression.trim()) return null;
+    const tokens = [];
+    let i = 0;
+    while (i < expression.length) {
+        if (/\s/.test(expression[i])) { i++; continue; }
+
+        const charset = /^_utf8mb4/i.exec(expression.slice(i));
+        if (charset) {
+            const after = i + charset[0].length;
+            if (expression[after] === "'" || (expression[after] === "\\" && expression[after + 1] === "'")) {
+                i = after;
+                continue;
+            }
+            return null;
+        }
+
+        if (expression[i] === "'" || (expression[i] === "\\" && expression[i + 1] === "'")) {
+            const escapedDelimiter = expression[i] === "\\";
+            const delimiter = escapedDelimiter ? "\\'" : "'";
+            const start = i + delimiter.length;
+            const end = expression.indexOf(delimiter, start);
+            if (end < 0) return null;
+            const value = expression.slice(start, end);
+            // The canonical expression contains simple ASCII literals only.
+            // Reject inner escapes rather than guessing how sql_mode decoded them.
+            if (value.includes("\\") || (!escapedDelimiter && value.includes("'"))) return null;
+            tokens.push({ type: "string", value });
+            i = end + delimiter.length;
+            continue;
+        }
+
+        if (expression[i] === "`") {
+            const end = expression.indexOf("`", i + 1);
+            if (end < 0 || expression.slice(i + 1, end).includes("``")) return null;
+            tokens.push({ type: "identifier", value: expression.slice(i + 1, end).toLowerCase() });
+            i = end + 1;
+            continue;
+        }
+        const number = /^\d+/.exec(expression.slice(i));
+        if (number) {
+            tokens.push({ type: "number", value: BigInt(number[0]).toString() });
+            i += number[0].length;
+            continue;
+        }
+        const identifier = /^[A-Za-z_][A-Za-z0-9_$]*/.exec(expression.slice(i));
+        if (identifier) {
+            tokens.push({ type: "identifier", value: identifier[0].toLowerCase() });
+            i += identifier[0].length;
+            continue;
+        }
+        if ("(),-".includes(expression[i])) {
+            tokens.push({ type: expression[i], value: expression[i] });
+            i++;
+            continue;
+        }
+        return null;
+    }
+    return tokens;
+}
+
+function canonicalExpression(expression) {
+    const tokens = expressionTokens(expression);
+    if (!tokens) return null;
+    let position = 0;
+    const peek = value => tokens[position]?.value === value;
+    const take = value => {
+        if (!peek(value)) throw new Error("Unexpected expression token");
+        return tokens[position++];
+    };
+    const parsePrimary = () => {
+        if (peek("-")) {
+            take("-");
+            const operand = parsePrimary();
+            return operand[0] === "number" ? ["number", (-BigInt(operand[1])).toString()] : ["negate", operand];
+        }
+        if (peek("(")) {
+            take("(");
+            const grouped = parseExpression();
+            take(")");
+            return grouped;
+        }
+        const token = tokens[position++];
+        if (!token) throw new Error("Missing expression value");
+        if (token.type === "string") return ["string", token.value];
+        if (token.type === "number") return ["number", token.value];
+        if (token.type !== "identifier") throw new Error("Unexpected expression value");
+        if (token.value === "case") {
+            const branches = [];
+            while (peek("when")) {
+                take("when");
+                const condition = parseExpression();
+                take("then");
+                branches.push([condition, parseExpression()]);
+            }
+            take("else");
+            const otherwise = parseExpression();
+            take("end");
+            return ["case", branches, otherwise];
+        }
+        const name = token.value === "lcase" ? "lower" : token.value;
+        if (!peek("(")) return ["identifier", name];
+        take("(");
+        const args = [];
+        if (!peek(")")) {
+            do {
+                args.push(parseExpression());
+                if (!peek(",")) break;
+                take(",");
+            } while (true);
+        }
+        take(")");
+        return ["call", name, args];
+    };
+    const parseExpression = () => {
+        let expressionNode = parsePrimary();
+        if (peek("in")) {
+            take("in");
+            take("(");
+            const values = [];
+            do {
+                values.push(parseExpression());
+                if (!peek(",")) break;
+                take(",");
+            } while (true);
+            take(")");
+            expressionNode = ["in", expressionNode, values];
+        }
+        return expressionNode;
+    };
+    try {
+        const ast = parseExpression();
+        return position === tokens.length ? JSON.stringify(ast) : null;
+    } catch {
+        return null;
+    }
+}
+
+const isEmailKeyExpression = expression => canonicalExpression(expression) === canonicalExpression(EMAIL_KEY_SQL);
 
 async function inspect(qi, Sequelize) {
     const columns = await qi.describeTable("users");
@@ -10,7 +155,7 @@ async function inspect(qi, Sequelize) {
     if (columns.email_verified_at && (!/^DATETIME(?:\(\d+\))?$/i.test(columns.email_verified_at.type) || !columns.email_verified_at.allowNull)) throw new Error("Existing email_verified_at must be nullable DATETIME. Review reuse without altering existing values.");
     const duplicates = await qi.sequelize.query(`SELECT COUNT(*) AS duplicate_groups FROM (SELECT ${EMAIL_KEY_SQL} AS email_key FROM users WHERE email IS NOT NULL GROUP BY email_key HAVING COUNT(*) > 1) collisions`, { type: Sequelize.QueryTypes.SELECT });
     const generated = await qi.sequelize.query("SELECT GENERATION_EXPRESSION AS expression, EXTRA AS extra FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'normalized_email'", { type: Sequelize.QueryTypes.SELECT });
-    if (columns.normalized_email && (!/^VARCHAR\(255\)$/i.test(columns.normalized_email.type) || !/VIRTUAL GENERATED/i.test(generated[0]?.extra || "") || !generated[0]?.expression || compact(generated[0].expression) !== compact(EMAIL_KEY_SQL)))
+    if (columns.normalized_email && (!/^VARCHAR\(255\)$/i.test(columns.normalized_email.type) || !/VIRTUAL GENERATED/i.test(generated[0]?.extra || "") || !isEmailKeyExpression(generated[0]?.expression)))
         throw new Error("Existing users.normalized_email has an unexpected definition. Manual schema review required.");
     const indexes = await qi.showIndex("users");
     const fullUnique = index => index.unique && index.fields.length === 1 && index.fields[0].attribute === "normalized_email" && !index.fields[0].length;

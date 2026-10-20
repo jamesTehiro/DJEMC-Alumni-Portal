@@ -52,6 +52,28 @@ test("OTP API delegates resend explicitly, exposes safe errors and never returns
         assert.equal(failure.status, 503); assert.ok(!failure.publicMessage.includes("credentials"));
     } finally { controller.otp.send = original; }
 });
+test("OTP diagnostics log only safe failure categories and provider status", async () => {
+    const original = controller.otp.send;
+    const originalWarn = console.warn;
+    const records = [];
+    try {
+        console.warn = (...args) => records.push(args);
+        controller.otp.send = async () => {
+            throw Object.assign(new Error("private provider body recipient@example.com OTP 123456"), {
+                status: 503, code: "OTP_DELIVERY_FAILED", publicMessage: "Unable to send.",
+                failureCategory: "brevo_unauthorized", providerStatus: 401
+            });
+        };
+        const res = response();
+        await controller.send({ body: { email: "recipient@example.com", session_token: "a".repeat(64) } }, res, error => { throw error; });
+        assert.equal(res.statusCode, 503);
+        assert.deepEqual(records, [["[registration-otp] request failure", { operation: "send", category: "brevo_unauthorized", providerStatus: 401 }]]);
+        assert.doesNotMatch(JSON.stringify(records), /recipient@example|123456|private provider body/);
+    } finally {
+        controller.otp.send = original;
+        console.warn = originalWarn;
+    }
+});
 test("ordinary production startup performs read-only readiness checks and refuses sync", async () => {
     const source = fs.readFileSync(require.resolve("../server"), "utf8");
     const code = source.slice(source.indexOf("const ensureDatabaseReady ="), source.indexOf("const listRoutes ="));

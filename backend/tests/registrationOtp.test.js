@@ -174,15 +174,61 @@ test("a replacement session invalidates the previous verified grant and exact de
     await rejectsCode(f.db.sequelize.transaction(tx => f.service.consume(email, session, verified.registration_authorization, tx)), "INVALID_SESSION");
     await rejectsCode(f.service.verify("samplegraduate@gmail.com", "b".repeat(64), f.code()), "INVALID_SESSION");
 });
-test("Brevo failure invalidates the reserved OTP and honors provider Retry-After without auto resend", async () => {
-    for (const responseCode of [429, 500]) {
-        const f = fixture(); f.failure(Object.assign(new Error("provider details are private"), { responseCode, retryAfterMs: 120000 }));
-        await assert.rejects(f.service.send(email, session), error => error.code === "OTP_DELIVERY_FAILED" && error.retryAfter === 120);
+test("Brevo rejection statuses are safely classified, invalidate the code, and preserve the session", async () => {
+    const categories = new Map([[401, "brevo_unauthorized"], [403, "brevo_forbidden"], [429, "brevo_rate_limited"], [500, "brevo_server_error"], [503, "brevo_server_error"]]);
+    for (const [responseCode, failureCategory] of categories) {
+        const f = fixture();
+        f.failure(Object.assign(new Error("private provider response"), { code: "EMAIL_API", responseCode, retryAfterMs: responseCode === 429 ? 120000 : undefined }));
+        await assert.rejects(f.service.send(email, session), error => error.code === "OTP_DELIVERY_FAILED" && error.failureCategory === failureCategory && error.providerStatus === responseCode && error.retryAfter === (responseCode === 429 ? 120 : 60));
         assert.equal(f.row().otp_hash, null); assert.equal(f.row().status, "failed");
+        assert.equal((await f.service.status(email, session)).status, "failed");
         await rejectsCode(f.service.verify(email, session, "014257"), "OTP_NOT_READY");
-        f.advance(COOLDOWN); await rejectsCode(f.service.send(email, session, { resend: true }), "OTP_COOLDOWN");
+        f.advance(responseCode === 429 ? 120000 : COOLDOWN);
+        await rejectsCode(f.service.send(email, session, { resend: true }), "OTP_DELIVERY_FAILED");
         assert.equal(f.sent.length, 0);
     }
+});
+
+test("Brevo timeouts are classified without status; database reservation failures stay private", async () => {
+    const f = fixture();
+    f.failure(Object.assign(new Error("private timeout details"), { code: "ETIMEDOUT", deliveryUnknown: true }));
+    await assert.rejects(f.service.send(email, session), error => error.code === "OTP_DELIVERY_FAILED" && error.failureCategory === "brevo_timeout" && error.providerStatus === undefined);
+    assert.equal(f.row().otp_hash, null);
+    assert.equal((await f.service.status(email, session)).status, "failed");
+
+    const brokenDb = fixture();
+    brokenDb.db.User.findOne = async () => { throw new Error("private SQL details"); };
+    await assert.rejects(brokenDb.service.send(email, session), error => error.failureCategory === "database_error" && !error.publicMessage);
+    assert.equal(brokenDb.row(), undefined);
+
+    const failedReservation = fixture();
+    failedReservation.db.sequelize.query = async () => { throw new Error("private reservation SQL details"); };
+    await assert.rejects(failedReservation.service.send(email, session), error => error.failureCategory === "database_error" && !error.publicMessage);
+    assert.equal(failedReservation.row(), undefined);
+    await rejectsCode(failedReservation.service.status(email, session), "INVALID_SESSION");
+});
+
+test("OTP unavailable diagnoses weak secret and malformed history; failed reservation rolls back", async () => {
+    const originalSecret = process.env.REGISTRATION_OTP_SECRET;
+    try {
+        const missingSecret = fixture();
+        process.env.REGISTRATION_OTP_SECRET = "too-short";
+        await assert.rejects(missingSecret.service.send(email, session), error => error.code === "OTP_UNAVAILABLE" && error.failureCategory === "otp_secret_missing_or_short");
+        assert.equal(missingSecret.row(), undefined);
+        await rejectsCode(missingSecret.service.status(email, session), "INVALID_SESSION");
+
+        process.env.REGISTRATION_OTP_SECRET = originalSecret;
+        const malformedHistory = fixture();
+        const query = malformedHistory.db.sequelize.query;
+        malformedHistory.db.sequelize.query = async (...args) => {
+            await query(...args);
+            const [key] = args[1].replacements;
+            malformedHistory.row().resend_history = "not-json";
+        };
+        await assert.rejects(malformedHistory.service.send(email, session), error => error.code === "OTP_UNAVAILABLE" && error.failureCategory === "resend_history_invalid");
+        assert.equal(malformedHistory.row(), undefined);
+        await rejectsCode(malformedHistory.service.status(email, session), "INVALID_SESSION");
+    } finally { process.env.REGISTRATION_OTP_SECRET = originalSecret; }
 });
 test("consumption rolls back with failed account/profile creation and permits only one finalization", async () => {
     const f = fixture(); await f.service.send(email, session);

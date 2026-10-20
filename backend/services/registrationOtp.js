@@ -8,13 +8,30 @@ const COOLDOWN = 60 * 1000;
 const SEND_WINDOW = 15 * 60 * 1000;
 const MAX_RESENDS = 3;
 const fail = (status, code, message, extra = {}) => Object.assign(new Error(message), { status, code, publicMessage: message, ...extra });
+const markFailure = (error, category) => {
+    if (error && typeof error === "object" && !error.failureCategory) error.failureCategory = category;
+    return error;
+};
+const emailFailureCategory = error => {
+    if (error?.code === "EMAIL_API") {
+        if (error.responseCode === 401) return "brevo_unauthorized";
+        if (error.responseCode === 403) return "brevo_forbidden";
+        if (error.responseCode === 429) return "brevo_rate_limited";
+        if (Number.isInteger(error.responseCode) && error.responseCode >= 500) return "brevo_server_error";
+        return "brevo_rejected";
+    }
+    if (["ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"].includes(error?.code) || error?.name === "TimeoutError") return "brevo_timeout";
+    if (error?.code === "EMAIL_CONFIG") return "email_configuration";
+    if (error?.code === "EMAIL_NETWORK") return "brevo_network_error";
+    return "email_provider_error";
+};
 const digest = value => crypto.createHash("sha256").update(value).digest("hex");
 const validSession = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 
 function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = crypto.randomInt }) {
     const secret = () => {
         const value = process.env.REGISTRATION_OTP_SECRET;
-        if (!value || Buffer.byteLength(value) < 32) throw fail(503, "OTP_UNAVAILABLE", "Gmail verification is temporarily unavailable.");
+        if (!value || Buffer.byteLength(value) < 32) throw fail(503, "OTP_UNAVAILABLE", "Gmail verification is temporarily unavailable.", { failureCategory: "otp_secret_missing_or_short" });
         return value;
     };
     const hashOtp = (email, sessionHash, otp) => crypto.createHmac("sha256", secret()).update(`${email}\n${sessionHash}\n${otp}`).digest("hex");
@@ -22,10 +39,14 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
         if (!isGmail(email)) throw fail(400, "INVALID_GMAIL", "Enter a valid @gmail.com address.");
         if (!validSession(session)) throw fail(400, "INVALID_SESSION", "Start Gmail verification again in this browser.");
     };
-    const findAccount = email => db.User.findOne({
-        where: db.Sequelize.where(db.Sequelize.literal(`(${EMAIL_KEY_SQL})`), emailKey(email)),
-        attributes: ["id", "account_status", "role"]
-    });
+    const findAccount = async email => {
+        try {
+            return await db.User.findOne({
+                where: db.Sequelize.where(db.Sequelize.literal(`(${EMAIL_KEY_SQL})`), emailKey(email)),
+                attributes: ["id", "account_status", "role"]
+            });
+        } catch (error) { throw markFailure(error, "database_error"); }
+    };
     const ensureAvailable = async email => {
         const existing = await findAccount(email);
         if (existing) throw fail(409, "EMAIL_REGISTERED", existing.account_status === "rejected"
@@ -34,8 +55,10 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
     };
     const matches = (row, email, session) => row && row.email === email && row.session_hash === digest(session);
     const history = row => {
-        const entries = typeof row.resend_history === "string" ? JSON.parse(row.resend_history) : row.resend_history;
-        if (!Array.isArray(entries) || entries.some(time => !Number.isSafeInteger(time))) throw fail(503, "OTP_UNAVAILABLE", "Gmail verification is temporarily unavailable.");
+        let entries;
+        try { entries = typeof row.resend_history === "string" ? JSON.parse(row.resend_history) : row.resend_history; }
+        catch { throw fail(503, "OTP_UNAVAILABLE", "Gmail verification is temporarily unavailable.", { failureCategory: "resend_history_invalid" }); }
+        if (!Array.isArray(entries) || entries.some(time => !Number.isSafeInteger(time))) throw fail(503, "OTP_UNAVAILABLE", "Gmail verification is temporarily unavailable.", { failureCategory: "resend_history_invalid" });
         return entries.filter(time => time > now() - SEND_WINDOW);
     };
     const grant = row => jwt.sign({
@@ -75,7 +98,8 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
             const otpHash = hashOtp(email, sessionHash, otp);
             // Atomic reservation serializes first requests across Render instances.
             // A conflicting insert never overwrites another session or a user.
-            const reservation = await db.sequelize.transaction(async transaction => {
+            let reservation;
+            try { reservation = await db.sequelize.transaction(async transaction => {
                 const time = now();
                 await db.sequelize.query(`INSERT INTO registration_email_verifications
                     (email_key, email, session_hash, status, sent_at, resend_history, failed_attempts, createdAt, updatedAt)
@@ -100,7 +124,10 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
                 await row.update({ email, session_hash: sessionHash, otp_hash: otpHash, status: "sending", expires_at: new Date(time + OTP_TTL),
                     verified_at: null, failed_attempts: 0, sent_at: new Date(time), resend_history: resends }, { transaction });
                 return {};
-            });
+            }); } catch (error) {
+                if (!error?.publicMessage) markFailure(error, "database_error");
+                throw error;
+            }
             if (reservation.reused) return reservation.reused;
             const where = { email_key: emailKey(email), session_hash: sessionHash, otp_hash: otpHash, status: "sending" };
             try {
@@ -115,10 +142,17 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
                 await sendEmail(email, "DJEMC Alumni Registration — Email Verification Code", text, { html });
             } catch (error) {
                 const wait = Math.max(COOLDOWN, Math.min(SEND_WINDOW, Number(error.retryAfterMs) || 0));
-                await db.RegistrationEmailVerification.update({ otp_hash: null, status: "failed", sent_at: new Date(now() + wait - COOLDOWN) }, { where });
-                throw fail(503, "OTP_DELIVERY_FAILED", "Unable to send the verification email. Please wait before resending. Your registration has not been submitted.", { retryAfter: Math.ceil(wait / 1000) });
+                try {
+                    await db.RegistrationEmailVerification.update({ otp_hash: null, status: "failed", sent_at: new Date(now() + wait - COOLDOWN) }, { where });
+                } catch (databaseError) { throw markFailure(databaseError, "database_error"); }
+                throw fail(503, "OTP_DELIVERY_FAILED", "Unable to send the verification email. Please wait before resending. Your registration has not been submitted.", {
+                    retryAfter: Math.ceil(wait / 1000), failureCategory: emailFailureCategory(error),
+                    ...(Number.isInteger(error?.responseCode) && error.responseCode >= 400 && error.responseCode <= 599 ? { providerStatus: error.responseCode } : {})
+                });
             }
-            const [updated] = await db.RegistrationEmailVerification.update({ status: "sent" }, { where });
+            let updated;
+            try { [updated] = await db.RegistrationEmailVerification.update({ status: "sent" }, { where }); }
+            catch (error) { throw markFailure(error, "database_error"); }
             if (!updated) throw fail(409, "OTP_REPLACED", "A newer code request replaced this one. Use the most recent code.");
             return service.status(email, session);
         },

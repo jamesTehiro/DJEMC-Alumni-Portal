@@ -42,6 +42,22 @@ const handle = method => async (req, res, next) => {
             ? await otp.send(req.body?.email, req.body?.session_token, { resend: true })
             : await otp[method](req.body?.email, req.body?.session_token, req.body?.otp));
     } catch (error) {
+        const safeCategories = new Set([
+            "otp_secret_missing_or_short", "resend_history_invalid", "database_error",
+            "brevo_unauthorized", "brevo_forbidden", "brevo_rate_limited", "brevo_server_error",
+            "brevo_rejected", "brevo_timeout", "email_configuration", "brevo_network_error",
+            "email_provider_error"
+        ]);
+        const category = safeCategories.has(error?.failureCategory)
+            ? error.failureCategory
+            : error?.publicMessage ? "otp_request_rejected" : "internal_error";
+        const providerStatus = Number.isInteger(error?.providerStatus) && error.providerStatus >= 400 && error.providerStatus <= 599
+            ? error.providerStatus : undefined;
+        console.warn("[registration-otp] request failure", {
+            operation: method,
+            category,
+            ...(providerStatus ? { providerStatus } : {})
+        });
         if (error.publicMessage) {
             if (error.retryAfter) res.setHeader("Retry-After", String(error.retryAfter));
             return res.status(error.status).json({ code: error.code, msg: error.publicMessage, ...(error.retryAfter ? { retry_after: error.retryAfter } : {}) });
