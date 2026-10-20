@@ -4,7 +4,7 @@ const nodemailer = require("nodemailer");
 const { safeEmailError } = require("../utils/emailDiagnostics");
 
 test("SMTP STARTTLS, cache rotation, missing configuration and safe diagnostics", async () => {
-    const keys = ["EMAIL_PROVIDER", "BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS"];
+    const keys = ["EMAIL_PROVIDER", "BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME", "EMAIL_REQUEST_TIMEOUT_MS", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS"];
     const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
     const original = nodemailer.createTransport;
     const transports = [], sent = [];
@@ -53,7 +53,7 @@ test("SMTP STARTTLS, cache rotation, missing configuration and safe diagnostics"
 });
 
 const withBrevo = async callback => {
-    const keys = ["EMAIL_PROVIDER", "BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS"];
+    const keys = ["EMAIL_PROVIDER", "BREVO_API_KEY", "EMAIL_FROM", "EMAIL_FROM_NAME", "EMAIL_REQUEST_TIMEOUT_MS", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "EMAIL_USER", "EMAIL", "EMAIL_PASS"];
     const saved = Object.fromEntries(keys.map(key => [key, process.env[key]]));
     const originalFetch = global.fetch;
     keys.forEach(key => delete process.env[key]);
@@ -117,6 +117,29 @@ test("Brevo rejects missing configuration without making a request", async () =>
         assert.throws(() => email.validateConfiguration(), { code: "EMAIL_CONFIG" });
         await assert.rejects(email("recipient", "subject", "message"), { code: "EMAIL_CONFIG" });
         assert.equal(requests, 0);
+    });
+});
+
+test("configuration diagnostics identify invalid timeout and sender without logging values", async () => {
+    await withBrevo(async email => {
+        const originalLog = console.log;
+        const output = [];
+        try {
+            console.log = (...args) => output.push(args[1]);
+            process.env.EMAIL_REQUEST_TIMEOUT_MS = "secret-invalid-timeout-value";
+            email.logConfiguration();
+            assert.equal(output.at(-1).configured, false);
+            assert.equal(output.at(-1).configurationIssue, "invalid_request_timeout");
+            assert.equal(output.at(-1).requestTimeoutMs, null);
+
+            process.env.EMAIL_REQUEST_TIMEOUT_MS = "15000";
+            process.env.EMAIL_FROM = "Brevo Sender <sender@example.invalid>";
+            email.logConfiguration();
+            assert.equal(output.at(-1).configurationIssue, "invalid_sender_address");
+            assert.doesNotMatch(JSON.stringify(output), /secret-invalid-timeout-value|sender@example\.invalid/);
+        } finally {
+            console.log = originalLog;
+        }
     });
 });
 

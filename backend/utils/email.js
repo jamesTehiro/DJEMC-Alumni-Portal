@@ -10,6 +10,10 @@ const emailError = (message, code, responseCode, retryable = false) => Object.as
     retryable,
     ...(Number.isInteger(responseCode) ? { responseCode } : {})
 });
+const configurationError = (message, issue) => Object.assign(emailError(message, "EMAIL_CONFIG"), {
+    // Safe, fixed labels only. Never include environment variable values here.
+    configurationIssue: issue
+});
 const isTimeout = error => ["TimeoutError", "AbortError"].includes(error?.name) ||
     ["ETIMEDOUT", "UND_ERR_CONNECT_TIMEOUT", "UND_ERR_HEADERS_TIMEOUT", "UND_ERR_BODY_TIMEOUT"].includes(error?.code || error?.cause?.code);
 
@@ -18,7 +22,7 @@ const getProvider = () => {
     // retains legacy SMTP; Brevo requires the explicit deployment setting.
     const configured = String(process.env.EMAIL_PROVIDER || "smtp").trim().toLowerCase();
     if (!["brevo", "smtp"].includes(configured)) {
-        throw emailError("Email configuration error: EMAIL_PROVIDER must be brevo or smtp.", "EMAIL_CONFIG");
+        throw configurationError("Email configuration error: EMAIL_PROVIDER must be brevo or smtp.", "invalid_provider");
     }
     return configured;
 };
@@ -27,7 +31,7 @@ const requestTimeoutMs = () => {
     const timeout = Number(process.env.EMAIL_REQUEST_TIMEOUT_MS || REQUEST_TIMEOUT_MS);
     // The worker's reservation budget already allows 30s per transport call.
     if (!Number.isSafeInteger(timeout) || timeout < 1000 || timeout > 30000) {
-        throw emailError("Email configuration error: EMAIL_REQUEST_TIMEOUT_MS must be an integer from 1000 to 30000.", "EMAIL_CONFIG");
+        throw configurationError("Email configuration error: EMAIL_REQUEST_TIMEOUT_MS must be an integer from 1000 to 30000.", "invalid_request_timeout");
     }
     return timeout;
 };
@@ -72,11 +76,15 @@ const getBrevoConfiguration = () => {
     const from = process.env.EMAIL_FROM?.trim();
     const fromName = process.env.EMAIL_FROM_NAME?.trim();
     if (!apiKey || !from || !fromName) {
-        throw emailError("Email configuration error: BREVO_API_KEY, EMAIL_FROM, and EMAIL_FROM_NAME must be set for Brevo.", "EMAIL_CONFIG");
+        throw configurationError("Email configuration error: BREVO_API_KEY, EMAIL_FROM, and EMAIL_FROM_NAME must be set for Brevo.", "missing_brevo_settings");
     }
-    address(process.env.EMAIL_FROM, "EMAIL_CONFIG");
+    try {
+        address(process.env.EMAIL_FROM, "EMAIL_CONFIG");
+    } catch {
+        throw configurationError("Email configuration error: EMAIL_FROM must be one valid mailbox address.", "invalid_sender_address");
+    }
     if (/[\u0000-\u001f\u007f]/.test(process.env.EMAIL_FROM_NAME) || /[\u0000-\u0020\u007f]/.test(apiKey)) {
-        throw emailError("Email configuration error: invalid Brevo sender or API key format.", "EMAIL_CONFIG");
+        throw configurationError("Email configuration error: invalid Brevo sender or API key format.", "invalid_brevo_format");
     }
     return { apiKey, from, fromName };
 };
@@ -91,13 +99,13 @@ const getSmtpConfiguration = () => {
     const pass = process.env.EMAIL_PASS;
 
     if (!user || !pass) {
-        throw emailError("Email configuration error: EMAIL_USER and EMAIL_PASS environment variables must be set for SMTP.", "EMAIL_CONFIG");
+        throw configurationError("Email configuration error: EMAIL_USER and EMAIL_PASS environment variables must be set for SMTP.", "missing_smtp_credentials");
     }
 
     if (!Number.isInteger(port) || port < 1 || port > 65535 ||
         (process.env.SMTP_SECURE && !/^(true|false)$/i.test(process.env.SMTP_SECURE)) ||
         (port === 587 && secure)) {
-        throw emailError("Email configuration error: invalid SMTP port/security settings; port 587 requires SMTP_SECURE=false.", "EMAIL_CONFIG");
+        throw configurationError("Email configuration error: invalid SMTP port/security settings; port 587 requires SMTP_SECURE=false.", "invalid_smtp_settings");
     }
     return { host, port, secure, user, pass };
 };
@@ -217,10 +225,21 @@ module.exports.verify = () => {
 module.exports.logConfiguration = () => {
     let provider = "unknown";
     let configured = true;
-    try { provider = getProvider(); getConfiguration(); } catch { configured = false; }
+    let configurationIssue = null;
+    try { provider = getProvider(); getConfiguration(); } catch (error) {
+        configured = false;
+        // This allowlist makes diagnostics useful without logging raw error text.
+        const safeIssues = new Set([
+            "invalid_provider", "invalid_request_timeout", "missing_brevo_settings",
+            "invalid_sender_address", "invalid_brevo_format", "missing_smtp_credentials",
+            "invalid_smtp_settings"
+        ]);
+        configurationIssue = safeIssues.has(error?.configurationIssue) ? error.configurationIssue : "invalid_configuration";
+    }
     console.log("[email] configuration", {
         provider,
         configured,
+        configurationIssue,
         BREVO_API_KEY: Boolean(process.env.BREVO_API_KEY),
         EMAIL_FROM: Boolean(process.env.EMAIL_FROM),
         EMAIL_FROM_NAME: Boolean(process.env.EMAIL_FROM_NAME),
