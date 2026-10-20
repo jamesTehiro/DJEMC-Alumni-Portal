@@ -1,6 +1,6 @@
 const Sequelize = require('sequelize');
 const migration = require('../migrations/20261018-repair-messaging-storage');
-async function run(db, args = process.argv.slice(2)) {
+async function run(db, args = process.argv.slice(2), report = console.log) {
     const apply = args.includes('--apply');
     const value = flag => { const index = args.indexOf(flag); return index < 0 ? null : args[index + 1]; };
     const database = value('--database'), host = value('--host');
@@ -10,8 +10,8 @@ async function run(db, args = process.argv.slice(2)) {
     if (database && identity.database_name !== database || host && db.sequelize.config.host !== host) throw new Error('Database/host identity mismatch; no changes performed.');
     const qi = db.sequelize.getQueryInterface();
     const plan = await migration.inspect(qi, Sequelize);
-    console.log(JSON.stringify({ mode: apply ? 'apply' : 'check-only', changes: plan.map(({ action, table, column }) => ({ action, table, column })) }));
-    if (apply) { await migration.up(qi, Sequelize); console.log('Messaging schema verified. Existing messages and attachments were preserved.'); }
+    report(JSON.stringify({ mode: apply ? 'apply' : 'check-only', changes: plan.map(({ action, table, column }) => ({ action, table, column })) }));
+    if (apply) { await migration.up(qi, Sequelize); report('Messaging schema verified. Existing messages and attachments were preserved.'); }
 }
 if (require.main === module) {
     const db = require('../models');

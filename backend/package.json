@@ -6,6 +6,9 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "start": "node server.js",
+    "start:diagnose-messaging": "node scripts/startWithMessagingDiagnostic.js",
+    "diagnose:messaging-schema": "node scripts/diagnoseMessagingSchema.js",
+    "verify:diagnostic-startup": "node scripts/checkMessagingDiagnosticStartup.js",
     "dev": "nodemon server.js",
     "email-worker": "node workers/emailQueueWorker.js",
     "migrate:message-attachments": "node scripts/applyMessageAttachmentMigrations.js",
