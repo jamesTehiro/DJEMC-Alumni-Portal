@@ -1,3 +1,4 @@
+import { academicLabel } from "../utils/academicPrograms";
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, Card, Form, Table } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
@@ -76,7 +77,7 @@ export default function RegistrarPendingAlumniPage() {
         return allPending.filter((item) => {
             const full = getFullName(item).toLowerCase();
             const year = String(item?.AlumniProfile?.graduation_year ?? item?.graduation_year ?? "").toLowerCase();
-            const course = String(item?.AlumniProfile?.course ?? item?.course ?? "").toLowerCase();
+            const course = academicLabel(item?.AlumniProfile?.course ?? item?.course, item?.AlumniProfile?.major ?? item?.major).toLowerCase();
             return full.includes(q) || year.includes(q) || course.includes(q);
         });
     }, [allPending, query]);
@@ -171,7 +172,7 @@ export default function RegistrarPendingAlumniPage() {
                                         <td>
                                             {item?.AlumniProfile?.graduation_year ?? item?.graduation_year ?? "—"}
                                         </td>
-                                        <td>{item?.AlumniProfile?.course ?? item?.course ?? "—"}</td>
+                                        <td>{academicLabel(item?.AlumniProfile?.course ?? item?.course, item?.AlumniProfile?.major ?? item?.major)}</td>
                                     </tr>
                                 ))}
                             </tbody>

@@ -8,7 +8,7 @@ export default function AlumniSearchBar({ value, onChange, disabled = false }) {
             placeholder={
                 disabled
                     ? "Search disabled while adding record..."
-                    : "Search full name..."
+                    : "Search name, program, major, or batch..."
             }
             value={value}
             disabled={disabled}

@@ -1,3 +1,4 @@
+import { academicLabel } from "../../utils/academicPrograms";
 import React, { useMemo, useRef, useState } from "react";
 import { Button, Modal } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
@@ -196,7 +197,7 @@ export default function AdminVerificationPage({ role }) {
                             const verificationData =
                                 role === "employer"
                                     ? item.EmployerProfile?.organization_name || "Company Name"
-                                    : item.AlumniProfile?.graduation_year || "Graduation Year";
+                                    : academicLabel(item.AlumniProfile?.course, item.AlumniProfile?.major, item.AlumniProfile?.graduation_year);
 
                             return (
                                 <div className={`queue-row${role === "employer" ? " employer-verification-row" : ""}`} key={item.id}>

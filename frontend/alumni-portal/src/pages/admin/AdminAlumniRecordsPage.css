@@ -65,7 +65,7 @@
 
 .alumni-tracking-filters {
     display: grid;
-    grid-template-columns: minmax(220px, 2fr) repeat(4, minmax(140px, 1fr));
+    grid-template-columns: minmax(220px, 2fr) repeat(2, minmax(140px, 1fr));
     gap: 10px;
     margin: 18px 0;
 }
@@ -171,6 +171,11 @@
 .alumni-tracking-status.follow-up {
     background: #ffedd5;
     color: #9a3412;
+}
+
+.alumni-tracking-table .alumni-account-status.neutral {
+    background: #f1f5f9;
+    color: #475569;
 }
 
 .alumni-profile-view-button,

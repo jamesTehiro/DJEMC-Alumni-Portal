@@ -63,8 +63,29 @@ export function getApplicantDocumentEntries(application = {}) {
     application ||= {};
     let snapshot = application.JobRequirementSnapshot?.snapshot_data;
     if (typeof snapshot === "string") { try { snapshot = JSON.parse(snapshot); } catch { snapshot = null; } }
-    const requirements = [...(Array.isArray(snapshot?.groups) ? snapshot.groups.flatMap(group => group.requirements || []) : []), ...(Array.isArray(snapshot?.ungrouped) ? snapshot.ungrouped : [])].filter(Boolean);
-    const documents = Array.isArray(application.ApplicationDocuments) ? application.ApplicationDocuments.filter(Boolean) : [];
+    const hasSnapshot = snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)
+        && (Array.isArray(snapshot.groups) || Array.isArray(snapshot.ungrouped))
+        && (snapshot.groups == null || (Array.isArray(snapshot.groups) && snapshot.groups.every(group => Array.isArray(group?.requirements))))
+        && (snapshot.ungrouped == null || Array.isArray(snapshot.ungrouped));
+    const requirementsByCode = new Map();
+    const snapshotRequirements = [
+        ...(Array.isArray(snapshot?.groups) ? snapshot.groups.flatMap(group => Array.isArray(group?.requirements) ? group.requirements : []) : []),
+        ...(Array.isArray(snapshot?.ungrouped) ? snapshot.ungrouped : [])
+    ];
+    for (const requirement of snapshotRequirements) {
+        if (requirement && typeof requirement === "object" && typeof requirement.requirement_code === "string" && normalize(requirement.requirement_code)
+            && !requirementsByCode.has(requirement.requirement_code)) requirementsByCode.set(requirement.requirement_code, requirement);
+    }
+    const requirements = [...requirementsByCode.values()];
+    const seenDocuments = new Set();
+    const documents = (Array.isArray(application.ApplicationDocuments) ? application.ApplicationDocuments : []).filter(document => {
+        if (!document || typeof document !== "object" || Array.isArray(document)) return false;
+        if (document.id == null && !normalize(document.file_name || document.original_filename || document.original_file_name || document.file_path || document.authorizedFileUrl)) return false;
+        const identity = document.id != null ? `id:${document.id}` : document;
+        if (seenDocuments.has(identity)) return false;
+        seenDocuments.add(identity);
+        return true;
+    });
     const entries = [];
     const kindOf = (requirement, document) => {
         if (isResumeRequirement(requirement, document)) return "resume";
@@ -73,34 +94,47 @@ export function getApplicantDocumentEntries(application = {}) {
         if (/valid[\s_-]*id|identification/i.test(value)) return "id";
         return "other";
     };
-    const add = (requirement, document, key) => {
+    const add = (requirement, document, key, source) => {
         const kind = kindOf(requirement, document);
-        entries.push({ key, kind, label: ({ resume: "Resume", tor: "TOR", id: "Valid ID" })[kind] || requirement?.label || document?.requirement_label || document?.requirement_code || "Document", document, available: Boolean(getApplicantResumeFileUrl(application.id, document)), reviewStatus: document?.review_status });
+        const required = requirement?.required;
+        entries.push({
+            key, kind, source,
+            label: requirement?.label || document?.requirement_label || requirement?.requirement_code || document?.requirement_code || "Document",
+            requirementCode: requirement?.requirement_code || document?.requirement_code,
+            required: typeof required === "boolean" ? required : required === 1 ? true : required === 0 ? false : undefined,
+            document, available: Boolean(getApplicantResumeFileUrl(application.id, document)), reviewStatus: document?.review_status
+        });
     };
     for (const requirement of requirements.filter(item => item.requirement_type === "document_upload")) {
         const matching = documents.filter(document => document.requirement_code === requirement.requirement_code);
-        if (!matching.length) add(requirement, null, `missing:${requirement.requirement_code}`);
-        for (const document of matching) add(requirement, document, `document:${document.id || entries.length}`);
+        if (!matching.length) add(requirement, null, `missing:${requirement.requirement_code}`, "configured");
+        for (const document of matching) add(requirement, document, `document:${document.id || entries.length}`, "configured");
     }
     for (const document of documents) {
-        if (!entries.some(entry => entry.document === document)) add(requirements.find(item => item.requirement_code === document.requirement_code), document, `document:${document.id || entries.length}`);
+        if (!entries.some(entry => entry.document === document)) add(requirementsByCode.get(document.requirement_code), document, `document:${document.id || entries.length}`, "additional");
     }
-    const resume = getApplicantResumeDocument(application);
-    if (resume?.isLegacyResume && !entries.some(entry => entry.kind === "resume" && entry.available)) add({ requirement_code: "resume" }, resume, "legacy:resume");
+    // Normalize only this lookup so malformed older snapshots cannot hide actual
+    // legacy uploads. A valid dynamic snapshot still prevents resume_path guessing.
+    const resume = getApplicantResumeDocument({
+        ...application, ApplicationDocuments: documents,
+        JobRequirementSnapshot: hasSnapshot ? { snapshot_data: { ungrouped: requirements } } : null
+    });
+    if (resume?.isLegacyResume) add({ requirement_code: "resume", label: "Resume" }, resume, "legacy:resume", "legacy");
     // Older responses already provide protected file URLs. Never convert an
     // arbitrary external URL into a document request carrying authentication.
     for (const [field, code, label] of [["transcript_path", "tor", "TOR"], ["certificate_path", "certificate", "Certificate"]]) {
         const path = application[field];
-        if (!/^\/api\/files\//.test(path || "") || entries.some(entry => entry.kind === code || entry.document?.requirement_code === code)) continue;
+        if (!/^\/api\/files\//.test(path || "") || entries.some(entry => entry.available
+            && (entry.document?.file_path === path || getApplicantResumeFileUrl(application.id, entry.document) === path))) continue;
         const basename = path.split("/").pop();
-        const filename = /\.[a-z0-9]{2,5}$/i.test(basename) ? decodeURIComponent(basename) : "Filename unavailable";
-        add({ requirement_code: code, label }, { isLegacyDocument: true, authorizedFileUrl: path, requirement_code: code, file_name: application[`${code}_file_name`] || filename }, `legacy:${code}`);
-    }
-    for (const [kind, label] of [["resume", "Resume"], ["tor", "TOR"], ["id", "Valid ID"]]) {
-        if (!entries.some(entry => entry.kind === kind)) entries.push({ key: `missing:${kind}`, kind, label, document: null, available: false });
+        let filename = "Filename unavailable";
+        if (/\.[a-z0-9]{2,5}$/i.test(basename)) {
+            try { filename = decodeURIComponent(basename); } catch { filename = basename; }
+        }
+        add({ requirement_code: code, label }, { isLegacyDocument: true, authorizedFileUrl: path, requirement_code: code, file_name: application[`${code}_file_name`] || filename }, `legacy:${code}`, "legacy");
     }
     const order = { resume: 0, tor: 1, id: 2, other: 3 };
-    return entries.sort((a, b) => order[a.kind] - order[b.kind]);
+    return entries.sort((a, b) => Number(a.source !== "configured") - Number(b.source !== "configured") || order[a.kind] - order[b.kind]);
 }
 
 export function getApplicantResumePreviewType(document, blob) {

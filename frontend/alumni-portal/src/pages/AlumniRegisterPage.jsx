@@ -1,3 +1,4 @@
+import AcademicProgramFields from "../components/AcademicProgramFields";
 import React, { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../services/api";
@@ -22,6 +23,7 @@ export default function AlumniRegisterPage() {
         confirmPassword: "",
         role: "alumni",
         course: "",
+        major: "",
         graduationYear: "",
         proofDocument: null,
         consent: false
@@ -83,7 +85,8 @@ export default function AlumniRegisterPage() {
             payload.append("role", form.role);
             payload.append("session_token", verification.session.token);
             payload.append("registration_authorization", verification.details.registration_authorization);
-            payload.append("course", form.course || "");
+            payload.append("course", form.course.trim());
+            payload.append("major", form.major.trim());
             payload.append("graduationYear", form.graduationYear || "");
             if (form.proofDocument) {
                 payload.append("proof_document", form.proofDocument);
@@ -137,12 +140,7 @@ export default function AlumniRegisterPage() {
                                     <FiMail className="input-icon" />
                                 </label>
                             </label>
-                            <label className="field">
-                                <span>Program</span>
-                                <label className="line-input">
-                                    <input type="text" name="course" value={form.course} onChange={handleChange} placeholder="Enter program" />
-                                </label>
-                            </label>
+                            <AcademicProgramFields course={form.course} major={form.major} onChange={academic => setForm(prev => ({ ...prev, ...academic }))} />
                             <label className="field">
                                 <span>Academic Year</span>
                                 <label className="line-input">

@@ -1,3 +1,4 @@
+import AcademicProgramFields from "../components/AcademicProgramFields";
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
@@ -16,6 +17,7 @@ export default function RegisterPage() {
         password: "",
         role: "alumni",
         course: "",
+        major: "",
         graduationYear: "",
         consent: false
     });
@@ -75,7 +77,8 @@ export default function RegisterPage() {
                 email: registerForm.email,
                 password: registerForm.password,
                 role: registerForm.role,
-                course: registerForm.course,
+                course: registerForm.course.trim(),
+                major: registerForm.major.trim(),
                 graduationYear: registerForm.graduationYear
             });
             setSuccess("Registration successful. You can now log in.");
@@ -181,16 +184,7 @@ export default function RegisterPage() {
                                 </div>
 
                                 <div className="col-12">
-                                    <p className="field-label">Program</p>
-                                    <label className="line-input">
-                                        <input
-                                            type="text"
-                                            name="course"
-                                            value={registerForm.course}
-                                            onChange={handleRegisterChange}
-                                            placeholder="Enter Program"
-                                        />
-                                    </label>
+                                    <AcademicProgramFields course={registerForm.course} major={registerForm.major} onChange={academic => setRegisterForm(prev => ({ ...prev, ...academic }))} />
                                 </div>
 
                                 <div className="col-12">

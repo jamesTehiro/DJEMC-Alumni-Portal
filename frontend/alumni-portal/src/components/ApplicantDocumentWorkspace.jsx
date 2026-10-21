@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { FiDownload, FiFileText, FiPrinter, FiUser } from "react-icons/fi";
 import ApplicantResumePreview from "./ApplicantResumePreview";
 import { fetchFile, resolveFileUrl } from "../services/api";
@@ -37,14 +37,21 @@ export default function ApplicantDocumentWorkspace({ application, onDownload, on
         <div className="applicant-document-columns">
             <nav className="applicant-document-sidebar" aria-label="Applicant Documents">
                 <h3>Applicant Documents</h3>
-                <div className="applicant-document-list">{entries.map(entry => <button key={entry.key} type="button" className={`applicant-document-card${selected?.key === entry.key ? " selected" : ""}${entry.available ? "" : " unavailable"}`} aria-pressed={selected?.key === entry.key} onClick={() => setSelectedKey(entry.key)}>
+                <div className="applicant-document-list">
+                    {entries.length === 0 && <p role="status">No document requirements or submitted files.</p>}
+                    {entries.map((entry, index) => <Fragment key={entry.key}>
+                    {entry.source !== "configured" && (index === 0 || entries[index - 1].source === "configured") && <h3 style={{ gridColumn: "1 / -1" }}>Other submitted documents</h3>}
+                    <button type="button" className={`applicant-document-card${selected?.key === entry.key ? " selected" : ""}${entry.available ? "" : " unavailable"}`} aria-pressed={selected?.key === entry.key} onClick={() => setSelectedKey(entry.key)}>
                     <FiFileText aria-hidden="true" />
-                    <span><strong>{entry.label}</strong><small>{entry.available ? getApplicantDocumentFilename(entry.document) : "Not submitted / unavailable"}</small>{entry.reviewStatus && !["pending_review", "not_submitted"].includes(entry.reviewStatus) && <small className="applicant-document-review">{entry.reviewStatus.replaceAll("_", " ")}</small>}</span>
-                </button>)}</div>
+                    <span><strong>{entry.label}</strong><small>{entry.available ? getApplicantDocumentFilename(entry.document) : "Not submitted / unavailable"}</small>
+                        {entry.source === "configured" && typeof entry.required === "boolean" && <small>{entry.required ? "Required" : "Optional"}</small>}
+                        {entry.source !== "configured" && <small>{entry.source === "legacy" ? "Historical attachment" : "Additional attachment"}</small>}
+                        {entry.reviewStatus && !["pending_review", "not_submitted"].includes(entry.reviewStatus) && <small className="applicant-document-review">{entry.reviewStatus.replaceAll("_", " ")}</small>}</span>
+                </button></Fragment>)}</div>
             </nav>
             <section className="applicant-document-viewer" aria-label="Selected document">
                 <header className="applicant-document-toolbar"><div><h3>{selected?.label || "Document"}</h3><p>{selected?.available ? getApplicantDocumentFilename(selected.document) : "No uploaded file available"}</p></div><button type="button" className="btn btn-outline-success" disabled={!selected?.available} onClick={() => onDownload(selected.document, application.id)}><FiDownload aria-hidden="true" /> Download</button></header>
-                {selected?.available ? <ApplicantResumePreview applicationId={application.id} document={selected.document} documentLabel={selected.label} embedded onView={() => onView(selected.document, application.id)} /> : <div className="applicant-document-unavailable" role="status"><FiFileText aria-hidden="true" /><p>This document was not submitted or has no accessible file record.</p></div>}
+                {selected?.available ? <ApplicantResumePreview applicationId={application.id} document={selected.document} documentLabel={selected.label} embedded onView={() => onView(selected.document, application.id)} /> : <div className="applicant-document-unavailable" role="status"><FiFileText aria-hidden="true" /><p>{entries.length ? "This document was not submitted or has no accessible file record." : "No document requirements or submitted files are available for this application."}</p></div>}
             </section>
         </div>
     </div>;

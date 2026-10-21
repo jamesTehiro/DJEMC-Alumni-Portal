@@ -269,13 +269,15 @@
 .attachment-file-copy strong, .attachment-file-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .attachment-file-copy small { color: #64756a; font-size: 11px; }
 .attachment-action { display: inline-grid; place-items: center; border: 0; border-radius: 7px; padding: 6px 8px; background: #edf4ef; color: #173b2d; font-size: 12px; }
-.message-image-preview-dialog { z-index: 1090; }
-.message-image-preview-content { overflow: hidden; border: 0; background: #121614; }
-.message-image-preview-header { min-height: 56px; border: 0; background: #121614; color: #fff; }
+.message-image-preview-dialog { --bs-modal-margin: 12px; z-index: 1090; width: fit-content; min-width: min(200px, calc(100vw - 24px)); max-width: calc(100vw - 24px); margin: 12px auto; }
+.message-image-preview-content { max-width: 100%; overflow: hidden; border: 0; background: #121614; }
+.message-image-preview-header { min-height: 56px; padding: 8px 12px; border: 0; background: #121614; color: #fff; }
 .message-image-preview-header .btn-close { filter: invert(1); }
 .message-image-preview-header .modal-title { margin-right: auto; font-size: 15px; }
-.message-image-lightbox { display: grid; place-items: center; min-height: 120px; padding: 0; background: #121614; }
-.message-image-lightbox img { display: block; max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); width: auto; height: auto; margin: auto; object-fit: contain; }
+.message-image-preview-body { display: flex; align-items: center; justify-content: center; min-width: 0; padding: 8px; }
+.message-image-preview-body .document-preview { min-width: 0; max-width: 100%; }
+.message-image-lightbox { display: grid; place-items: center; margin: 0; padding: 0; background: #121614; }
+.message-image-lightbox img { display: block; max-width: calc(100vw - 40px); max-height: calc(100vh - 96px); max-height: calc(100dvh - 96px); width: auto; height: auto; margin: 0; object-fit: contain; }
 
 .conversation-item {
     width: 100%;

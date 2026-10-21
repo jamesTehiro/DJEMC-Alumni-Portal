@@ -1,3 +1,4 @@
+import { academicLabel } from "../utils/academicPrograms";
 import React, { useRef, useState } from "react";
 import { Alert, Badge, Button, Modal } from "react-bootstrap";
 import { FiSearch, FiEye, FiCheck, FiUser, FiChevronLeft, FiChevronRight } from "react-icons/fi";
@@ -47,7 +48,7 @@ export default function RegistrarVerificationQueuePage() {
     };
 
     const selectedProof = selectedUser?.AlumniProfile?.proof_document_url || null;
-    const filteredPendingUsers = pendingUsers.filter((item) => [item.name, item.email].some((value) => String(value || "").toLowerCase().includes(pendingQuery.trim().toLowerCase())));
+    const filteredPendingUsers = pendingUsers.filter((item) => [item.name, item.email, academicLabel(item.AlumniProfile?.course, item.AlumniProfile?.major, item.AlumniProfile?.graduation_year)].some((value) => String(value || "").toLowerCase().includes(pendingQuery.trim().toLowerCase())));
     const pageCount = Math.max(1, Math.ceil(filteredPendingUsers.length / pageSize));
     const currentPage = Math.min(page, pageCount);
     const start = (currentPage - 1) * pageSize;
@@ -108,7 +109,7 @@ export default function RegistrarVerificationQueuePage() {
                                 <td>{start + index + 1}</td>
                                 <td><div className="rvq-name-cell"><FaUserCircle className="avatar-icon" aria-hidden="true" /><span>{item.name || "Name not provided"}</span></div></td>
                                 <td>{item.email || "Not provided"}</td>
-                                <td>{item.AlumniProfile?.course || "N/A"}{item.AlumniProfile?.graduation_year ? ' ? Batch ' + item.AlumniProfile.graduation_year : ""}</td>
+                                <td>{academicLabel(item.AlumniProfile?.course, item.AlumniProfile?.major, item.AlumniProfile?.graduation_year)}</td>
                                 <td>{validDate ? <><span>{submitted.toLocaleDateString(undefined, { month: "short", day: "2-digit", year: "numeric" })}</span><small>{submitted.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small></> : "Not recorded"}</td>
                                 <td><span className="rvq-status">{item.account_status ? item.account_status.charAt(0).toUpperCase() + item.account_status.slice(1) : "Pending"}</span></td>
                                 <td><div className="rvq-row-actions"><button type="button" className="rvq-action-button" title="View user details" aria-label={'View details for ' + (item.name || "pending user")} disabled={reviewBusy} onClick={(event) => { event.stopPropagation(); selectPendingUser(item, true); }}><FiEye aria-hidden="true" /></button><button type="button" className="rvq-action-button" title="Start verification" aria-label={'Start verification for ' + (item.name || "pending user")} disabled={reviewBusy} onClick={(event) => { event.stopPropagation(); selectPendingUser(item, true); }}><FiCheck aria-hidden="true" /></button></div></td>
@@ -121,10 +122,10 @@ export default function RegistrarVerificationQueuePage() {
                     <header className="rvq-panel-header"><h2 id="rvq-selected-title">Selected Pending User</h2></header>
                     {!selectedUser ? <div className="rvq-empty-user"><div className="rvq-empty-avatar"><FiUser aria-hidden="true" /></div><div><h3>No user selected</h3><p>Select a pending alumni user from the list to view their details and start verification.</p></div></div> : <>
                         <div className="rvq-user-summary"><FaUserCircle className="rvq-user-avatar" aria-hidden="true" /><div><h3>{selectedUser.name || "Pending user"}</h3><p>{selectedUser.email || "Email not provided"}</p></div></div>
-                        <dl className="rvq-user-details"><dt>Submitted Info</dt><dd>{selectedUser.AlumniProfile?.course || "N/A"}{selectedUser.AlumniProfile?.graduation_year ? ' ? Batch ' + selectedUser.AlumniProfile.graduation_year : ""}</dd><dt>Status</dt><dd><Badge bg={statusVariant(selectedUser.account_status)}>{selectedUser.account_status === "verified" ? "Approved" : selectedUser.account_status}</Badge></dd><dt>Proof of Graduation</dt><dd>{selectedProof ? <><p className="text-success">Document submitted</p><Button variant="outline-success" size="sm" onClick={() => setShowProofModal(true)}>View Document</Button></> : <span className="text-danger">No document submitted</span>}</dd></dl>
+                        <dl className="rvq-user-details"><dt>Submitted Info</dt><dd>{academicLabel(selectedUser.AlumniProfile?.course, selectedUser.AlumniProfile?.major, selectedUser.AlumniProfile?.graduation_year)}</dd><dt>Status</dt><dd><Badge bg={statusVariant(selectedUser.account_status)}>{selectedUser.account_status === "verified" ? "Approved" : selectedUser.account_status}</Badge></dd><dt>Proof of Graduation</dt><dd>{selectedProof ? <><p className="text-success">Document submitted</p><Button variant="outline-success" size="sm" onClick={() => setShowProofModal(true)}>View Document</Button></> : <span className="text-danger">No document submitted</span>}</dd></dl>
                         <section className="rvq-record-match"><h3>Match an Official Record</h3><p>Search the master list and select the record used for verification.</p><AlumniSearchBar value={searchTerm} onChange={handleSearchChange} disabled={reviewBusy} />
-                            {selectedRecord && <Alert variant="success" className="mt-3 mb-2"><strong>{selectedRecord.full_name}</strong><br />{selectedRecord.course} ? Batch {selectedRecord.batch_year}</Alert>}
-                            <div className="search-result-list">{searchResults.map((record) => <button type="button" key={record.id} disabled={reviewBusy} className={'search-result-item' + (selectedRecord?.id === record.id ? " active" : "")} onClick={() => setSelectedRecord(record)}><strong>{record.full_name}</strong><span>{record.course} ? Batch {record.batch_year}</span></button>)}</div>
+                            {selectedRecord && <Alert variant="success" className="mt-3 mb-2"><strong>{selectedRecord.full_name}</strong><br />{academicLabel(selectedRecord.course, selectedRecord.major, selectedRecord.batch_year)}</Alert>}
+                            <div className="search-result-list">{searchResults.map((record) => <button type="button" key={record.id} disabled={reviewBusy} className={'search-result-item' + (selectedRecord?.id === record.id ? " active" : "")} onClick={() => setSelectedRecord(record)}><strong>{record.full_name}</strong><span>{academicLabel(record.course, record.major, record.batch_year)}</span></button>)}</div>
                             {searchTerm.trim() && searchResults.length === 0 && <p className="rvq-match-empty">No matching records found. Try another name.</p>}
                             <details className="rvq-master-list"><summary>Browse Master Alumni List</summary><AlumniRecordsTable records={records} selectedRecordId={selectedRecord?.id} /></details>
                         </section>

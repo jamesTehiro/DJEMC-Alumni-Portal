@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { programKey } from "../../utils/academicPrograms";
 import { api } from "../../services/api";
 import useStrictSafeEffect from "../../hooks/useStrictSafeEffect";
 
@@ -11,6 +12,7 @@ export default function useRegistrarAdminData() {
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+    const [editingRecord, setEditingRecord] = useState(null);
     const [showAddModal, setShowAddModal] = useState(false);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [savingRecord, setSavingRecord] = useState(false);
@@ -27,7 +29,7 @@ export default function useRegistrarAdminData() {
         const filtered = records.filter((r) => r?.course && String(r.course).trim() !== "");
         const counts = {};
         filtered.forEach((r) => {
-            const course = String(r.course).trim();
+            const course = programKey(r.course);
             counts[course] = (counts[course] || 0) + 1;
         });
         return Object.entries(counts)
@@ -135,15 +137,17 @@ export default function useRegistrarAdminData() {
         setSavingRecord(true);
         clearNotices();
         try {
-            const created = await api.post("/alumni-records", form, true);
-            setMessage("Alumni record added.");
+            const created = editingRecord ? await api.put(`/alumni-records/${editingRecord.id}`, form, true) : await api.post("/alumni-records", form, true);
+            setMessage(editingRecord ? "Alumni record updated." : "Alumni record added.");
             setShowAddModal(false);
             setIsAddModalOpen(false);
             await loadRecords();
             setSelectedRecord(created);
             setSearchTerm(created.full_name || "");
+            return true;
         } catch (err) {
             setError(err.message);
+            return false;
         } finally {
             setSavingRecord(false);
         }
@@ -159,7 +163,14 @@ export default function useRegistrarAdminData() {
         setIsAddModalOpen(false);
     };
 
+    const openEditModal = record => {
+        setEditingRecord(record);
+        setShowAddModal(true);
+        setIsAddModalOpen(true);
+    };
+
     const openAddModal = () => {
+        setEditingRecord(null);
         setShowAddModal(true);
         setIsAddModalOpen(true);
     };
@@ -184,6 +195,8 @@ export default function useRegistrarAdminData() {
         message,
         error,
         showAddModal,
+        editingRecord,
+        openEditModal,
         savingRecord,
         setSelectedUser,
         handleApprove,

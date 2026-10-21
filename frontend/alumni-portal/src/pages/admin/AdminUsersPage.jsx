@@ -1,4 +1,5 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import { academicInfo, academicLabel, programLabel, programKey } from "../../utils/academicPrograms";
+import React, { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import { api } from "../../services/api";
@@ -12,6 +13,14 @@ import "../AdminEmployerPage.css";
 import "../FeedPage.css";
 import "../AdminAlumniPage.css";
 import "./AdminAlumniRecordsPage.css";
+
+const ACCOUNT_STATUS_LABELS = new Map([
+    ["verified", "Verified"],
+    ["pending", "Pending"],
+    ["rejected", "Rejected"],
+    ["suspended", "Suspended"],
+    ["deactivated", "Deactivated"]
+]);
 
 export default function AdminUsersPage({ role }) {
     useRenderDebug(`AdminUsersPage:${role}`);
@@ -28,8 +37,6 @@ export default function AdminUsersPage({ role }) {
     const [trackingSummary, setTrackingSummary] = useState({ totalGraduates: 0, employed: 0, unemployed: 0, selfEmployed: 0 });
     const [trackingActivityError, setTrackingActivityError] = useState("");
     const [recordsQuery, setRecordsQuery] = useState("");
-    const [employmentFilter, setEmploymentFilter] = useState("");
-    const [trackingFilter, setTrackingFilter] = useState("");
     const [recordsPage, setRecordsPage] = useState(1);
     const [recordsPageSize, setRecordsPageSize] = useState(10);
     const [profileTab, setProfileTab] = useState("overview");
@@ -199,32 +206,18 @@ export default function AdminUsersPage({ role }) {
 
     if (role === "alumni") {
         const getRecordName = (item) => item.AlumniRecord?.full_name || item.name || "Unknown Alumni";
-        const getRecordCourse = (item) => item.AlumniRecord?.course || item.AlumniProfile?.course || "";
+        const getRecordCourse = (item) => academicInfo(item).course;
+        const getRecordMajor = (item) => academicInfo(item).major;
         const getRecordYear = (item) => item.AlumniRecord?.batch_year || item.AlumniProfile?.graduation_year || "";
-        const getTrackingStatus = (item) => {
-            if (item.account_status !== "verified") return { label: "Pending verification", tone: "pending" };
-            const requestStatus = item.latestProfileUpdateRequest?.status;
-            if (["pending", "sent", "responded"].includes(requestStatus)) return { label: "Update requested", tone: "requested" };
-            if (requestStatus === "failed") return { label: "Follow-up needed", tone: "follow-up" };
-            const updatedAt = item.AlumniProfile?.updatedAt;
-            const age = updatedAt ? Date.now() - new Date(updatedAt).getTime() : Number.POSITIVE_INFINITY;
-            return age <= 365 * 24 * 60 * 60 * 1000
-                ? { label: "Up to date", tone: "current" }
-                : { label: "Follow-up needed", tone: "follow-up" };
-        };
-        const courses = [...new Set(records.map(getRecordCourse).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+        const courses = [...new Set(records.map(item => programKey(getRecordCourse(item))).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
         const years = [...new Set(records.map(getRecordYear).filter(Boolean))].sort((a, b) => Number(b) - Number(a));
         const filtered = records.filter((item) => {
             const profile = item.AlumniProfile || {};
             const query = recordsQuery.trim().toLowerCase();
-            const matchesQuery = !query || [getRecordName(item), getRecordCourse(item), getRecordYear(item), profile.employment_status, profile.job_title, profile.current_company]
+            const matchesQuery = !query || [getRecordName(item), getRecordCourse(item), programLabel(getRecordCourse(item)), getRecordMajor(item), getRecordYear(item), profile.employment_status, profile.job_title, profile.current_company]
                 .some((value) => String(value || "").toLowerCase().includes(query));
-            const employment = getEmploymentStatus(item)?.label.toLowerCase() || "not specified";
-            const matchesEmployment = !employmentFilter || employment === employmentFilter;
-            const matchesTracking = !trackingFilter || getTrackingStatus(item).label.toLowerCase() === trackingFilter;
-            return matchesQuery && (!selectedCourse || getRecordCourse(item) === selectedCourse)
-                && (!selectedYear || String(getRecordYear(item)) === String(selectedYear))
-                && matchesEmployment && matchesTracking;
+            return matchesQuery && (!selectedCourse || programKey(getRecordCourse(item)) === selectedCourse)
+                && (!selectedYear || String(getRecordYear(item)) === String(selectedYear));
         }).sort((a, b) => getRecordName(a).localeCompare(getRecordName(b), undefined, { sensitivity: "base" }) || Number(a.id) - Number(b.id));
         const pageCount = Math.max(1, Math.ceil(filtered.length / recordsPageSize));
         const page = Math.min(recordsPage, pageCount);
@@ -289,35 +282,30 @@ export default function AdminUsersPage({ role }) {
                         <strong>{filtered.length} matching alumni</strong>
                     </div>
                     <div className="alumni-tracking-filters">
-                        <input type="search" value={recordsQuery} placeholder="Search name, course, year, position, or company" onChange={(event) => { setRecordsQuery(event.target.value); setRecordsPage(1); }} aria-label="Search alumni records" />
+                        <input type="search" value={recordsQuery} placeholder="Search name, program, major, year, position, or company" onChange={(event) => { setRecordsQuery(event.target.value); setRecordsPage(1); }} aria-label="Search alumni records" />
                         <select value={selectedCourse} onChange={(event) => { setSelectedCourse(event.target.value); setRecordsPage(1); }} aria-label="Filter by course">
-                            <option value="">All courses</option>{courses.map((course) => <option key={course} value={course}>{course}</option>)}
+                            <option value="">All program</option>{courses.map((course) => <option key={course} value={course}>{programLabel(course)}</option>)}
                         </select>
                         <select value={selectedYear} onChange={(event) => { setSelectedYear(event.target.value); setRecordsPage(1); }} aria-label="Filter by academic year">
                             <option value="">Academic Year</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}
-                        </select>
-                        <select value={employmentFilter} onChange={(event) => { setEmploymentFilter(event.target.value); setRecordsPage(1); }} aria-label="Filter by employment status">
-                            <option value="">All employment statuses</option><option value="employed">Employed</option><option value="unemployed">Unemployed</option><option value="self-employed">Self-Employed</option><option value="not specified">Not specified</option>
-                        </select>
-                        <select value={trackingFilter} onChange={(event) => { setTrackingFilter(event.target.value); setRecordsPage(1); }} aria-label="Filter by tracking status">
-                            <option value="">All tracking statuses</option><option value="up to date">Up to date</option><option value="follow-up needed">Follow-up needed</option><option value="update requested">Update requested</option><option value="pending verification">Pending verification</option>
                         </select>
                     </div>
 
                     <div className="alumni-tracking-table-wrap">
                         <table className="alumni-tracking-table">
-                            <thead><tr><th>Alumnus</th><th>Course / Year</th><th>Employment</th><th>Position / Company</th><th>Last Profile Update</th><th>Actions</th></tr></thead>
+                            <thead><tr><th>Alumnus</th><th>Academic Year</th><th>Program</th><th>Major / Specialization</th><th>Account Status</th><th>Actions</th></tr></thead>
                             <tbody>
                                 {recordsLoading ? <tr><td colSpan="6" className="alumni-tracking-empty">Loading alumni records…</td></tr> : visibleRecords.length === 0 ? <tr><td colSpan="6" className="alumni-tracking-empty">No alumni match these filters.</td></tr> : visibleRecords.map((item) => {
-                                    const employment = getEmploymentStatus(item);
-                                    const privateProfile = String(item.AlumniProfile?.profile_visibility || "public").toLowerCase() !== "public";
+                                    const rawAccountStatus = String(item.account_status || "").trim();
+                                    const accountStatus = rawAccountStatus.toLowerCase();
+                                    const accountStatusLabel = ACCOUNT_STATUS_LABELS.get(accountStatus) || rawAccountStatus || "Not available";
+                                    const accountStatusTone = accountStatus === "verified" ? "" : accountStatus === "pending" ? "pending" : "neutral";
                                     return (
                                         <tr key={item.id} role="button" tabIndex={0} className={Number(selectedProfile?.id) === Number(item.id) ? "selected" : ""} onClick={() => openProfilePreview(item)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openProfilePreview(item); } }}>
-                                            <td><strong>{getRecordName(item)}</strong><small>{item.account_status === "verified" ? "Verified account" : "Pending verification"}</small></td>
-                                            <td>{getRecordCourse(item) || "—"}<small>{getRecordYear(item) || "Year not recorded"}</small></td>
-                                            <td>{employment ? <span className={`employment-status-badge ${employment.tone}`}>{employment.label}</span> : <span className="alumni-tracking-muted">Not specified</span>}</td>
-                                            <td>{privateProfile ? <span className="alumni-tracking-muted">Private profile</span> : <>{item.AlumniProfile?.job_title || "—"}<small>{item.AlumniProfile?.current_company || "Company not listed"}</small></>}</td>
-                                            <td>{item.AlumniProfile?.updatedAt ? new Date(item.AlumniProfile.updatedAt).toLocaleDateString() : "Not updated"}</td>
+                                            <td><strong>{getRecordName(item)}</strong></td>
+                                            <td>{getRecordYear(item) || "Year not recorded"}</td>
+                                            <td>{programLabel(getRecordCourse(item))}</td><td>{getRecordMajor(item) || "Not recorded"}</td>
+                                            <td><span className={`alumni-tracking-status alumni-account-status ${accountStatusTone}`}>{accountStatusLabel}</span></td>
                                             <td><button type="button" className="alumni-profile-view-button" onClick={(event) => { event.stopPropagation(); openProfilePreview(item); }}>View Profile</button></td>
                                         </tr>
                                     );
@@ -337,7 +325,7 @@ export default function AdminUsersPage({ role }) {
                         <header className="alumni-profile-drawer-header">
                             <div className="alumni-profile-drawer-person">
                                 <div className={`alumni-record-profile-avatar ${profileImage ? "has-photo" : ""}`}>{profileImage ? <img src={profileImage} alt="" /> : getInitials(selectedProfile.name)}</div>
-                                <div><h2>{selectedProfile.AlumniRecord?.full_name || selectedProfile.name}</h2><p>{selectedProfile.AlumniRecord?.course || profileCourse} · Class of {selectedProfile.AlumniRecord?.batch_year || profileGraduationYear || "Not recorded"}</p><span className={`employment-status-badge ${getEmploymentStatus(selectedProfile)?.tone || ""}`}>{getEmploymentStatus(selectedProfile)?.label || "Employment not specified"}</span></div>
+                                <div><h2>{selectedProfile.AlumniRecord?.full_name || selectedProfile.name}</h2><p>{academicLabel(getRecordCourse(selectedProfile), getRecordMajor(selectedProfile))} · Class of {selectedProfile.AlumniRecord?.batch_year || profileGraduationYear || "Not recorded"}</p><span className={`employment-status-badge ${getEmploymentStatus(selectedProfile)?.tone || ""}`}>{getEmploymentStatus(selectedProfile)?.label || "Employment not specified"}</span></div>
                             </div>
                             <button type="button" aria-label="Close profile" onClick={closeDrawer}>×</button>
                         </header>
@@ -354,7 +342,7 @@ export default function AdminUsersPage({ role }) {
                             {profileLoading && <p className="alumni-tracking-muted">Loading permitted profile and tracking details…</p>}
                             {trackingActivityError && <div className="alumni-tracking-error" role="alert">{trackingActivityError}<button type="button" onClick={refreshTracking}>Retry</button></div>}
                             {!profileLoading && profileTab === "overview" && <div className="alumni-profile-overview">
-                                <h3>Overview</h3><dl><dt>Course</dt><dd>{selectedProfile.AlumniRecord?.course || profileCourse}</dd><dt>Graduation year</dt><dd>{selectedProfile.AlumniRecord?.batch_year || profileGraduationYear || "Not recorded"}</dd><dt>Account status</dt><dd>{selectedProfile.account_status || "Pending"}</dd><dt>Employment status</dt><dd>{getEmploymentStatus(selectedProfile)?.label || "Not specified"}</dd>
+                                <h3>Overview</h3><dl><dt>Program</dt><dd>{programLabel(getRecordCourse(selectedProfile))}</dd><dt>Major / Specialization</dt><dd>{getRecordMajor(selectedProfile) || "Not recorded"}</dd><dt>Graduation year</dt><dd>{selectedProfile.AlumniRecord?.batch_year || profileGraduationYear || "Not recorded"}</dd><dt>Account status</dt><dd>{selectedProfile.account_status || "Pending"}</dd><dt>Employment status</dt><dd>{getEmploymentStatus(selectedProfile)?.label || "Not specified"}</dd>
                                     {!profileIsPrivate && <><dt>Current position</dt><dd>{selectedProfile.AlumniProfile?.job_title || "Not listed"}</dd><dt>Company</dt><dd>{selectedProfile.AlumniProfile?.current_company || "Not listed"}</dd></>}
                                     <dt>Profile visibility</dt><dd>{profileIsPrivate ? "Private employment details are hidden" : "Public"}</dd><dt>Last profile update</dt><dd>{selectedProfile.AlumniProfile?.updatedAt ? new Date(selectedProfile.AlumniProfile.updatedAt).toLocaleString() : "Not recorded"}</dd>
                                 </dl>

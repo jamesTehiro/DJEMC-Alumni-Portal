@@ -89,7 +89,7 @@ export default function MessageAttachment({ message, openAttachment }) {
                         <Modal.Title>Image preview</Modal.Title>
                         <Button type="button" variant="light" onClick={downloadImage} aria-label="Download image"><FiDownload /></Button>
                     </Modal.Header>
-                    <Modal.Body>{showPreview && <DocumentPreview blob={previewBlob} name={name} />}</Modal.Body>
+                    <Modal.Body className="message-image-preview-body">{showPreview && <DocumentPreview blob={previewBlob} name={name} fitImage />}</Modal.Body>
                 </Modal>
             </>
         );

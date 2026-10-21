@@ -1,3 +1,5 @@
+import AcademicProgramFields from "../components/AcademicProgramFields";
+import { academicLabel } from "../utils/academicPrograms";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, Button, Form, Modal } from "react-bootstrap";
 import { useNavigate, useParams } from "react-router-dom";
@@ -67,6 +69,7 @@ export default function ProfilePage() {
         name: data?.name || "",
         email: data?.email || "",
         course: data?.AlumniProfile?.course || "",
+        major: data?.AlumniProfile?.major || "",
         graduation_year: data?.AlumniProfile?.graduation_year || "",
         phone: data?.AlumniProfile?.phone || "",
         address: data?.AlumniProfile?.address || data?.EmployerProfile?.address || "",
@@ -175,7 +178,8 @@ export default function ProfilePage() {
             };
 
             if (isAlumni) {
-                payload.course = form.course;
+                payload.course = form.course.trim();
+                payload.major = form.major.trim();
                 payload.graduation_year = form.graduation_year ? Number(form.graduation_year) : null;
                 payload.phone = form.phone;
                 payload.address = form.address;
@@ -369,7 +373,7 @@ export default function ProfilePage() {
                                         <h4 className="profile-name">{profile?.name || "No name"}</h4>
                                         {viewingOtherProfile && (
                                             <p className="profile-course">
-                                                {alumniProfile?.course || employerProfile?.organization_name || "No profile info"}
+                                                {alumniProfile?.course ? academicLabel(alumniProfile.course, alumniProfile.major) : employerProfile?.organization_name || "No profile info"}
                                             </p>
                                         )}
                                         <p className="profile-year">
@@ -404,10 +408,7 @@ export default function ProfilePage() {
                                     {isAlumni && (
                                         <>
                                             <h6 className="form-section-title">Alumni Details</h6>
-                                            <Form.Group className="mb-2">
-                                                <Form.Label>Course</Form.Label>
-                                                <Form.Control name="course" value={form?.course || ""} onChange={handleChange} />
-                                            </Form.Group>
+                                            <AcademicProgramFields course={form?.course || ""} major={form?.major || ""} allowLegacy={form?.course === alumniProfile?.course} allowMissingMajor={form?.course === alumniProfile?.course && !alumniProfile?.major} onChange={academic => setForm(prev => ({ ...prev, ...academic }))} />
                                             <Form.Group className="mb-2">
                                                 <Form.Label>Graduation Year</Form.Label>
                                                 <Form.Control name="graduation_year" value={form?.graduation_year || ""} onChange={handleChange} />
@@ -650,7 +651,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 <h5>{profile?.name || "N/A"}</h5>
-                                <p>{alumniProfile?.course || employerProfile?.organization_name || "N/A"}</p>
+                                <p>{alumniProfile?.course ? academicLabel(alumniProfile.course, alumniProfile.major) : employerProfile?.organization_name || "N/A"}</p>
                                 {isAlumni && (editing ? form?.job_title : alumniProfile?.job_title) && (
                                     <p className="resume-job-title">{editing ? form.job_title : alumniProfile.job_title}</p>
                                 )}

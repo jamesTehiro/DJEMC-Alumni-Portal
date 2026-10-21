@@ -15,7 +15,7 @@
 .master-records-card > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .master-records-card h2 { font-size: 18px; font-weight: 700; color: #00533d; margin: 0; }
 .master-records-card > header > span { font-size: 12px; color: #64748b; }
-.master-records-filters { display: grid; grid-template-columns: minmax(200px, 1.5fr) 1fr 1fr auto; gap: 12px; margin-bottom: 14px; }
+.master-records-filters { display: grid; grid-template-columns: minmax(200px, 1.5fr) repeat(3, minmax(0, 1fr)) auto; gap: 12px; margin-bottom: 14px; }
 .master-records-filters input, .master-records-filters select, .master-records-clear, .master-records-pagination select { min-width: 0; height: 38px; border: 1px solid #dce4e9; border-radius: 6px; background: #fff; font: inherit; font-size: 12px; color: #334155; padding: 0 12px; }
 .master-records-search { display: flex; align-items: center; gap: 8px; border: 1px solid #dce4e9; border-radius: 6px; padding: 0 12px; min-width: 0; color: #8794a6; }
 .master-records-search input { border: 0; padding: 0; width: 100%; outline: none; }

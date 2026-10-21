@@ -1,4 +1,5 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import { academicInfo, academicLabel } from "../utils/academicPrograms";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Modal } from "react-bootstrap";
 import { FiMessageCircle, FiSend } from "react-icons/fi";
@@ -271,8 +272,8 @@ export default function AdminAlumniPage() {
 
     // Helpers for Total / Active alumni panels
     const getUserName = (user) => user?.full_name || user?.name || user?.email || "Unknown";
-    const getUserCourse = (user) => user?.AlumniProfile?.course || user?.course || "N/A";
-    const getUserYear = (user) => user?.AlumniProfile?.graduation_year || user?.graduation_year || "N/A";
+    const getUserCourse = (user) => { const info = academicInfo(user); return academicLabel(info.course, info.major); };
+    const getUserYear = (user) => academicInfo(user).year || "N/A";
     const getUserAddress = (user) => user?.AlumniProfile?.address || "N/A";
     const getUserEmployment = (user) => user?.AlumniProfile?.latestEmployment || "Unemployed";
 
@@ -290,13 +291,13 @@ export default function AdminAlumniPage() {
         return (
             <div>
                 <div style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center" }}>
-                    <input placeholder="Search name, course, year" value={totalQuery} onChange={(e) => { setTotalQuery(e.target.value); setTotalPage(1); }} />
+                    <input placeholder="Search name, program, major, year" value={totalQuery} onChange={(e) => { setTotalQuery(e.target.value); setTotalPage(1); }} />
                 </div>
 
                 <div className="queue-table">
                     <div className="queue-row header">
                         <span>Name</span>
-                        <span>Course</span>
+                        <span>Program / Major</span>
                         <span>Graduation Year</span>
                     </div>
                     {pageItems.length === 0 ? (
@@ -355,13 +356,13 @@ export default function AdminAlumniPage() {
         return (
             <div>
                 <div style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "center" }}>
-                    <input placeholder="Search name, course, address or employment" value={activeQuery} onChange={(e) => { setActiveQuery(e.target.value); setActivePage(1); }} />
+                    <input placeholder="Search name, program, major, address or employment" value={activeQuery} onChange={(e) => { setActiveQuery(e.target.value); setActivePage(1); }} />
                 </div>
 
                 <div className="queue-table">
                     <div className="queue-row header">
                         <span>Name</span>
-                        <span>Course</span>
+                        <span>Program / Major</span>
                         <span>Address</span>
                         <span>Employment</span>
                         <span>Status</span>
@@ -372,7 +373,7 @@ export default function AdminAlumniPage() {
                         pageItems.map((u) => (
                             <div className="queue-row" key={u.id || `${u.email}-${u.account_status}`}>
                                 <span title={getUserName(u)} style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{getUserName(u)}</span>
-                                <span title={getUserCourse(u)} style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{getUserCourse(u)}</span>
+                                <span title={getUserCourse(u)} style={{ overflowWrap: "anywhere" }}>{getUserCourse(u)}</span>
                                 <span title={getUserAddress(u)} style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{getUserAddress(u)}</span>
                                 <span title={getUserEmployment(u)} style={{ textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>{getUserEmployment(u)}</span>
                                 <span>{u.isActive ? "Active" : "Inactive"}</span>

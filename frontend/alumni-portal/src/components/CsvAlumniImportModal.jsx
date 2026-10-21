@@ -1,3 +1,4 @@
+import { programLabel } from "../utils/academicPrograms";
 import React, { useRef, useState } from "react";
 import { Alert, Button, Form, Modal, Spinner, Table } from "react-bootstrap";
 import { FiDownload, FiUpload } from "react-icons/fi";
@@ -5,7 +6,7 @@ import { api } from "../services/api";
 import "./CsvAlumniImportModal.css";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
-const TEMPLATE_URL = `data:text/csv;charset=utf-8,${encodeURIComponent("full_name,course,batch_year,student_id,email\r\n")}`;
+const TEMPLATE_URL = `data:text/csv;charset=utf-8,${encodeURIComponent("full_name,course,batch_year,major,student_id,email\r\n")}`;
 
 export default function CsvAlumniImportModal({ show, onHide, onImported }) {
     const [file, setFile] = useState(null);
@@ -92,7 +93,7 @@ export default function CsvAlumniImportModal({ show, onHide, onImported }) {
                 <p className="csv-alumni-import-intro">Choose a CSV file, review its records, then confirm the import. Records are checked again when you confirm, and duplicates are skipped.</p>
                 <div className="csv-alumni-import-requirements">
                     <p>Required headers: <code>full_name</code>, <code>course</code>, <code>batch_year</code></p>
-                    <p>Optional headers: <code>student_id</code>, <code>email</code></p>
+                    <p>Optional headers: <code>major</code>, <code>student_id</code>, <code>email</code>. New BSBA and BSED rows require a configured major. Historical three-column CSV files remain supported for programs without required majors.</p>
                     <p>Save as UTF-8 CSV. Maximum 2 MB and 1,000 data rows.</p>
                     <Button as="a" href={TEMPLATE_URL} download="alumni-records-template.csv" variant="outline-success" size="sm"><FiDownload aria-hidden="true" /> Download CSV template</Button>
                 </div>
@@ -128,8 +129,8 @@ export default function CsvAlumniImportModal({ show, onHide, onImported }) {
                         <h3>Record preview</h3>
                         <p>Showing the first {preview.length} {preview.length === 1 ? "record" : "records"} ready to import.</p>
                         <Table responsive size="sm" className="mb-0">
-                            <thead><tr><th>CSV row</th><th>Full name</th><th>Program</th><th>Year graduated</th></tr></thead>
-                            <tbody>{preview.map((record) => <tr key={record.row}><td>{record.row}</td><td>{record.full_name}</td><td>{record.course}</td><td>{record.batch_year}</td></tr>)}</tbody>
+                            <thead><tr><th>CSV row</th><th>Full name</th><th>Program</th><th>Major / Specialization</th><th>Year graduated</th></tr></thead>
+                            <tbody>{preview.map((record) => <tr key={record.row}><td>{record.row}</td><td>{record.full_name}</td><td>{programLabel(record.course)}</td><td>{record.major || "Not recorded"}</td><td>{record.batch_year}</td></tr>)}</tbody>
                         </Table>
                     </div>}
                 </section>}

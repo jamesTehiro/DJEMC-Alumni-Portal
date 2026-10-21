@@ -91,9 +91,10 @@ async function fixture({ mobile = false, expired = false } = {}) {
     return { page, registrations, requests, failures };
 }
 async function complete(page, email = "ui.fixture@gmail.com") {
-    for (const [name, value] of Object.entries({ name: "UI Fixture Graduate", email, course: "BSIT", graduationYear: "2023", password: "Ui-fixture-password-123!", confirmPassword: "Ui-fixture-password-123!" })) {
+    for (const [name, value] of Object.entries({ name: "UI Fixture Graduate", email, graduationYear: "2023", password: "Ui-fixture-password-123!", confirmPassword: "Ui-fixture-password-123!" })) {
         await page.type(`input[name="${name}"]`, value);
     }
+    await page.select('select[name="course"]', "BSIT");
     await (await page.$('input[type="file"]')).uploadFile(proof);
     await page.click("button.highlight-link");
     await page.waitForSelector(".modal.show");

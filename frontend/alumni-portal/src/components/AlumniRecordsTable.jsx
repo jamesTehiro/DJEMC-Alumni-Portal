@@ -1,3 +1,4 @@
+import { academicLabel, programLabel, programKey } from "../utils/academicPrograms";
 import React, { useMemo, useState } from "react";
 import DeleteConfirmationModal from "./DeleteConfirmationModal";
 
@@ -14,7 +15,7 @@ export default function AlumniRecordsTable({
 
     const groupedRecords = useMemo(() => {
         return records.reduce((acc, record) => {
-            const courseKey = record.course || "Unassigned";
+            const courseKey = programKey(record.course) || "Unassigned";
             const batchKey = String(record.batch_year || "Unknown");
             acc[courseKey] = acc[courseKey] || {};
             acc[courseKey][batchKey] = acc[courseKey][batchKey] || [];
@@ -68,7 +69,7 @@ export default function AlumniRecordsTable({
                                 setExpandedBatch("");
                             }}
                         >
-                            <span>{course}</span>
+                            <span>{programLabel(course)}</span>
                             <span className="records-toggle-count">{batches.length} batch{batches.length === 1 ? "" : "es"}</span>
                         </button>
 
@@ -106,7 +107,7 @@ export default function AlumniRecordsTable({
                                                                 <div className="records-name-info">
                                                                     <div>{record.full_name}</div>
                                                                     <div style={{ fontSize: "0.8em", color: "#6b7280", marginTop: "2px" }}>
-                                                                        {record.course || "—"} • Batch {record.batch_year || "—"}
+                                                                        {academicLabel(record.course, record.major, record.batch_year)}
                                                                     </div>
                                                                 </div>
                                                                 <div>

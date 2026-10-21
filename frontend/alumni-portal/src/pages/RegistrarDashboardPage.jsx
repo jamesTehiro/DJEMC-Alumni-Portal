@@ -1,3 +1,4 @@
+import { academicLabel, programLabel } from "../utils/academicPrograms";
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button, Card, Form, Table } from "react-bootstrap";
@@ -273,7 +274,7 @@ function RegistrarEmploymentAnalytics({ courseCounts = [] }) {
                                             <div style={{ display: "grid", gap: 6 }}>
                                                 {courseCounts.map((item) => (
                                                     <div key={item.course} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0" }}>
-                                                        <span className="employ-course-name">{item.course}</span>
+                                                        <span className="employ-course-name">{programLabel(item.course)}</span>
                                                         <span className="employ-course-count">{item.count}</span>
                                                     </div>
                                                 ))}
@@ -308,7 +309,7 @@ function getPendingYear(item) {
 }
 
 function getPendingCourse(item) {
-    return item?.AlumniProfile?.course ?? item?.course ?? "—";
+    return academicLabel(item?.AlumniProfile?.course ?? item?.course, item?.AlumniProfile?.major ?? item?.major);
 }
 
 function getEmploymentNormalized(raw) {
@@ -510,7 +511,7 @@ function PendingAlumniPanel() {
 
 
 function getMasterCourse(item) {
-    return item?.course ?? "—";
+    return academicLabel(item?.course, item?.major);
 }
 
 function getMasterBatch(item) {

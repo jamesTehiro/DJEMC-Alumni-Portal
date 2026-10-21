@@ -24,6 +24,8 @@ export default function RegistrarRecordsPage() {
         message,
         error,
         showAddModal,
+        editingRecord,
+        openEditModal,
         savingRecord,
         handleSaveRecord,
         openAddModal,
@@ -139,6 +141,7 @@ export default function RegistrarRecordsPage() {
                 selectedRecordId={selectedRecord?.id}
                 onSelectRecord={setSelectedRecord}
                 onDeleteRecord={handleDeleteRecord}
+                onEditRecord={openEditModal}
                 deletingRecordId={deletingRecordId}
                 actions={<>
                     <Button variant="outline-success" onClick={() => setShowImportModal(true)} disabled={refreshingRecords}><FiUpload aria-hidden="true" />Import CSV</Button>
@@ -150,6 +153,8 @@ export default function RegistrarRecordsPage() {
                 show={showAddModal}
                 onHide={closeAddModal}
                 onSave={handleSaveRecord}
+                initialRecord={editingRecord}
+                error={error}
                 loading={savingRecord}
             />
             {showImportModal && <CsvAlumniImportModal show onHide={() => setShowImportModal(false)} onImported={handleImported} />}

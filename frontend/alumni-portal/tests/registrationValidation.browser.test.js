@@ -90,7 +90,7 @@ test('both routed registration forms validate before requests, retain documents,
                 await put('name', employer ? 'Fixture Company' : 'Fixture Alumni');
                 await put('email', employer ? 'fixture@example.invalid' : 'fixture.validation@gmail.com');
                 if (employer) await put('companyAddress', 'Fixture Address');
-                else { await put('graduationYear', '2024'); await put('course', 'BSIT'); }
+                else { await put('graduationYear', '2024'); await page.select('select[name="course"]', 'BSIT'); }
                 await (await page.$('input[type="file"]')).uploadFile(document);
                 if (employer) await page.waitForSelector('[aria-label="Selected business permit documents"] li');
                 await submit(); await warning('Password Required');
