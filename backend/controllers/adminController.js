@@ -20,9 +20,9 @@ exports.getAlumniUsers = async (req, res) => {
             include: [
                 {
                     model: db.AlumniProfile,
-                    attributes: ["course", "graduation_year", "avatar_url", "employment_status", "job_title", "address", "profile_visibility", "current_company", "updatedAt"]
+                    attributes: ["course", "major", "graduation_year", "avatar_url", "employment_status", "job_title", "address", "profile_visibility", "current_company", "updatedAt"]
                 },
-                { model: db.AlumniRecord, as: "AlumniRecord", attributes: ["id", "full_name", "course", "batch_year"] }
+                { model: db.AlumniRecord, as: "AlumniRecord", attributes: ["id", "full_name", "course", "major", "batch_year"] }
             ],
             order: [["createdAt", "DESC"]]
         });
@@ -84,10 +84,10 @@ exports.getAlumniTrackingDetails = async (req, res) => {
             include: [
                 {
                     model: db.AlumniProfile,
-                    attributes: ["course", "graduation_year", "avatar_url", "profile_visibility", "employment_status", "current_company", "job_title", "updatedAt"],
+                    attributes: ["course", "major", "graduation_year", "avatar_url", "profile_visibility", "employment_status", "current_company", "job_title", "updatedAt"],
                     include: [{ model: db.EmploymentHistory, attributes: ["id", "company_name", "position", "start_year", "end_year", "employment_type"] }]
                 },
-                { model: db.AlumniRecord, as: "AlumniRecord", attributes: ["id", "full_name", "course", "batch_year"] }
+                { model: db.AlumniRecord, as: "AlumniRecord", attributes: ["id", "full_name", "course", "major", "batch_year"] }
             ]
         });
         if (!alumni) return res.status(404).json({ msg: "Alumni account not found." });

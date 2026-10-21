@@ -1,0 +1,10 @@
+[
+  {"value":"BSBA","label":"BS in Business Administration (BSBA)","aliases":["BS in Business Administration","Bachelor of Science in Business Administration"],"majors":["Marketing Management","Financial Management","Operations Management"]},
+  {"value":"BSED","label":"Bachelor of Secondary Education (BSED)","aliases":["Bachelor of Secondary Education"],"majors":["English","Science"]},
+  {"value":"BEED","label":"Bachelor of Elementary Education (BEED)","aliases":["Bachelor of Elementary Education"],"majors":[]},
+  {"value":"BSTM","label":"BS in Tourism Management (BSTM)","aliases":["BS in Tourism Management","Bachelor of Science in Tourism Management"],"majors":[]},
+  {"value":"BSHM","label":"BS in Hospitality Management (BSHM)","aliases":["BS in Hospitality Management","Bachelor of Science in Hospitality Management"],"majors":[]},
+  {"value":"BSCRIM","label":"BS in Criminology (BSCRIM)","aliases":["CRIM","BS in Criminology","Bachelor of Science in Criminology"],"majors":[]},
+  {"value":"BSIT","label":"BS in Information Technology (BSIT)","aliases":["BS in Information Technology","Bachelor of Science in Information Technology"],"majors":[]},
+  {"value":"Bachelor of Arts in English Language","label":"Bachelor of Arts in English Language","aliases":[],"majors":[]}
+]

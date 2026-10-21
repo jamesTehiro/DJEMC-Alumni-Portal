@@ -109,6 +109,7 @@ const toLimitedProfile = (target) => ({
     AlumniProfile: target.AlumniProfile
         ? {
             course: target.AlumniProfile.course,
+            major: target.AlumniProfile.major,
             graduation_year: target.AlumniProfile.graduation_year,
             avatar_url: target.AlumniProfile.avatar_url,
             profile_visibility: target.AlumniProfile.profile_visibility || "private",

@@ -1,4 +1,5 @@
 const { Op } = require("sequelize");
+const { programs, validateAcademicProgram } = require("../utils/academicPrograms");
 const db = require("../models");
 const lockRecordWrites = require("../utils/alumniRecordsWriteLock");
 const { tolerantNameWhere } = require("../utils/alumniNameSearch");
@@ -10,7 +11,7 @@ exports.getAlumniRecords = async (_req, res) => {
         // Overlays: AlumniProfile (address, employment_status, current_company, job_title)
 
         const records = await db.AlumniRecord.findAll({
-            attributes: ["id", "full_name", "student_id", "course", "batch_year", "createdAt"],
+            attributes: ["id", "full_name", "student_id", "email", "course", "major", "batch_year", "createdAt"],
             include: [
                 {
                     model: db.User,
@@ -44,9 +45,13 @@ exports.searchAlumniRecords = async (req, res) => {
         const where = {
             [Op.or]: [
                 { full_name: { [Op.like]: `%${name}%` } },
-                { course: { [Op.like]: `%${name}%` } }
+                { course: { [Op.like]: `%${name}%` } },
+                { major: { [Op.like]: `%${name}%` } }
             ]
         };
+
+        const matchingPrograms = programs.filter(program => [program.value, program.label, ...program.aliases].some(value => value.toLowerCase().includes(name.toLowerCase())));
+        if (matchingPrograms.length) where[Op.or].push({ course: { [Op.in]: matchingPrograms.flatMap(program => [program.value, program.label, ...program.aliases]) } });
 
         const batchYear = Number(name);
         if (!Number.isNaN(batchYear)) {
@@ -55,7 +60,7 @@ exports.searchAlumniRecords = async (req, res) => {
 
         const searchOptions = {
             where,
-            attributes: ["id", "full_name", "course", "batch_year"],
+            attributes: ["id", "full_name", "course", "major", "batch_year"],
             include: [
                 {
                     model: db.User,
@@ -93,6 +98,7 @@ exports.createAlumniRecord = async (req, res) => {
         if (!full_name || !course || !batch_year) {
             return res.status(400).json({ msg: "Full name, course, and batch year are required." });
         }
+        const academic = validateAcademicProgram(course, req.body.major);
         transaction = await db.sequelize.transaction();
         await lockRecordWrites(transaction);
 
@@ -148,7 +154,7 @@ exports.createAlumniRecord = async (req, res) => {
         const record = await db.AlumniRecord.create({
             full_name,
             student_id: student_id || null,
-            course,
+            ...academic,
             batch_year,
             email: email || null
         }, { transaction });
@@ -156,7 +162,7 @@ exports.createAlumniRecord = async (req, res) => {
         // Fetch the created record with overlays to match getAlumniRecords response format
         const createdWithOverlays = await db.AlumniRecord.findByPk(record.id, {
             transaction,
-            attributes: ["id", "full_name", "student_id", "course", "batch_year", "createdAt"],
+            attributes: ["id", "full_name", "student_id", "email", "course", "major", "batch_year", "createdAt"],
             include: [
                 {
                     model: db.User,
@@ -201,5 +207,42 @@ exports.deleteAlumniRecord = async (req, res) => {
     } catch (err) {
         console.error("[DELETE_ALUMNI_RECORD_ERR]", err);
         res.status(500).json({ msg: err.message });
+    }
+};
+
+exports.updateAlumniRecord = async (req, res) => {
+    let transaction;
+    try {
+        const id = Number(req.params.id);
+        if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ msg: "Valid alumni record ID is required." });
+        transaction = await db.sequelize.transaction();
+        await lockRecordWrites(transaction);
+        const record = await db.AlumniRecord.findByPk(id, { transaction, lock: transaction.LOCK.UPDATE });
+        if (!record) {
+            await transaction.rollback();
+            return res.status(404).json({ msg: "Alumni record not found." });
+        }
+        const has = field => Object.prototype.hasOwnProperty.call(req.body, field);
+        const course = has("course") ? req.body.course : record.course;
+        const major = has("major") ? req.body.major : course === record.course ? record.major : null;
+        const academic = validateAcademicProgram(course, major, { previous: record });
+        const values = { ...academic, full_name: String(req.body.full_name ?? record.full_name).trim(), batch_year: Number(req.body.batch_year ?? record.batch_year) };
+        if (!values.full_name || values.full_name.length > 255 || !Number.isInteger(values.batch_year)) {
+            throw Object.assign(new Error("Enter a full name and valid batch year."), { status: 400 });
+        }
+        for (const field of ["student_id", "email"]) if (has(field)) values[field] = String(req.body[field] || "").trim() || null;
+        const identities = [{ full_name: values.full_name, course: academic.course, batch_year: values.batch_year }];
+        const student = has("student_id") ? values.student_id : record.student_id;
+        const email = has("email") ? values.email : record.email;
+        if (student) identities.push({ student_id: student });
+        if (email) identities.push({ email: { [Op.like]: email } });
+        const duplicate = await db.AlumniRecord.findOne({ where: { id: { [Op.ne]: id }, [Op.or]: identities }, transaction });
+        if (duplicate) throw Object.assign(new Error("Alumni record already exists."), { status: 409 });
+        await record.update(values, { transaction });
+        await transaction.commit();
+        res.json(record);
+    } catch (error) {
+        if (transaction && !transaction.finished) await transaction.rollback();
+        res.status(error.status || 500).json({ msg: error.message });
     }
 };

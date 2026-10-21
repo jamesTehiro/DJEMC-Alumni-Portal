@@ -14,6 +14,7 @@ router.get("/", alumniRecordController.getAlumniRecords);
 router.get("/search", alumniRecordController.searchAlumniRecords);
 router.post("/", alumniRecordController.createAlumniRecord);
 router.post("/import-csv", csvUpload, alumniRecordImportController.importCsv);
+router.put("/:id", alumniRecordController.updateAlumniRecord);
 router.delete("/:id", alumniRecordController.deleteAlumniRecord);
 
 module.exports = router;

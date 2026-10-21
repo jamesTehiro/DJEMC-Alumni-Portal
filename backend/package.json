@@ -14,6 +14,7 @@
     "migrate:message-attachments": "node scripts/applyMessageAttachmentMigrations.js",
     "migrate:messaging-storage": "node scripts/repairMessagingStorage.js",
     "migrate:application-document-paths": "node scripts/applyApplicationDocumentPathMigration.js",
+    "migrate:alumni-major": "node scripts/applyAlumniMajorMigration.js",
     "migrate:membership": "node scripts/applyMembershipMigration.js",
     "migrate:job-posting": "node scripts/applyJobPostingMigration.js",
     "sequelize": "sequelize"

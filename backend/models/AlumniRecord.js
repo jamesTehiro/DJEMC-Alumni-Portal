@@ -8,6 +8,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             unique: true
         },
+        major: { type: DataTypes.STRING(255), allowNull: true },
         course: {
             type: DataTypes.STRING,
             allowNull: false

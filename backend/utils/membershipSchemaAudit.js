@@ -5,8 +5,8 @@ function membershipReadSchema(expected, inventory) {
  const reads = [
   { model: 'User', attributes: ['id', 'name', 'email', 'role', 'admin_scope', 'account_status', 'alumni_record_id'] },
   { model: 'MembershipApplication', attributes: null }, // findOne selects every modeled column.
-  { model: 'AlumniProfile', attributes: ['id', 'user_id', 'phone', 'address', 'course', 'graduation_year', 'job_title', 'current_company'] },
-  { model: 'AlumniRecord', attributes: ['id', 'course', 'batch_year'], condition: 'user.alumni_record_id is set' },
+  { model: 'AlumniProfile', attributes: ['id', 'user_id', 'phone', 'address', 'course', 'major', 'graduation_year', 'job_title', 'current_company'] },
+  { model: 'AlumniRecord', attributes: ['id', 'course', 'major', 'batch_year'], condition: 'user.alumni_record_id is set' },
   { model: 'EmploymentHistory', attributes: ['id', 'alumni_id', 'company_name', 'position', 'start_year', 'end_year', 'employment_type'], condition: 'an alumni profile exists' }
  ];
  const dependencies = reads.map(read => {

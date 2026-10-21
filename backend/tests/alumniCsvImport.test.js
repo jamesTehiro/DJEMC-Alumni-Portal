@@ -151,6 +151,37 @@ const request = (mode, buffer) => ({
 
 test.after(async () => { await db.sequelize.close(); });
 
+test("CSV preview and import preserve configured/custom majors and skip unchanged majorless legacy duplicates", async () => {
+    const content = Buffer.from("full_name,course,batch_year,major\nBusiness Alum,BSBA,2024,Marketing Management\nEducation Alum,BSED,2023,Science\nHistorical Alum,Historical Diploma,1995,Service\nLegacy Business,BSBA,2001,");
+    await withDatabase({ existing: [{ full_name: "Legacy Business", course: "BSBA", batch_year: 2001, major: null }] }, async state => {
+        const preview = createRes();
+        await importController.importCsv(request("preview", content), preview);
+        assert.equal(preview.body.errors, 0);
+        assert.equal(preview.body.duplicates, 1);
+        assert.deepEqual(preview.body.preview.map(row => row.major), ["Marketing Management", "Science", "Service"]);
+        assert.equal(state.writes.length, 0);
+        const imported = createRes();
+        await importController.importCsv(request("import", content), imported);
+        assert.equal(imported.statusCode, 201);
+        assert.equal(imported.body.inserted, 3);
+        assert.equal(state.records.length, 4);
+        assert.equal(state.records[0].major, null);
+        assert.deepEqual(state.records.slice(1).map(row => row.major), ["Marketing Management", "Science", "Service"]);
+    });
+});
+
+test("invalid major rows report their line and roll back any otherwise valid import rows", async () => {
+    await withDatabase({}, async state => {
+        const imported = createRes();
+        await importController.importCsv(request("import", Buffer.from("full_name,course,batch_year,major\nValid Alum,BSBA,2024,Operations Management\nInvalid Alum,BSED,2024,Biology")), imported);
+        assert.equal(imported.statusCode, 422);
+        assert.equal(imported.body.issues[0].row, 3);
+        assert.match(imported.body.issues[0].message, /English, Science/);
+        assert.equal(state.records.length, 0);
+        assert.equal(state.audits.length, 0);
+    });
+});
+
 test("CSV parser accepts UTF-8 BOM, CRLF, quoted commas, escaped quotes, and reordered headers", () => {
     const parsed = parseCsv(Buffer.from('\uFEFFcourse,batch_year,full_name,student_id,email\r\nBSIT,2020,"Dela Cruz, Ana ""AJ""",,\r\n', "utf8"));
     assert.deepEqual(parsed.headers, ["course", "batch_year", "full_name", "student_id", "email"]);
@@ -158,7 +189,7 @@ test("CSV parser accepts UTF-8 BOM, CRLF, quoted commas, escaped quotes, and reo
     const result = validateCsv(parsed);
     assert.equal(result.issues.length, 0);
     assert.deepEqual(result.validRows[0].record, {
-        full_name: 'Dela Cruz, Ana "AJ"', course: "BSIT", batch_year: 2020, student_id: null, email: null
+        full_name: 'Dela Cruz, Ana "AJ"', course: "BSIT", major: null, batch_year: 2020, student_id: null, email: null
     });
 });
 
@@ -200,7 +231,7 @@ test("CSV parser enforces file, record, and column limits", () => {
     assert.throws(() => parseCsv(Buffer.alloc(MAX_CSV_BYTES + 1, 65)), (error) => error.status === 413);
     const rows = Array.from({ length: MAX_CSV_ROWS + 1 }, (_, index) => `Alum ${index},BSIT,2020`);
     assert.throws(() => parseCsv(Buffer.from(["full_name,course,batch_year", ...rows].join("\n"))), /at most.*records/i);
-    assert.throws(() => parseCsv(Buffer.from(`${header},extra\nAna,BSIT,2020,,,value`)), /too many.*columns/i);
+    assert.throws(() => parseCsv(Buffer.from(`${header},major,extra\nAna,BSIT,2020,,,,value`)), /too many.*columns/i);
     const accepted = parseCsv(Buffer.from(["full_name,course,batch_year", ...rows.slice(0, MAX_CSV_ROWS)].join("\n")));
     assert.equal(accepted.rows.length, MAX_CSV_ROWS);
 });
@@ -219,7 +250,7 @@ test("CSV validation normalizes Unicode, whitespace, optional blanks, and email 
     const result = reviewed(csv("  Jose\u0301 Cruz  , BSIT ,2020, ,ALUM@EXAMPLE.TEST"));
     assert.equal(result.issues.length, 0);
     assert.deepEqual(result.validRows[0].record, {
-        full_name: "José Cruz", course: "BSIT", batch_year: 2020, student_id: null, email: "alum@example.test"
+        full_name: "José Cruz", course: "BSIT", major: null, batch_year: 2020, student_id: null, email: "alum@example.test"
     });
 });
 
@@ -267,8 +298,8 @@ test("CSV validation accepts only full four-digit years within the supported ran
 test("Duplicate classification skips existing identifiers and name/program/batch combinations", () => {
     const existing = [{ full_name: "Ana Cruz", course: "BSIT", batch_year: 2020, student_id: "ID01", email: "ana@example.test" }];
     const rows = reviewed(csv(
-        "Other Name,BSED,2021,id01,",
-        "Another Name,BSED,2021,,ANA@EXAMPLE.TEST",
+        "Other Name,BEED,2021,id01,",
+        "Another Name,BEED,2021,,ANA@EXAMPLE.TEST",
         "ANA CRUZ, bsit ,2020,,",
         "Ana Cruz,BSIT,2021,,"
     )).validRows;
@@ -283,8 +314,8 @@ test("Duplicate classification skips repeated identities inside the CSV and perm
     const rows = reviewed(csv(
         "Ana Cruz,BSIT,2020,ID01,ana@example.test",
         "Ana  Cruz,bsit,2020,,",
-        "Other Name,BSED,2021,id01,",
-        "Another Name,BSED,2021,,ANA@EXAMPLE.TEST",
+        "Other Name,BEED,2021,id01,",
+        "Another Name,BEED,2021,,ANA@EXAMPLE.TEST",
         "New Alum,BSIT,2020,,"
     )).validRows;
     const result = classifyDuplicates(rows, []);
@@ -304,14 +335,14 @@ test("CSV preview reads records without opening a transaction or writing records
         assert.equal(state.transactions.length, 0);
         assert.equal(state.writes.length, 0);
         assert.equal(state.audits.length, 0);
-        assert.deepEqual(res.body.preview[0], { row: 2, full_name: "Ana Cruz", course: "BSIT", batch_year: 2020 });
+        assert.deepEqual(res.body.preview[0], { row: 2, full_name: "Ana Cruz", course: "BSIT", major: null, batch_year: 2020 });
         assert.equal(JSON.stringify(res.body).includes("ana@example.test"), false);
         assert.equal(JSON.stringify(res.body).includes("ID01"), false);
     });
 });
 
 test("CSV preview caps the displayed preview and reports invalid and duplicate rows", async () => {
-    const existing = [{ full_name: "Existing Alum", course: "BSIT", batch_year: 2020, student_id: null, email: null }];
+    const existing = [{ full_name: "Existing Alum", course: "BSIT", major: null, batch_year: 2020, student_id: null, email: null }];
     await withDatabase({ existing }, async (state) => {
         const rows = Array.from({ length: 25 }, (_, index) => `Alum ${index},BSIT,2020,,`);
         const res = createRes();
@@ -340,7 +371,7 @@ test("CSV import blocks the complete file when any row is invalid", async () => 
 });
 
 test("CSV import skips duplicate rows and commits inserted records with one audit before reporting success", async () => {
-    const existing = [{ full_name: "Existing Alum", course: "BSIT", batch_year: 2020, student_id: null, email: null }];
+    const existing = [{ full_name: "Existing Alum", course: "BSIT", major: null, batch_year: 2020, student_id: null, email: null }];
     await withDatabase({ existing }, async (state) => {
         const res = createRes();
         const originalJson = res.json;
@@ -387,7 +418,7 @@ test("CSV import transactionally imports synthetic batches of 10 and 100 valid r
 });
 
 test("CSV import checks database collation equivalence and skips accent-equivalent existing names", async () => {
-    const existing = [{ full_name: "José Cruz", course: "BSIT", batch_year: 2020, student_id: null, email: null }];
+    const existing = [{ full_name: "José Cruz", course: "BSIT", major: null, batch_year: 2020, student_id: null, email: null }];
     await withDatabase({ existing }, async (state) => {
         const res = createRes();
         await importController.importCsv(request("import", csv("Jose Cruz,BSIT,2020,,")), res);
@@ -451,7 +482,7 @@ test("Manual creation commits before success and rolls back a duplicate without 
         assert.equal(state.records.length, 1);
         assert.equal(state.locks.length, 1);
     });
-    const existing = [{ full_name: "Ana Cruz", course: "BSIT", batch_year: 2020, student_id: null, email: null }];
+    const existing = [{ full_name: "Ana Cruz", course: "BSIT", major: null, batch_year: 2020, student_id: null, email: null }];
     await withDatabase({ existing }, async (state) => {
         const res = createRes();
         await alumniRecordController.createAlumniRecord({ body: { full_name: "ANA CRUZ", course: "bsit", batch_year: "2020" } }, res);

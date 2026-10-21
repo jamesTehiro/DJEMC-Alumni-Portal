@@ -1,8 +1,9 @@
 const { TextDecoder } = require("node:util");
+const { validateAcademicProgram } = require("./academicPrograms");
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 const MAX_CSV_ROWS = 1000;
-const ALLOWED_COLUMNS = ["full_name", "course", "batch_year", "student_id", "email"];
+const ALLOWED_COLUMNS = ["full_name", "course", "batch_year", "student_id", "email", "major"];
 const normalizeKey = (value) => String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLowerCase();
 const recordKey = (record) => JSON.stringify([normalizeKey(record.full_name), normalizeKey(record.course), Number(record.batch_year)]);
 
@@ -65,7 +66,7 @@ function parseCsv(buffer) {
     return { headers, rows };
 }
 
-function validateCsv(parsed) {
+function validateCsv(parsed, { deferAcademicValidation = false } = {}) {
     const validRows = [], issues = [];
     const latestYear = new Date().getFullYear() + 1;
     for (const row of parsed.rows) {
@@ -80,10 +81,12 @@ function validateCsv(parsed) {
         }
         if (!/^\d{4}$/.test(record.batch_year) || Number(record.batch_year) < 1900 || Number(record.batch_year) > latestYear) problems.push(`batch_year must be a year between 1900 and ${latestYear}.`);
         if (record.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(record.email)) problems.push("email is invalid.");
+        try { if (!deferAcademicValidation) Object.assign(record, validateAcademicProgram(record.course, record.major)); }
+        catch (error) { problems.push(error.message); }
         if (problems.length) {
             issues.push({ row: row.row, kind: "invalid", message: problems.join(" ") });
         } else {
-            validRows.push({ row: row.row, record: { full_name: record.full_name, course: record.course, batch_year: Number(record.batch_year), student_id: record.student_id || null, email: record.email?.toLowerCase() || null } });
+            validRows.push({ row: row.row, record: { full_name: record.full_name, course: record.course, major: record.major || null, batch_year: Number(record.batch_year), student_id: record.student_id || null, email: record.email?.toLowerCase() || null } });
         }
     }
     return { validRows, issues };

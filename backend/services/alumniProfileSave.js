@@ -1,4 +1,5 @@
 const db = require("../models");
+const { validateAcademicProgram } = require("../utils/academicPrograms");
 
 const invalid = (message) => { throw Object.assign(new Error(message), { status: 400 }); };
 const has = (body, field) => Object.prototype.hasOwnProperty.call(body, field);
@@ -8,7 +9,7 @@ function validateAlumniProfile(body, user) {
     const email = String(body.email ?? user.email ?? "").trim();
     if (!name || name.length > 255) invalid("Enter a name of up to 255 characters.");
     if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid("Enter a valid email address.");
-    for (const field of ["phone", "address", "course", "current_company", "job_title"]) {
+    for (const field of ["phone", "address", "course", "major", "current_company", "job_title"]) {
         if (has(body, field) && body[field] !== null && (typeof body[field] !== "string" || body[field].length > 255)) invalid(`${field} must be text of up to 255 characters.`);
     }
     if (has(body, "profile_visibility") && !["public", "private"].includes(body.profile_visibility)) invalid("Invalid profile visibility.");
@@ -58,7 +59,11 @@ async function saveAlumniProfile({ user, body, avatarPath, normalizeImagePath })
         await owner.update({ name: clean.name, email: clean.email }, { transaction });
         const [profile] = await db.AlumniProfile.findOrCreate({ where: { user_id: owner.id }, defaults: { user_id: owner.id }, transaction });
         const values = {};
-        for (const field of ["course", "graduation_year", "phone", "address", "profile_visibility", "current_company", "job_title"]) {
+        if (has(body, "course") || has(body, "major")) {
+            const changedProgram = has(body, "course") && String(body.course || "").trim() !== String(profile.course || "").trim();
+            Object.assign(values, validateAcademicProgram(has(body, "course") ? body.course : profile.course, has(body, "major") ? body.major : changedProgram ? null : profile.major, { previous: profile, required: false }));
+        }
+        for (const field of ["graduation_year", "phone", "address", "profile_visibility", "current_company", "job_title"]) {
             if (has(body, field)) values[field] = field === "graduation_year" ? (body[field] ? Number(body[field]) : null) : body[field];
         }
         if (has(body, "employment_status")) values.employment_status = body.employment_status ? String(body.employment_status).trim().toLowerCase() : null;

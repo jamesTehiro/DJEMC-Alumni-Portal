@@ -53,9 +53,10 @@ async function membershipAdministrator(req) {
 
 async function getMembershipPrefill(user, transaction) {
     const queryOptions = transaction ? { transaction } : {};
-    const profile = await db.AlumniProfile.findOne({ where: { user_id: user.id }, attributes: ["id", "phone", "address", "course", "graduation_year", "job_title", "current_company"], ...queryOptions });
-    const official = user.alumni_record_id ? await db.AlumniRecord.findByPk(user.alumni_record_id, { attributes: ["id", "course", "batch_year"], ...queryOptions }) : null;
+    const profile = await db.AlumniProfile.findOne({ where: { user_id: user.id }, attributes: ["id", "phone", "address", "course", "major", "graduation_year", "job_title", "current_company"], ...queryOptions });
+    const official = user.alumni_record_id ? await db.AlumniRecord.findByPk(user.alumni_record_id, { attributes: ["id", "course", "major", "batch_year"], ...queryOptions }) : null;
     const academic_program = official?.course || profile?.course || null;
+    const major = official?.course ? official.major || null : profile?.major || null;
     const graduation_year = official?.batch_year || profile?.graduation_year || null;
     const nameParts = String(user.name || "").trim().split(/\s+/).filter(Boolean);
     const first_name = nameParts.length > 1 ? nameParts.slice(0, -1).join(" ") : nameParts[0] || "";
@@ -63,9 +64,9 @@ async function getMembershipPrefill(user, transaction) {
     const histories = profile ? await db.EmploymentHistory.findAll({ where: { alumni_id: profile.id }, attributes: ["company_name", "position", "start_year", "end_year", "employment_type"], order: [["start_year", "DESC"], ["id", "DESC"]], ...queryOptions }) : [];
     return {
         personal_details: { first_name, last_name, email: user.email || "", contact_number: profile?.phone || "", current_address: profile?.address || "", designation: profile?.job_title || "", agency_office: profile?.current_company || "" },
-        educational_attainment: academic_program || graduation_year ? [{ level: "Bachelor's", school_name: "Don Jose Ecleo Memorial College", address: "", year_graduated: graduation_year ? String(graduation_year) : "", honors_awards: "", program: academic_program || "", competency: "" }] : [],
+        educational_attainment: academic_program || graduation_year ? [{ level: "Bachelor's", school_name: "Don Jose Ecleo Memorial College", address: "", year_graduated: graduation_year ? String(graduation_year) : "", honors_awards: "", program: academic_program || "", competency: major || "" }] : [],
         work_experience: histories.map(item => ({ employment_period: `${item.start_year || ""} - ${item.end_year || "Present"}`, position: item.position || "", agency_employer: item.company_name || "", employment_status: item.employment_type || "" })),
-        academic_summary: { academic_program, graduation_year, source: official ? "official_record" : profile ? "profile" : null },
+        academic_summary: { academic_program, major, graduation_year, source: official ? "official_record" : profile ? "profile" : null },
         academic_verified: Boolean(official)
     };
 }

@@ -115,6 +115,8 @@ exports.register = async (req, res, next) => {
             return res.status(400).json({ msg: "Name, email, password, and role are required." });
         }
 
+        const academic = role === "alumni" ? require("../utils/academicPrograms").validateAcademicProgram(course, req.body.major) : null;
+
         if (role === "admin") {
             return res
                 .status(403)
@@ -191,7 +193,8 @@ exports.register = async (req, res, next) => {
                     where: { user_id: createdUser.id },
                     defaults: {
                         user_id: createdUser.id,
-                        course: course || null,
+                        course: academic.course,
+                        major: academic.major,
                         graduation_year: graduationYear || graduation_year || null,
                         proof_document_path: proofDocumentPath
                     },
