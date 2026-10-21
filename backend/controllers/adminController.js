@@ -139,7 +139,7 @@ exports.requestAlumniProfileUpdate = async (req, res) => {
         const alumniId = Number(req.params.userId);
         if (!Number.isInteger(alumniId) || alumniId <= 0) return res.status(400).json({ msg: "Invalid alumni user ID." });
         const cooldownStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const requestMessage = "The Alumni Admin requests that you review and update your career and employment information. Open your profile in the Alumni Portal to make any needed changes. Your employment status will not change unless you update it.";
+        const requestMessage = "Hello, DJEMC Alumni!\n\nWould you like to update your educational background, employment status, or career progress? You may review and update your profile anytime through your Alumni Portal.\n\nThank you for staying connected with DJEMC!";
 
         const result = await db.sequelize.transaction(async (transaction) => {
             const alumni = await db.User.findOne({

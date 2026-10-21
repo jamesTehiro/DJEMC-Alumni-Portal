@@ -44,6 +44,11 @@ test("admin profile update request creates one recipient notification and queues
         assert.equal(queuedEmails.length, 1);
         assert.equal(queuedEmails[0].to, "alumni@example.invalid");
         assert.equal(queuedEmails[0].dedupe_key, "alumni-profile-update:91");
+        const expectedMessage = "Hello, DJEMC Alumni!\n\nWould you like to update your educational background, employment status, or career progress? You may review and update your profile anytime through your Alumni Portal.\n\nThank you for staying connected with DJEMC!";
+        assert.equal(created.request_message, expectedMessage);
+        assert.equal(createdNotifications[0].message, expectedMessage);
+        assert.equal(queuedEmails[0].message, expectedMessage);
+        assert.equal(queuedEmails[0].subject, "Please Update Your DJEMC Alumni Profile");
     });
 });
 
