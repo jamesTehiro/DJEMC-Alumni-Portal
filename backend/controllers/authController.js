@@ -105,6 +105,10 @@ exports.register = async (req, res, next) => {
         const { name, password, role, company_address, companyAddress, website_url, websiteUrl, course, graduationYear, graduation_year } = req.body;
         const email = normalizeRegistrationEmail(req.body.email);
         const proofDocumentFile = req.files?.proof_document?.[0];
+        const proofDocumentFiles = req.files?.proof_document || [];
+        if (role === "alumni" && proofDocumentFiles.length > 6) {
+            return res.status(400).json({ msg: "You can upload up to six proof of graduation files." });
+        }
         const { isValidGraduationYear, getGraduationYearError } = require("../utils/graduationYear");
         if (role === "alumni" && (!isValidGraduationYear(graduationYear ?? graduation_year) ||
             (graduationYear != null && graduation_year != null && String(graduationYear) !== String(graduation_year)))) {
@@ -188,6 +192,9 @@ exports.register = async (req, res, next) => {
                 const proofDocumentPath = proofDocumentFile
                     ? (proofDocumentFile.storageRef || `/uploads/documents/${proofDocumentFile.filename}`)
                     : null;
+                const proofDocuments = proofDocumentFiles.length
+                    ? JSON.stringify(proofDocumentFiles.map(require("../services/alumniProofDocuments").fileMetadata))
+                    : null;
 
                 await db.AlumniProfile.findOrCreate({
                     where: { user_id: createdUser.id },
@@ -196,7 +203,8 @@ exports.register = async (req, res, next) => {
                         course: academic.course,
                         major: academic.major,
                         graduation_year: graduationYear || graduation_year || null,
-                        proof_document_path: proofDocumentPath
+                        proof_document_path: proofDocumentPath,
+                        ...(proofDocuments ? { proof_documents: proofDocuments } : {})
                     },
                     transaction
                 });
@@ -205,6 +213,7 @@ exports.register = async (req, res, next) => {
                     const accountProfile = await db.AlumniProfile.findOne({ where: { user_id: createdUser.id }, transaction });
                     if (accountProfile) {
                         accountProfile.proof_document_path = proofDocumentPath;
+                        accountProfile.proof_documents = proofDocuments;
                         await accountProfile.save({ transaction });
                     }
                 }

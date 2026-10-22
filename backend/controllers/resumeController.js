@@ -86,7 +86,7 @@ exports.getResume = async (req, res) => {
 
 const db = require('../models');
 const { Op } = require('sequelize');
-const { normalizeSections, saveSections, readSections, badRequest, normalizeTemplateId } = require('../services/resumePersistence');
+const { normalizeSections, saveSections, readSections, badRequest, normalizeTemplateId, normalizeSkillCategories } = require('../services/resumePersistence');
 
 function mainResumeFields(body) {
     const result = {};
@@ -98,6 +98,7 @@ function mainResumeFields(body) {
     if (result.font_size !== undefined && (!Number.isInteger(Number(result.font_size)) || result.font_size < 8 || result.font_size > 14)) throw badRequest('Font size must be between 8 and 14 pt.');
     if (result.line_spacing !== undefined && (!Number.isFinite(Number(result.line_spacing)) || result.line_spacing < 1.15 || result.line_spacing > 2)) throw badRequest('Line spacing must be between 1.15 and 2.');
     if (result.settings !== undefined && (!result.settings || typeof result.settings !== 'object' || Array.isArray(result.settings))) throw badRequest('Invalid resume settings.');
+    if (result.settings?.skill_categories !== undefined) result.settings = { ...result.settings, skill_categories: normalizeSkillCategories(result.settings.skill_categories) };
     const key = result.settings?.client_draft_id;
     if (key !== undefined && (typeof key !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(key))) throw badRequest('Invalid resume draft identifier.');
     return result;

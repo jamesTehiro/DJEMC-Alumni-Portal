@@ -135,8 +135,14 @@ const canAccessProfileAsset = async (reqUser, relativePath) => {
 const canAccessAlumniProofDocument = async (reqUser, relativePath) => {
     if (reqUser?.role !== "admin" || reqUser.admin_scope !== "registrar") return false;
     const alumniProfile = await db.AlumniProfile.findOne({ where: { proof_document_path: relativePath } });
-    if (!alumniProfile) return false;
-    return true;
+    if (alumniProfile) return true;
+    // Match a complete stored reference in the metadata, never a filename or a
+    // partial path. Sequelize escapes the JSON candidate as a SQL value.
+    const profile = await db.AlumniProfile.findOne({
+        attributes: ["proof_documents"],
+        where: db.Sequelize.where(db.Sequelize.fn("JSON_CONTAINS", db.Sequelize.col("proof_documents"), JSON.stringify({ storage_ref: relativePath })), 1)
+    });
+    return !!profile && require("../services/alumniProofDocuments").readProofDocuments(profile).some(document => document.storage_ref === relativePath);
 };
 
 const canAccessPath = async (reqUser, relativePath) => {

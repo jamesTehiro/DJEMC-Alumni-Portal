@@ -43,6 +43,16 @@ function normalizeItem(section, item, index) {
         normalized[field] = value;
     }
     if (!definition.one && normalized.sort_order === undefined) normalized.sort_order = index + 1;
+    if (section === "skills") {
+        if (typeof normalized.skill_name !== "string" || !normalized.skill_name.trim()) throw badRequest("Enter a name for every skill.");
+        normalized.skill_name = normalized.skill_name.trim();
+        if (normalized.skill_name.length > 255) throw badRequest("Skill names must be 255 characters or fewer.");
+        if (normalized.category != null) {
+            if (typeof normalized.category !== "string") throw badRequest("Skill categories must be text.");
+            normalized.category = normalized.category.trim();
+            if (normalized.category.length > 100) throw badRequest("Category names must be 100 characters or fewer.");
+        }
+    }
     return normalized;
 }
 
@@ -55,9 +65,33 @@ function normalizeSections(body) {
         } else {
             if (!Array.isArray(body[key])) throw badRequest(`${key} must be a list.`);
             normalized[key] = body[key].map((item, index) => normalizeItem(key, item, index));
+            if (key === "skills") {
+                const seen = new Set();
+                for (const item of normalized[key]) {
+                    const category = String(item.category || "").toLowerCase();
+                    const identity = JSON.stringify([category === "uncategorized" ? "" : category, item.skill_name.toLowerCase()]);
+                    if (seen.has(identity)) throw badRequest("This skill already exists in that category.");
+                    seen.add(identity);
+                }
+            }
         }
     }
     return normalized;
+}
+
+function normalizeSkillCategories(categories) {
+    if (!Array.isArray(categories)) throw badRequest("Skill categories must be a list.");
+    const seen = new Set();
+    return categories.map(category => {
+        if (typeof category !== "string" || !category.trim()) throw badRequest("Enter a category name.");
+        const name = category.trim();
+        if (name.length > 100) throw badRequest("Category names must be 100 characters or fewer.");
+        const key = name.toLowerCase();
+        if (key === "uncategorized") throw badRequest("Uncategorized is reserved for skills without a category.");
+        if (seen.has(key)) throw badRequest("This skill category already exists.");
+        seen.add(key);
+        return name;
+    });
 }
 
 async function saveSections(resumeId, normalized, transaction) {
@@ -94,4 +128,4 @@ function normalizeTemplateId(value, fallback = "university-green") {
     return templateIds.find((id) => id.replace(/-/g, "") === key) || aliases[key] || fallback;
 }
 
-module.exports = { sections, normalizeSections, saveSections, readSections, toPlain, badRequest, normalizeTemplateId };
+module.exports = { sections, normalizeSections, saveSections, readSections, toPlain, badRequest, normalizeTemplateId, normalizeSkillCategories };

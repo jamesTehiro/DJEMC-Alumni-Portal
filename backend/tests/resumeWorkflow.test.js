@@ -198,3 +198,65 @@ test('PDF policy rejects oversized/untrusted markup and blocks remote or filesys
     assert.equal(pdf.isAllowedResource('data:image/png;base64,aGVsbG8='), true);
     for (const url of ['http://localhost:5000/api/profile', 'https://example.com/image.png', 'file:///C:/secret', 'data:text/html;base64,abcd', 'data:image/svg+xml;base64,abcd']) assert.equal(pdf.isAllowedResource(url), false);
 });
+
+test('categories and all seven programming skills survive create, reload, recategorize, rename, remove and duplicate', async () => {
+    await fixture(async context => {
+        const resume = complete();
+        const names = ['Node.js', 'JavaScript', 'CSS', 'HTML', 'React', 'Vite', 'MySQL'];
+        resume.skills = [...names.map(skill_name => ({ skill_name, category: 'Programming' })), { skill_name: 'Problem solving', category: null }, { skill_name: 'Git', category: 'Tools' }];
+        resume.settings.skill_categories = ['Programming', 'Tools', 'Empty Category'];
+        const created = response(); await controller.createResume(request(resume), created);
+        assert.equal(created.statusCode, 201);
+        const loaded = response(); await controller.getResume(request(), loaded);
+        assert.deepEqual(loaded.body.skills.slice(0, 7).map(skill => [skill.skill_name, skill.category]), names.map(name => [name, 'Programming']));
+        assert.deepEqual(loaded.body.settings.skill_categories, ['Programming', 'Tools', 'Empty Category']);
+        const edited = loaded.body.skills.map(skill => skill.skill_name === 'MySQL' ? { ...skill, category: 'Database Management' } : skill.category === 'Tools' ? { ...skill, category: 'Tools and Technologies' } : skill);
+        const updated = response(); await controller.updateResume(request({ skills: edited, settings: { ...resume.settings, skill_categories: ['Programming', 'Database Management', 'Tools and Technologies', 'Empty Category'] } }), updated);
+        assert.equal(updated.statusCode, 200);
+        const reloaded = response(); await controller.getResume(request(), reloaded);
+        assert.equal(reloaded.body.skills.find(skill => skill.skill_name === 'MySQL').category, 'Database Management');
+        assert.equal(reloaded.body.skills.find(skill => skill.skill_name === 'Git').category, 'Tools and Technologies');
+        assert.equal(reloaded.body.skills.find(skill => skill.skill_name === 'Problem solving').category, null);
+        assert.equal(reloaded.body.summary.content, 'Summary');
+        assert.equal(reloaded.body.education[0].institution, 'DJEMC');
+        const copy = response(); await controller.duplicateResume(request(), copy);
+        assert.equal(copy.statusCode, 201);
+        const copied = response(); await controller.getResume(request({}, String(copy.body.data.id)), copied);
+        assert.deepEqual(copied.body.skills.map(skill => [skill.skill_name, skill.category]), reloaded.body.skills.map(skill => [skill.skill_name, skill.category]));
+        assert.deepEqual(copied.body.settings.skill_categories, reloaded.body.settings.skill_categories);
+        // Removing a category changes assignments only, retaining its skills.
+        const ungrouped = reloaded.body.skills.map(skill => skill.category === 'Programming' ? { ...skill, category: null } : skill);
+        await controller.updateResume(request({ skills: ungrouped, settings: { ...reloaded.body.settings, skill_categories: reloaded.body.settings.skill_categories.filter(name => name !== 'Programming') } }), response());
+        assert.equal(context.state().sections.skills.filter(skill => String(skill.resume_id) === '1').length, 9);
+        await controller.updateResume(request({ skills: ungrouped.filter(skill => skill.skill_name !== 'Git') }), response());
+        assert.equal(context.state().sections.skills.filter(skill => String(skill.resume_id) === '1').length, 8);
+        assert.equal(context.state().sections.summary.find(item => item.resume_id === 1).content, 'Summary');
+    });
+});
+
+test('invalid/empty skills, category names and duplicates fail before writes and preserve the saved resume', async () => {
+    await fixture(async context => {
+        await controller.createResume(request(complete()), response());
+        const before = structuredClone(context.state());
+        const invalid = [
+            { skills: [{ skill_name: ' ' }] }, { skills: [{ category: 'Programming' }] },
+            { skills: [{ skill_name: 42 }] }, { skills: [{ skill_name: 'x'.repeat(256) }] },
+            { skills: [{ skill_name: 'React', category: {} }] }, { skills: [{ skill_name: 'React', category: 'x'.repeat(101) }] },
+            { skills: [{ skill_name: 'React', category: 'Programming' }, { skill_name: ' react ', category: ' programming ' }] },
+            { skills: [{ skill_name: 'React', category: null }, { skill_name: 'react', category: 'Uncategorized' }] },
+            ...['bad', [''], ['  '], [42], ['x'.repeat(101)], ['Programming', ' programming ']].map(skill_categories => ({ settings: { skill_categories } }))
+        ];
+        for (const body of invalid) {
+            const res = response(); await controller.updateResume(request(body), res);
+            assert.equal(res.statusCode, 400, JSON.stringify(body));
+            assert.deepEqual(context.state(), before, 'Invalid edits must not delete or replace saved sections');
+        }
+        const valid = persistence.normalizeSections({ skills: [{ name: ' React ', category: ' Programming ' }, { skill_name: 'React', category: 'Tools' }, { skill_name: 'Legacy' }, { skill_name: 'Other legacy', category: null }] });
+        assert.equal(valid.skills[0].skill_name, 'React');
+        assert.equal(valid.skills[0].category, 'Programming');
+        assert.equal(valid.skills[2].category, undefined);
+        assert.equal(valid.skills[3].category, null);
+        assert.equal(db.ResumeSkill.getTableName(), 'resumeskills');
+        assert.equal(db.ResumeSkill.rawAttributes.category.type.options.length, 100);
+    });
+});

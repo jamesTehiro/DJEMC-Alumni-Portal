@@ -3,12 +3,13 @@ const notificationController = require("./notificationController");
 const auditService = require("../services/auditService");
 const { toSecureFileUrl } = require("./fileController");
 const { getStoredFileOriginalName } = require("../services/objectStorage");
+const { readProofDocuments } = require("../services/alumniProofDocuments");
 
 exports.getPendingAlumniUsers = async (_req, res) => {
     try {
         const users = await db.User.findAll({
             where: { role: "alumni", account_status: "pending" },
-            include: [{ model: db.AlumniProfile }],
+            include: [{ model: db.AlumniProfile, attributes: { include: ["proof_documents"] } }],
             order: [["createdAt", "DESC"]]
         });
 
@@ -23,6 +24,12 @@ exports.getPendingAlumniUsers = async (_req, res) => {
                 profile.has_proof_document = false;
                 profile.proof_document_name = null;
             }
+            profile.proof_documents = readProofDocuments(profile).map(document => ({
+                name: document.name,
+                mime_type: document.mime_type,
+                size: document.size,
+                url: toSecureFileUrl(document.storage_ref)
+            }));
             return { ...user.toJSON(), AlumniProfile: profile };
         });
 

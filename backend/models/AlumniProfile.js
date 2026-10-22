@@ -12,12 +12,14 @@ module.exports = (sequelize, DataTypes) => {
             profile_visibility: DataTypes.STRING,
             avatar_url: DataTypes.TEXT,
             proof_document_path: DataTypes.TEXT,
+            proof_documents: DataTypes.TEXT,
             employment_status: DataTypes.STRING(30),
             current_company: DataTypes.STRING,
             job_title: DataTypes.STRING
         },
         {
-            tableName: "alumniprofiles"
+            tableName: "alumniprofiles",
+            defaultScope: { attributes: { exclude: ["proof_documents"] } }
         }
     );
 };

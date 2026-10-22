@@ -385,6 +385,7 @@ exports.applicationUpload = applicationUpload;
 const withBusinessPermitValidation = parser => (req, res, next) => parser(req, res, async error => {
     if (error) {
         if (error.code === "LIMIT_UNEXPECTED_FILE" && error.field === "business_permit") return next(Object.assign(new Error("You can upload up to five business permit files."), { status: 400 }));
+        if (error.code === "LIMIT_UNEXPECTED_FILE" && error.field === "proof_document") return next(Object.assign(new Error("You can upload up to six proof of graduation files."), { status: 400 }));
         return next(error);
     }
     const files = req.files?.business_permit || [];
@@ -423,14 +424,16 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
 
 exports.registrationUpload = withBusinessPermitValidation(upload.fields([
     { name: "business_permit", maxCount: 5 },
-    { name: "proof_document", maxCount: 1 }
+    { name: "proof_document", maxCount: 6 }
  ]));
 
 exports.employerRegistrationUpload = withBusinessPermitValidation(upload.fields([
     { name: "business_permit", maxCount: 5 }
  ]));
 
-exports.alumniRegistrationUpload = upload.single("proof_document");
+exports.alumniRegistrationUpload = withBusinessPermitValidation(upload.fields([
+    { name: "proof_document", maxCount: 6 }
+]));
 
 const chatUpload = multer({ storage, limits, fileFilter: chatFileFilter }).single("attachment");
 const runChatUpload = (req, res, next) => chatUpload(req, res, (err) => {
