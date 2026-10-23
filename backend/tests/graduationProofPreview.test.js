@@ -37,6 +37,16 @@ test("new private PNG/PDF proofs retain names, proxy bytes for admins, and deny 
             return Response.json(providerAsset);
         }
         downloads++;
+        const requestUrl = new URL(url);
+        if (requestUrl.hostname === "api.cloudinary.com" && requestUrl.pathname === "/v1_1/proof-fixture/raw/download") {
+            assert.equal(requestUrl.searchParams.get("public_id"), providerAsset.public_id);
+            assert.equal(requestUrl.searchParams.get("type"), "authenticated");
+            assert.equal(requestUrl.searchParams.get("format"), "pdf");
+            const params = [...requestUrl.searchParams].filter(([key]) => !["signature", "api_key"].includes(key));
+            const payload = params.sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => `${key}=${value}`).join("&");
+            assert.equal(requestUrl.searchParams.get("signature"), crypto.createHash("sha1").update(payload + "fixture-secret").digest("hex"));
+            return new Response(bytes, { headers: { "Content-Type": "application/octet-stream" } });
+        }
         const segments = new URL(url).pathname.split("/").filter(Boolean);
         if (segments.filter(segment => /^s--.*--$/.test(segment)).length !== 1) {
             return new Response(null, { status: 400, headers: { "X-Cld-Error": "Invalid transformation component" } });

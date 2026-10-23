@@ -6,6 +6,8 @@ import { FiMail, FiUser } from "react-icons/fi";
 import AlumniDataPrivacyModal from "../components/AlumniDataPrivacyModal";
 import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
+import AlumniDocumentInput from "../components/AlumniDocumentInput";
+import { validateAlumniDocuments } from "../utils/alumniDocuments";
 import "./RegisterPage.css";
 
 export default function RegisterPage() {
@@ -30,6 +32,7 @@ export default function RegisterPage() {
     const [success, setSuccess] = useState("");
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [consentEnabled, setConsentEnabled] = useState(false);
+    const [proofDocuments, setProofDocuments] = useState([]);
 
     const handleRegisterChange = (e) => {
         setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
@@ -72,7 +75,12 @@ export default function RegisterPage() {
                 return;
             }
 
-            await api.post("/auth/register", {
+            const documentError = validateAlumniDocuments(proofDocuments);
+            if (documentError) {
+                setError(documentError);
+                return;
+            }
+            const registration = {
                 name: registerForm.name,
                 email: registerForm.email,
                 password: registerForm.password,
@@ -80,7 +88,14 @@ export default function RegisterPage() {
                 course: registerForm.course.trim(),
                 major: registerForm.major.trim(),
                 graduationYear: registerForm.graduationYear
-            });
+            };
+            let payload = registration;
+            if (proofDocuments.length) {
+                payload = new FormData();
+                Object.entries(registration).forEach(([key, value]) => payload.append(key, value));
+                proofDocuments.forEach(file => payload.append("proof_document", file));
+            }
+            await api.post("/auth/register", payload);
             setSuccess("Registration successful. You can now log in.");
             setTimeout(() => setIsRightPanelActive(false), 500);
         } catch (err) {
@@ -185,6 +200,10 @@ export default function RegisterPage() {
 
                                 <div className="col-12">
                                     <AcademicProgramFields course={registerForm.course} major={registerForm.major} onChange={academic => setRegisterForm(prev => ({ ...prev, ...academic }))} />
+                                </div>
+
+                                <div className="col-12">
+                                    <AlumniDocumentInput files={proofDocuments} onChange={setProofDocuments} disabled={loading} />
                                 </div>
 
                                 <div className="col-12">

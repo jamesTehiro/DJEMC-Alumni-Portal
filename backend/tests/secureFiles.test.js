@@ -55,6 +55,15 @@ test("secure files enforce authorization, provider identity and no-store deliver
     stub(db.AlumniProfile, "findOne", async ({ where }) => where.user_id === 8 || where.proof_document_path === reference ? profile : null);
     stub(db.AlumniProfile, "findOrCreate", async ({ defaults }) => { profile.proof_document_path = defaults.proof_document_path; reference = defaults.proof_document_path; return [profile, true]; });
     stub(db.User, "findOne", async () => null);
+    stub(db.User, "findByPk", async id => ({
+        1: { id: 1, role: "admin", admin_scope: "registrar", account_status: "verified" },
+        2: { id: 2, role: "admin", admin_scope: "employer", account_status: "verified" },
+        3: { id: 3, role: "admin", admin_scope: "alumni", account_status: "verified" },
+        4: { id: 4, role: "admin", admin_scope: null, account_status: "verified" },
+        8: { id: 8, role: "alumni", admin_scope: null, account_status: "pending" },
+        9: { id: 9, role: "employer", admin_scope: null, account_status: "verified" },
+        10: { id: 10, role: "employer", admin_scope: null, account_status: "verified" }
+    })[id] || null);
     stub(db.User, "create", async values => ({ ...values, id: 8, account_status: "pending" }));
     stub(db.User, "findAll", async () => [{ toJSON: () => ({ id: 8 }), AlumniProfile: profile }]);
     stub(db.sequelize, "transaction", callback => callback({}));
@@ -119,18 +128,26 @@ test("secure files enforce authorization, provider identity and no-store deliver
                 assert.equal(response.headers.get("content-type"), mime);
                 await response.arrayBuffer();
                 noStore(response);
-                const url = requested.at(-1).url;
-                assert.equal((url.match(/\/s--/g) || []).length, 1);
-                const assetPath = payload.publicId + (resourceType === "image" ? ".png" : "");
-                const expected = crypto.createHash("sha1").update(assetPath + "fixture-secret").digest("base64url").slice(0, 8);
-                assert.equal(url, `https://res.cloudinary.com/secure-fixture/${resourceType}/authenticated/s--${expected}--/v1700000001/${assetPath}`);
+                const url = new URL(requested.at(-1).url);
+                if (resourceType === "raw") {
+                    assert.equal(url.hostname, "api.cloudinary.com");
+                    assert.equal(url.pathname, "/v1_1/secure-fixture/raw/download");
+                    assert.equal(url.searchParams.get("type"), "authenticated");
+                    assert.equal(url.searchParams.get("public_id"), payload.publicId);
+                    assert.equal(url.searchParams.get("format"), "pdf");
+                } else {
+                    assert.equal((url.pathname.match(/\/s--/g) || []).length, 1);
+                    const assetPath = payload.publicId + ".png";
+                    const expected = crypto.createHash("sha1").update(assetPath + "fixture-secret").digest("base64url").slice(0, 8);
+                    assert.equal(url.href, `https://res.cloudinary.com/secure-fixture/image/authenticated/s--${expected}--/v1700000001/${assetPath}`);
+                }
             }
         });
         await t.test("multipart registration persists actual Cloudinary metadata and the registrar token retrieves PNG/PDF proofs", async () => {
             for (const [name, type, contents] of [["My graduation.png", "image/png", Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])], ["My graduation.pdf", "application/pdf", Buffer.from("%PDF-1.7 fixture")]]) {
                 mime = type; bytes = contents;
                 const form = new FormData();
-                for (const [key, value] of Object.entries({ name: "Fixture Alumni", email: "fixture.test@gmail.com", password: "test-password", role: "alumni", graduationYear: "2023" })) form.append(key, value);
+                for (const [key, value] of Object.entries({ name: "Fixture Alumni", email: "fixture.test@gmail.com", password: "test-password", role: "alumni", course: "BSIT", graduationYear: "2023" })) form.append(key, value);
                 form.append("proof_document", new Blob([bytes], { type }), name);
                 const registered = await originalFetch(`${base}/api/auth/register`, { method: "POST", body: form });
                 assert.equal(registered.status, 201, await registered.text());
@@ -202,7 +219,7 @@ test("secure files enforce authorization, provider identity and no-store deliver
             const permitReference = encode(asset({ resourceType: "raw", publicId: "private_uploads/business_permits/permit.pdf", url: "https://res.cloudinary.com/secure-fixture/raw/upload/v1700000000/private_uploads/business_permits/permit.pdf" }));
             db.EmployerProfile.findOne = async options => options.where.business_permit_path ? { user_id: 9 } : null;
             try {
-                for (const [user, status] of [[{ id: 1, role: "admin", admin_scope: "employer" }, 200], [{ id: 2, role: "admin", admin_scope: "registrar" }, 403], [{ id: 3, role: "admin", admin_scope: "alumni" }, 403], [{ id: 9, role: "employer" }, 403]]) {
+                for (const [user, status] of [[{ id: 2, role: "admin", admin_scope: "employer" }, 200], [{ id: 1, role: "admin", admin_scope: "registrar" }, 403], [{ id: 3, role: "admin", admin_scope: "alumni" }, 403], [{ id: 9, role: "employer" }, 403]]) {
                     const response = await get(permitReference, { "If-None-Match": "*" }, headers(user));
                     assert.equal(response.status, status); await response.arrayBuffer(); noStore(response);
                 }
@@ -271,7 +288,10 @@ test("streamed private files handle a real signed Cloudinary URL and safe upstre
     destination.setHeader = (key, value) => { responseHeaders[key] = value; };
     try {
         global.fetch = async url => {
-            assert.equal((String(url).match(/\/s--/g) || []).length, 1);
+            const privateUrl = new URL(String(url));
+            assert.equal(privateUrl.hostname, "api.cloudinary.com");
+            assert.equal(privateUrl.pathname, "/v1_1/secure-fixture/raw/download");
+            assert.equal(privateUrl.searchParams.get("public_id"), privateAsset("raw").publicId);
             return new Response(bytes, { headers: { "Content-Type": "application/pdf", "Content-Length": String(bytes.length) } });
         };
         await storage.streamStoredFile(reference, destination);

@@ -101,8 +101,8 @@ export default function RegistrarMasterRecordsPage() {
     return (
         <AdminShell
             scope="registrar"
-            title="Master Alumni Records"
-            subtitle="Search and manage the official master alumni list."
+            title="Official Alumni Records"
+            subtitle="Search and manage the official alumni list."
             eyebrow="Registrar Console"
             onLogout={handleLogout}
         >

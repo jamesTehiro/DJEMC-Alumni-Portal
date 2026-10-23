@@ -207,7 +207,16 @@ export default function AdminUsersPage({ role }) {
     if (role === "alumni") {
         const getRecordName = (item) => item.AlumniRecord?.full_name || item.name || "Unknown Alumni";
         const getRecordCourse = (item) => academicInfo(item).course;
-        const getRecordMajor = (item) => academicInfo(item).major;
+        const getRecordMajor = (item) => {
+            const major = String(academicInfo(item).major || "").trim();
+            if (major) return major;
+            const profile = item.AlumniProfile || {};
+            const course = programKey(getRecordCourse(item)).toLowerCase();
+            // Legacy master records may omit the major; only use the profile's
+            // specialization when it belongs to the same program.
+            return course && course === programKey(profile.course).toLowerCase()
+                ? String(profile.major || "").trim() : "";
+        };
         const getRecordYear = (item) => item.AlumniRecord?.batch_year || item.AlumniProfile?.graduation_year || "";
         const courses = [...new Set(records.map(item => programKey(getRecordCourse(item))).filter(Boolean))].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
         const years = [...new Set(records.map(getRecordYear).filter(Boolean))].sort((a, b) => Number(b) - Number(a));

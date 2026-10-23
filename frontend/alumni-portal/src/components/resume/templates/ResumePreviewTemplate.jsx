@@ -26,8 +26,9 @@ export default function ResumePreviewTemplate({ resume = {} }) {
                         <h2 className="djemc-resume-section-heading">{section.title}</h2>
                         <div className="djemc-resume-section-entries">
                             {section.items.map((item, index) => (
-                                <div className="djemc-resume-entry" key={index}>
-                                    {item.title && <h3 className="djemc-resume-entry-title">{item.title}</h3>}
+                                <div className={`djemc-resume-entry${item.categoryHeading ? " djemc-resume-skill-start" : ""}`} key={index}>
+                                    {item.categoryHeading && <h3 className="djemc-resume-skill-category">{item.categoryHeading}</h3>}
+                                    {item.categoryHeading ? <div className="djemc-resume-entry"><h3 className="djemc-resume-entry-title">{item.title}</h3></div> : item.title && <h3 className="djemc-resume-entry-title">{item.title}</h3>}
                                     {item.subtitle && <p className="djemc-resume-entry-subtitle">{item.subtitle}</p>}
                                     {item.meta && <p className="djemc-resume-entry-meta">{item.meta}</p>}
                                     {item.description && <p className="djemc-resume-entry-description">{item.description}</p>}

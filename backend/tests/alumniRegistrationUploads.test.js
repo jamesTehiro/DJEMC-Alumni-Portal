@@ -37,7 +37,8 @@ test("multipart alumni registration enforces six files, preserves associations, 
             const resource = file.type.startsWith("image/") ? "image" : "raw";
             return Response.json({ public_id: id, resource_type: resource, type: "authenticated", secure_url: `https://res.cloudinary.com/alumni-upload-fixture/${resource}/authenticated/${id}` });
         }
-        const asset = [...assets].find(([id]) => target.pathname.endsWith(id))?.[1];
+        const privatePublicId = target.pathname.endsWith("/download") ? target.searchParams.get("public_id") : null;
+        const asset = [...assets].find(([id]) => target.pathname.endsWith(id) || id === privatePublicId)?.[1];
         assert.ok(asset, "Only fixture assets may be downloaded");
         return new Response(asset.bytes, { headers: { "Content-Type": asset.type } });
     });

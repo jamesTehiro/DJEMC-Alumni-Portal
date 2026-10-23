@@ -128,7 +128,7 @@ export default function ResumeBuilderPage() {
         const errors = validateResume(currentRef.current);
         setFieldErrors(errors);
         if (Object.keys(errors).length) {
-            setError("Complete the required personal information to continue."); setStep(1); return false;
+            setError(errors.skills || "Complete the required personal information to continue."); setStep(1); return false;
         }
         setError(""); return true;
     };

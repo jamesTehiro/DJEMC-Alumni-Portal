@@ -71,6 +71,8 @@
 .djemc-resume-document .djemc-resume-section-skills .djemc-resume-entry { padding: 1.2mm 2.2mm; margin: 0; background: var(--resume-soft); border-radius: 1mm; }
 .djemc-resume-document .djemc-resume-section-skills .djemc-resume-entry-title { font-size: 0.89em; font-weight: 500; }
 .djemc-resume-document .djemc-resume-section-skills .djemc-resume-entry-subtitle { font-size: 0.78em; color: var(--resume-muted); }
+.djemc-resume-document .djemc-resume-entry.djemc-resume-skill-start { display: contents; }
+.djemc-resume-document .djemc-resume-skill-category { flex: 0 0 100%; color: var(--resume-accent); font-size: 0.95em; font-weight: 700; line-height: 1.4; break-after: avoid; }
 .djemc-resume-document .djemc-resume-section-languages .djemc-resume-entry { margin: 0; }
 .djemc-resume-document .djemc-resume-section-languages .djemc-resume-entry-title { font-size: 0.94em; }
 .djemc-resume-document .djemc-resume-section-languages .djemc-resume-entry-subtitle { font-size: 0.82em; color: var(--resume-muted); }

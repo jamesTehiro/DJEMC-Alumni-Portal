@@ -59,7 +59,7 @@ const canAccessApplicationFile = async (reqUser, relativePath) => {
     });
 
     if (!application) return false;
-    if (reqUser.role === "admin") return true;
+    if (reqUser.role === "admin" && reqUser.admin_scope === "employer") return true;
     if (reqUser.role === "alumni" && application.alumni_id === reqUser.id) return true;
     if (reqUser.role === "employer" && application.Job?.employer_id === reqUser.id) return true;
     return false;
@@ -256,13 +256,7 @@ exports.getPublicImage = async (req, res, next) => {
 
 exports.toSecureFileUrl = (storedPath) => {
     if (!storedPath) return storedPath;
-    // Preserve the exact database reference for private legacy machine paths.
-    // Reducing these to a basename makes the later ownership lookup fail.
-    if (/^\/(?:uploads\/(?:documents|business-permits|resumes)|private_uploads)\//.test(normalizeStoredPath(storedPath) || "")) {
-        return `/api/files/secure/${encodeStoredPathToken(storedPath)}`;
-    }
-    // Preserve the exact database reference for private legacy machine paths.
-    // Reducing these to a basename makes the later ownership lookup fail.
+    // Preserve the complete reference so legacy ownership lookups remain exact.
     if (/^\/(?:uploads\/(?:documents|business-permits|resumes)|private_uploads)\//.test(normalizeStoredPath(storedPath) || "")) {
         return `/api/files/secure/${encodeStoredPathToken(storedPath)}`;
     }

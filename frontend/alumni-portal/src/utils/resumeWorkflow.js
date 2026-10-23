@@ -1,4 +1,5 @@
 import { normalizeTemplateId } from "../components/resume/templates/resumeTemplateConfig.js";
+import { validateResumeSkills } from "./resumeSkills.js";
 
 export const RESUME_LIST_SECTIONS = [
     "education", "workExperience", "skills", "projects", "certifications", "trainings",
@@ -72,6 +73,8 @@ export function validateResume(resume) {
     const email = String(info.email || "").trim();
     if (!email) errors.email = "Enter your email address.";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = "Enter a valid email address.";
+    const skillError = validateResumeSkills(resume?.skills || []);
+    if (skillError) errors.skills = skillError;
     return errors;
 }
 

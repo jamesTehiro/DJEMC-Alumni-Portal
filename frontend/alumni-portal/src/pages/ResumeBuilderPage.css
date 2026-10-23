@@ -112,3 +112,6 @@
     .resume-builder-page .resume-appearance-grid > div { min-width: 0; }
     .resume-builder-page .resume-section input[type="file"] { max-width: 100%; }
 }
+.resume-builder-page .resume-skill-row .form-control { flex: 1 1 160px; min-width: 0; }
+.resume-builder-page .resume-skill-row .form-select { flex: 1 1 160px; min-width: 0; width: auto; }
+

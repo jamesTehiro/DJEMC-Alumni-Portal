@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Button, Toast } from "react-bootstrap";
 import { FiPlus, FiUpload } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
@@ -9,7 +9,6 @@ import CsvAlumniImportModal from "../components/CsvAlumniImportModal";
 import useRenderDebug from "../hooks/useRenderDebug";
 import useRegistrarAdminData from "./registrar/useRegistrarAdminData";
 import { api } from "../services/api";
-import { useUndoDelete } from "../hooks/useUndoDelete";
 import "./AdminEmployerPage.css";
 
 export default function RegistrarRecordsPage() {
@@ -38,7 +37,7 @@ export default function RegistrarRecordsPage() {
     const [importNotice, setImportNotice] = useState("");
     const [importRefreshError, setImportRefreshError] = useState("");
     const [refreshingRecords, setRefreshingRecords] = useState(false);
-    const { scheduleDelete } = useUndoDelete();
+    const deletingRecordRef = useRef(null);
 
     const refreshImportedRecords = async () => {
         setRefreshingRecords(true);
@@ -66,29 +65,26 @@ export default function RegistrarRecordsPage() {
         navigate("/");
     };
 
-    const handleDeleteRecord = (record) => {
-        if (!record?.id) return;
+    const handleDeleteRecord = async (record) => {
+        if (!record?.id || deletingRecordRef.current !== null) return false;
 
+        deletingRecordRef.current = record.id;
         setDeletingRecordId(record.id);
-        // Remove from UI immediately
-        setRecords((prev) => prev.filter((r) => r.id !== record.id));
-        if (selectedRecord?.id === record.id) {
-            setSelectedRecord(null);
+        setDeleteToast({ show: false, message: "", type: "" });
+        try {
+            const result = await api.delete(`/alumni-records/${encodeURIComponent(record.id)}`, true);
+            if (result?.success !== true) throw new Error("The server did not confirm that the alumni record was deleted.");
+            setRecords((prev) => prev.filter((item) => item.id !== record.id));
+            if (selectedRecord?.id === record.id) setSelectedRecord(null);
+            setDeleteToast({ show: true, message: `${record.full_name || "Alumni record"} was deleted.`, type: "success" });
+            return true;
+        } catch (err) {
+            setDeleteToast({ show: true, message: err.message || "The alumni record could not be deleted. Please try again.", type: "error" });
+            return false;
+        } finally {
+            deletingRecordRef.current = null;
+            setDeletingRecordId(null);
         }
-
-        scheduleDelete({
-            item: record,
-            itemName: record.full_name || "Record",
-            message: "The alumni record was deleted.",
-            deleteAction: () => api.delete(`/alumni-records/${record.id}`, true),
-            restoreAction: () => {
-                setRecords((prev) => {
-                    const exists = prev.find((r) => r.id === record.id);
-                    if (exists) return prev;
-                    return [...prev, record];
-                });
-            },
-        });
     };
 
     if (!isAllowed) {

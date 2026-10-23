@@ -35,7 +35,7 @@ export default function ResumeEditor({ resume, onChange, errors = {}, onPhotoBus
     });
 
     useEffect(() => {
-        if (Object.keys(errors).length) setExpandedSections(previous => ({ ...previous, personalInfo: true }));
+        if (Object.keys(errors).length) setExpandedSections(previous => ({ ...previous, personalInfo: true, ...(errors.skills ? { skills: true } : {}) }));
     }, [errors]);
 
     const toggleSection = (section) => {
@@ -150,7 +150,8 @@ export default function ResumeEditor({ resume, onChange, errors = {}, onPhotoBus
                         <Card.Body>
                             <ResumeSkills
                                 items={resume.skills || []}
-                                onChange={(items) => handleSectionChange('skills', items)}
+                                categories={resume.settings?.skill_categories || []}
+                                onChange={(items, categories) => onChange({ skills: items, settings: { ...resume.settings, skill_categories: categories } })}
                             />
                         </Card.Body>
                     </Collapse>

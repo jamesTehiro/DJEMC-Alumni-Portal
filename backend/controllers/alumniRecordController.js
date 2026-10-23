@@ -188,25 +188,46 @@ exports.createAlumniRecord = async (req, res) => {
 };
 
 exports.deleteAlumniRecord = async (req, res) => {
+    let transaction;
     try {
-        const { id } = req.params;
-
-        if (!id || isNaN(Number(id))) {
+        const id = Number(req.params.id);
+        if (!Number.isSafeInteger(id) || id < 1) {
             return res.status(400).json({ msg: "Valid alumni record ID is required." });
         }
 
-        const record = await db.AlumniRecord.findByPk(Number(id));
+        transaction = await db.sequelize.transaction();
+        const record = await db.AlumniRecord.findByPk(id, {
+            transaction,
+            lock: transaction.LOCK.UPDATE
+        });
         if (!record) {
+            await transaction.rollback();
             return res.status(404).json({ msg: "Alumni record not found." });
         }
 
-        await record.destroy();
+        const linkedAccounts = await db.User.count({
+            where: { alumni_record_id: id },
+            transaction
+        });
+        if (linkedAccounts > 0) {
+            await transaction.rollback();
+            return res.status(409).json({
+                msg: "This alumni record is linked to a registered account and cannot be deleted."
+            });
+        }
+
+        await record.destroy({ transaction });
+        await transaction.commit();
 
         console.log("[DELETE_ALUMNI_RECORD] Deleted record ID:", id);
         res.json({ success: true, msg: "Alumni record deleted successfully." });
     } catch (err) {
+        if (transaction && !transaction.finished) await transaction.rollback();
         console.error("[DELETE_ALUMNI_RECORD_ERR]", err);
-        res.status(500).json({ msg: err.message });
+        if (err.name === "SequelizeForeignKeyConstraintError") {
+            return res.status(409).json({ msg: "This alumni record has linked data and cannot be deleted." });
+        }
+        res.status(500).json({ msg: "Unable to delete alumni record. Please try again." });
     }
 };
 

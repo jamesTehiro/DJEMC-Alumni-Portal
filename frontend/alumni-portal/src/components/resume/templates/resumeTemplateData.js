@@ -1,3 +1,5 @@
+import { groupResumeSkills, skillCategoryKey } from "../../../utils/resumeSkills.js";
+
 const text = value => value === null || value === undefined ? "" : String(value).trim();
 const first = (...values) => values.map(text).find(Boolean) || "";
 const joined = (...values) => values.map(text).filter(Boolean).join(" · ");
@@ -34,7 +36,12 @@ export function createResumeSections(resume = {}) {
     if (summary) add("summary", "Professional Summary", [{ description: summary }]);
     add("workExperience", "Work Experience", orderedEntries(resume.workExperience, e => ({ title: text(e.job_title), subtitle: text(e.company), meta: joined(dateRange(e), e.location), description: text(e.description) })));
     add("education", "Education", orderedEntries(resume.education, e => ({ title: [text(e.degree), text(e.field_of_study)].filter(Boolean).join(e.degree ? " in " : ""), subtitle: first(e.institution, e.school), meta: joined(dateRange(e), e.gpa ? `GPA: ${e.gpa}` : ""), description: text(e.description) })));
-    add("skills", "Skills", orderedEntries(resume.skills, e => ({ title: first(e.skill_name, e.name), subtitle: text(e.category) })), "skills");
+    const skills = orderedEntries(resume.skills, e => ({ title: first(e.skill_name, e.name), category: text(e.category) })).filter(skill => skill.title);
+    const hasSkillCategories = skills.some(skill => skillCategoryKey(skill.category));
+    add("skills", "Skills", groupResumeSkills(skills).flatMap(group => group.items.map((skill, index) => ({
+        title: skill.title,
+        ...(hasSkillCategories && index === 0 ? { categoryHeading: group.category } : {})
+    }))), "skills");
     add("projects", "Projects", orderedEntries(resume.projects, e => ({ title: first(e.project_name, e.name), meta: dateRange(e), description: text(e.description), details: [e.technologies ? `Technologies: ${text(e.technologies)}` : "", text(e.url)] })));
     add("certifications", "Certifications", orderedEntries(resume.certifications, e => ({ title: text(e.name), subtitle: text(e.issuer), meta: joined(formatResumeDate(e.issue_date || e.date), e.expiry_date ? `Expires ${formatResumeDate(e.expiry_date)}` : ""), details: [e.credential_id ? `Credential: ${text(e.credential_id)}` : "", text(e.url)] })));
     add("trainings", "Trainings", orderedEntries(resume.trainings, e => ({ title: first(e.training_name, e.title), subtitle: text(e.provider), meta: first(formatResumeDate(e.completion_date), dateRange(e)), description: text(e.description) })));

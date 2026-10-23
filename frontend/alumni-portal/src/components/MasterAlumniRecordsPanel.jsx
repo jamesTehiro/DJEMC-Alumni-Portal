@@ -76,6 +76,17 @@ export default function MasterAlumniRecordsPanel({ records = [], loading = false
             </table></div>
             <footer className="master-records-pagination"><label>Rows per page:<select aria-label="Rows per page" value={pageSize} onChange={(event) => changeFilter(setPageSize, Number(event.target.value))}>{[10, 20, 25, 50].map((size) => <option key={size} value={size}>{size}</option>)}</select></label><nav aria-label="Record pagination"><button type="button" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><FiChevronLeft /></button>{pageNumbers.map((number, index) => <React.Fragment key={number}>{index > 0 && number - pageNumbers[index - 1] > 1 && <span>…</span>}<button type="button" className={number === currentPage ? "active" : ""} aria-current={number === currentPage ? "page" : undefined} onClick={() => setPage(number)}>{number}</button></React.Fragment>)}<button type="button" aria-label="Next page" disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)}><FiChevronRight /></button></nav></footer>
         </section>
-        <DeleteConfirmationModal show={!!deleteTarget} record={deleteTarget} onHide={() => setDeleteTarget(null)} onConfirm={() => { onDeleteRecord(deleteTarget); setDeleteTarget(null); }} loading={deleteTarget && deletingRecordId === deleteTarget.id} />
+        <DeleteConfirmationModal
+            show={!!deleteTarget}
+            record={deleteTarget}
+            onHide={() => setDeleteTarget(null)}
+            onConfirm={async () => {
+                if (!deleteTarget || !onDeleteRecord) return false;
+                const deleted = await onDeleteRecord(deleteTarget);
+                if (deleted) setDeleteTarget(null);
+                return deleted;
+            }}
+            loading={deleteTarget && deletingRecordId === deleteTarget.id}
+        />
     </div>;
 }

@@ -120,7 +120,12 @@ async function withDatabase(options, run) {
             query.transaction.locked = true;
             state.locks.push(query);
             return options.missingRegistrar ? null : { id: 7 };
-        } }],
+        }, findByPk: async (id) => ({
+            7: { id: 7, role: "admin", admin_scope: "registrar", account_status: "verified" },
+            8: { id: 8, role: "admin", admin_scope: "employer", account_status: "verified" },
+            9: { id: 9, role: "admin", admin_scope: "alumni", account_status: "verified" },
+            10: { id: 10, role: "alumni", admin_scope: null, account_status: "verified" }
+        })[id] || null }],
         [db.AlumniRecord, {
             findAll: async (query) => recordRead(query),
             findOne: async (query) => recordRead(query).find((record) => matchesWhere(record, query.where)) || null,
@@ -591,12 +596,12 @@ test("CSV import route enforces auth and registrar scope before reading multipar
             const contentType = "multipart/form-data; boundary=missing";
             assert.equal((await sendHttp(port, body, { "Content-Type": contentType })).status, 401);
             const cases = [
-                { role: "admin", admin_scope: "employer" },
-                { role: "admin", admin_scope: "alumni" },
-                { role: "alumni", admin_scope: "registrar" }
+                { id: 8, role: "admin", admin_scope: "employer" },
+                { id: 9, role: "admin", admin_scope: "alumni" },
+                { id: 10, role: "alumni", admin_scope: "registrar" }
             ];
             for (const claims of cases) {
-                const token = jwt.sign({ id: 7, ...claims }, process.env.JWT_SECRET, { expiresIn: "1m" });
+                const token = jwt.sign(claims, process.env.JWT_SECRET, { expiresIn: "1m" });
                 assert.equal((await sendHttp(port, body, { "Content-Type": contentType, Authorization: `Bearer ${token}` })).status, 403);
             }
             assert.equal(state.reads.length, 0);

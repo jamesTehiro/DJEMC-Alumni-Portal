@@ -1,7 +1,7 @@
 import { academicLabel } from "../utils/academicPrograms";
 import React, { useRef, useState } from "react";
 import { Alert, Badge, Button, Modal } from "react-bootstrap";
-import { FiSearch, FiEye, FiCheck, FiUser, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiEye, FiCheck, FiUser, FiChevronLeft, FiChevronRight, FiDownload, FiFile } from "react-icons/fi";
 import { FaUserCircle } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import AdminShell from "../components/AdminShell";
@@ -12,11 +12,26 @@ import useRegistrarAdminData from "./registrar/useRegistrarAdminData";
 import "./AdminEmployerPage.css";
 import "./RegistrarVerificationQueuePage.css";
 import GraduationProofPreview from "../components/GraduationProofPreview";
+import { fetchFile } from "../services/api";
+
+const fileTypeLabel = document => {
+    const extension = String(document?.name || "").split(".").pop();
+    if (extension && extension !== document?.name) return extension.toUpperCase();
+    const mime = String(document?.mime_type || "").toLowerCase();
+    if (mime === "application/pdf") return "PDF";
+    if (mime.startsWith("image/")) return "IMAGE";
+    if (mime.includes("wordprocessingml")) return "DOCX";
+    if (mime === "application/msword") return "DOC";
+    return "FILE";
+};
 
 export default function RegistrarVerificationQueuePage() {
     useRenderDebug("RegistrarVerificationQueuePage");
     const navigate = useNavigate();
     const [showProofModal, setShowProofModal] = useState(false);
+    const [proofIndex, setProofIndex] = useState(0);
+    const [proofDownloadError, setProofDownloadError] = useState("");
+    const [downloadingProof, setDownloadingProof] = useState(-1);
     const [pendingQuery, setPendingQuery] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -47,7 +62,16 @@ export default function RegistrarVerificationQueuePage() {
         navigate("/");
     };
 
-    const selectedProof = selectedUser?.AlumniProfile?.proof_document_url || null;
+    const alumniProfile = selectedUser?.AlumniProfile || {};
+    const proofDocuments = (() => {
+        const listed = Array.isArray(alumniProfile.proof_documents) ? alumniProfile.proof_documents : [];
+        const documents = listed.filter(document => document?.url);
+        if (alumniProfile.proof_document_url && !documents.some(document => document.url === alumniProfile.proof_document_url)) {
+            documents.unshift({ url: alumniProfile.proof_document_url, name: alumniProfile.proof_document_name || "Proof of Graduation" });
+        }
+        return documents;
+    })();
+    const selectedProof = proofDocuments[proofIndex]?.url || null;
     const filteredPendingUsers = pendingUsers.filter((item) => [item.name, item.email, academicLabel(item.AlumniProfile?.course, item.AlumniProfile?.major, item.AlumniProfile?.graduation_year)].some((value) => String(value || "").toLowerCase().includes(pendingQuery.trim().toLowerCase())));
     const pageCount = Math.max(1, Math.ceil(filteredPendingUsers.length / pageSize));
     const currentPage = Math.min(page, pageCount);
@@ -56,6 +80,7 @@ export default function RegistrarVerificationQueuePage() {
     const selectPendingUser = (item, startVerification = false) => {
         if (reviewInProgress.current) return;
         setShowProofModal(false);
+        setProofIndex(0);
         if (selectedUser?.id !== item.id) {
             setSelectedRecord(null);
             setSelectedUser(item);
@@ -69,7 +94,27 @@ export default function RegistrarVerificationQueuePage() {
         try { await action(); }
         finally { reviewInProgress.current = false; setReviewBusy(false); }
     };
-    const selectedProofName = selectedUser?.AlumniProfile?.proof_document_name || "Proof of Graduation";
+    const selectedProofName = proofDocuments[proofIndex]?.name || "Proof of Graduation";
+    const downloadProof = async (document, index) => {
+        setProofDownloadError("");
+        setDownloadingProof(index);
+        let objectUrl;
+        try {
+            const blob = await fetchFile(document.url, true);
+            objectUrl = URL.createObjectURL(blob);
+            const link = window.document.createElement("a");
+            link.href = objectUrl;
+            link.download = document.name || `proof-document-${index + 1}`;
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (failure) {
+            setProofDownloadError(failure.message || "This document could not be downloaded. Please try again.");
+        } finally {
+            if (objectUrl) window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+            setDownloadingProof(-1);
+        }
+    };
 
     if (!isAllowed) {
         return (
@@ -122,7 +167,7 @@ export default function RegistrarVerificationQueuePage() {
                     <header className="rvq-panel-header"><h2 id="rvq-selected-title">Selected Pending User</h2></header>
                     {!selectedUser ? <div className="rvq-empty-user"><div className="rvq-empty-avatar"><FiUser aria-hidden="true" /></div><div><h3>No user selected</h3><p>Select a pending alumni user from the list to view their details and start verification.</p></div></div> : <>
                         <div className="rvq-user-summary"><FaUserCircle className="rvq-user-avatar" aria-hidden="true" /><div><h3>{selectedUser.name || "Pending user"}</h3><p>{selectedUser.email || "Email not provided"}</p></div></div>
-                        <dl className="rvq-user-details"><dt>Submitted Info</dt><dd>{academicLabel(selectedUser.AlumniProfile?.course, selectedUser.AlumniProfile?.major, selectedUser.AlumniProfile?.graduation_year)}</dd><dt>Status</dt><dd><Badge bg={statusVariant(selectedUser.account_status)}>{selectedUser.account_status === "verified" ? "Approved" : selectedUser.account_status}</Badge></dd><dt>Proof of Graduation</dt><dd>{selectedProof ? <><p className="text-success">Document submitted</p><Button variant="outline-success" size="sm" onClick={() => setShowProofModal(true)}>View Document</Button></> : <span className="text-danger">No document submitted</span>}</dd></dl>
+                        <dl className="rvq-user-details"><dt>Submitted Info</dt><dd>{academicLabel(selectedUser.AlumniProfile?.course, selectedUser.AlumniProfile?.major, selectedUser.AlumniProfile?.graduation_year)}</dd><dt>Status</dt><dd><Badge bg={statusVariant(selectedUser.account_status)}>{selectedUser.account_status === "verified" ? "Approved" : selectedUser.account_status}</Badge></dd><dt>Proof of Graduation</dt><dd>{proofDocuments.length > 0 ? <><p className="text-success">{proofDocuments.length} document{proofDocuments.length === 1 ? "" : "s"} submitted</p><Button variant="outline-success" size="sm" onClick={() => { setProofIndex(0); setProofDownloadError(""); setShowProofModal(true); }}>View Document{proofDocuments.length > 1 ? "s" : ""}</Button></> : <span className="text-danger">No document submitted</span>}</dd></dl>
                         <section className="rvq-record-match"><h3>Match an Official Record</h3><p>Search the master list and select the record used for verification.</p><AlumniSearchBar value={searchTerm} onChange={handleSearchChange} disabled={reviewBusy} />
                             {selectedRecord && <Alert variant="success" className="mt-3 mb-2"><strong>{selectedRecord.full_name}</strong><br />{academicLabel(selectedRecord.course, selectedRecord.major, selectedRecord.batch_year)}</Alert>}
                             <div className="search-result-list">{searchResults.map((record) => <button type="button" key={record.id} disabled={reviewBusy} className={'search-result-item' + (selectedRecord?.id === record.id ? " active" : "")} onClick={() => setSelectedRecord(record)}><strong>{record.full_name}</strong><span>{academicLabel(record.course, record.major, record.batch_year)}</span></button>)}</div>
@@ -134,16 +179,35 @@ export default function RegistrarVerificationQueuePage() {
                 </aside>
             </section>
 
-            <Modal show={showProofModal} onHide={() => setShowProofModal(false)} centered size="lg">
+            <Modal show={showProofModal} onHide={() => setShowProofModal(false)} centered size="xl" dialogClassName="rvq-proof-modal">
                 <Modal.Header closeButton>
                     <Modal.Title>Proof of Graduation</Modal.Title>
                 </Modal.Header>
-                <Modal.Body className="text-center">
-                    {showProofModal && selectedProof ? (
-                        <GraduationProofPreview path={selectedProof} name={selectedProofName} />
-                    ) : (
-                        <p>No document available.</p>
-                    )}
+                <Modal.Body>
+                    <div className="rvq-proof-viewer">
+                        <section className="rvq-proof-list" aria-label="Submitted proof documents">
+                            <h3>Submitted documents <span>{proofDocuments.length}</span></h3>
+                            {proofDocuments.length === 0 ? <p className="rvq-proof-empty">No document is available for this registration.</p> : <ul>
+                                {proofDocuments.map((document, index) => <li key={`${document.url}-${index}`} className={index === proofIndex ? "active" : ""}>
+                                    <div className="rvq-proof-file-icon" aria-hidden="true"><FiFile /></div>
+                                    <div className="rvq-proof-file-details">
+                                        <strong title={document.name || "Proof of Graduation"}>{document.name || "Proof of Graduation"}</strong>
+                                        <span>{fileTypeLabel(document)}</span>
+                                    </div>
+                                    <div className="rvq-proof-file-actions">
+                                        <Button type="button" variant="outline-success" size="sm" aria-label={`Preview ${document.name || `document ${index + 1}`}`} aria-pressed={index === proofIndex} onClick={() => { setProofIndex(index); setProofDownloadError(""); }}>Preview</Button>
+                                        <Button type="button" variant="light" size="sm" disabled={downloadingProof === index} aria-label={`Download ${document.name || `document ${index + 1}`}`} onClick={() => downloadProof(document, index)}>
+                                            <FiDownload aria-hidden="true" />{downloadingProof === index ? "Downloading" : "Download"}
+                                        </Button>
+                                    </div>
+                                </li>)}
+                            </ul>}
+                        </section>
+                        <section className="rvq-proof-preview" aria-label="Selected document preview">
+                            {proofDownloadError && <Alert variant="danger" role="alert">{proofDownloadError}</Alert>}
+                            {showProofModal && selectedProof ? <GraduationProofPreview key={selectedProof} path={selectedProof} name={selectedProofName} /> : <p className="rvq-proof-empty">Select a document to preview it.</p>}
+                        </section>
+                    </div>
                 </Modal.Body>
             </Modal>
 

@@ -6,6 +6,8 @@ import { FiMail, FiUser } from "react-icons/fi";
 import AlumniDataPrivacyModal from "../components/AlumniDataPrivacyModal";
 import PasswordField from "../components/PasswordField";
 import BackToHome from "../components/BackToHome";
+import AlumniDocumentInput from "../components/AlumniDocumentInput";
+import { validateAlumniDocuments } from "../utils/alumniDocuments";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
 import RegistrationValidationToast from "../components/RegistrationValidationToast";
 import useRegistrationValidation from "../hooks/useRegistrationValidation";
@@ -29,6 +31,8 @@ export default function AlumniRegisterPage() {
         consent: false
     });
     const [loading, setLoading] = useState(false);
+    const [additionalProofDocuments, setAdditionalProofDocuments] = useState([]);
+    const proofDocuments = form.proofDocument ? [form.proofDocument, ...additionalProofDocuments] : [];
     const [submitted, setSubmitted] = useState(false);
     const submitting = useRef(false);
     const formRef = useRef(null);
@@ -70,6 +74,8 @@ export default function AlumniRegisterPage() {
                 ? { field: "email", title: "Gmail Required", message: "Enter a valid @gmail.com address." }
                 : yearInvalid ? { field: "graduationYear", title: "Invalid Academic Year", message: getGraduationYearError() } : null
         })) return;
+        const documentError = validateAlumniDocuments(proofDocuments);
+        if (documentError) { setError(documentError); return; }
         if (!verification.verified || verification.session?.email !== form.email.trim().toLowerCase()) {
             verification.start(form.email);
             return;
@@ -91,6 +97,7 @@ export default function AlumniRegisterPage() {
             if (form.proofDocument) {
                 payload.append("proof_document", form.proofDocument);
             }
+            additionalProofDocuments.forEach(file => payload.append("proof_document", file));
 
             await api.post("/auth/register", payload);
             setSubmitted(true);
@@ -148,14 +155,10 @@ export default function AlumniRegisterPage() {
                                 </label>
                                 {yearTouched && yearInvalid && <small id="graduation-year-error" className="text-danger" role="alert">{getGraduationYearError()}</small>}
                             </label>
-                            <label className="field">
-                                <span>TOR / Diploma (Proof of Graduation)</span>
-                                <input
-                                    type="file"
-                                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
-                                    onChange={(e) => setForm((prev) => ({ ...prev, proofDocument: e.target.files?.[0] || null }))}
-                                />
-                            </label>
+                            <AlumniDocumentInput files={proofDocuments} onChange={files => {
+                                setForm(prev => ({ ...prev, proofDocument: files[0] || null }));
+                                setAdditionalProofDocuments(files.slice(1));
+                            }} disabled={loading || submitted || verification.busy || verification.open} />
                             <label className="field">
                                 <span>Password</span>
                                 <PasswordField name="password" value={form.password} onChange={handleChange} placeholder="Create a strong password" required />

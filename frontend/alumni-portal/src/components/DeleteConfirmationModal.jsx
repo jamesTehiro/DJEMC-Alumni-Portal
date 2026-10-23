@@ -17,13 +17,13 @@ export default function DeleteConfirmationModal({
                 <Modal.Title>Delete Alumni Record</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <p>Are you sure you want to permanently remove</p>
+                <p>This will permanently delete the official alumni record for</p>
                 <p><strong>{record.full_name}</strong></p>
                 <p style={{ color: "#6b7280", fontSize: "0.9em" }}>
                     {academicLabel(record.course, record.major, record.batch_year)}
                 </p>
                 <p className="text-danger mt-2 mb-0">
-                    <small>This action cannot be undone.</small>
+                    <small>This action cannot be undone. Registered accounts and their related data are not deleted.</small>
                 </p>
             </Modal.Body>
             <Modal.Footer>
@@ -35,7 +35,7 @@ export default function DeleteConfirmationModal({
                     onClick={onConfirm}
                     disabled={loading}
                 >
-                    {loading ? "Deleting..." : "Delete"}
+                    {loading ? "Deleting..." : "Delete Record"}
                 </Button>
             </Modal.Footer>
         </Modal>

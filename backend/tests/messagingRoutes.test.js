@@ -18,6 +18,8 @@ const conversation = { id: 9, type: 'direct', update: async () => {} };
 const forum = { id: 1, type: 'forum', update: async () => {} };
 const legacyConversation = { id: 7, employerId: 2, adminId: 4, update: async () => {} };
 const bytes = Buffer.from('%PDF-1.7\nMessaging fixture');
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+const assets = new Map();
 let server, origin, databaseFailure = false, providerFailure = false, cloudReads = 0;
 const originalFetch = global.fetch;
 const savedRow = (data, collection) => {
@@ -53,13 +55,29 @@ test.before(async () => {
         if (providerFailure) return new Response('secret provider body and URL', { status: 400, headers: { 'x-cld-error': 'Invalid transformation secret-reference' } });
         if (String(url).endsWith('/upload')) {
             assert.equal(options.body.get('type'), 'authenticated');
-            assert.deepEqual(Buffer.from(await options.body.get('file').arrayBuffer()), bytes);
-            const publicId = 'private_uploads/chat/fixture.pdf';
-            return Response.json({ resource_type: 'raw', type: 'authenticated', public_id: publicId, secure_url: `https://res.cloudinary.com/messaging-fixture/raw/authenticated/v123/${publicId}` });
+            const file = options.body.get('file');
+            const image = file.type === 'image/png';
+            const content = Buffer.from(await file.arrayBuffer());
+            assert.deepEqual(content, image ? png : bytes);
+            const publicId = `private_uploads/chat/fixture.${image ? 'png' : 'pdf'}`;
+            assets.set(publicId, { content, mime: file.type });
+            return Response.json({ resource_type: image ? 'image' : 'raw', type: 'authenticated', public_id: publicId, secure_url: `https://res.cloudinary.com/messaging-fixture/${image ? 'image' : 'raw'}/authenticated/v123/${publicId}${image ? '.png' : ''}` });
         }
         cloudReads++;
-        assert.match(String(url), /\/raw\/authenticated\/s--[^/]+--\/v123\/private_uploads\/chat\/fixture.pdf$/);
-        return new Response(bytes, { headers: { 'Content-Type': 'application/pdf' } });
+        const target = new URL(url);
+        let publicId;
+        if (target.hostname === 'api.cloudinary.com') {
+            assert.equal(target.pathname, '/v1_1/messaging-fixture/raw/download');
+            assert.equal(target.searchParams.get('type'), 'authenticated');
+            assert.equal(target.searchParams.get('format'), 'pdf');
+            publicId = target.searchParams.get('public_id');
+        } else {
+            assert.match(target.pathname, /\/image\/authenticated\/s--[^/]+--\/v123\/private_uploads\/chat\/fixture.png.png$/);
+            publicId = 'private_uploads/chat/fixture.png';
+        }
+        const asset = assets.get(publicId);
+        assert.ok(asset);
+        return new Response(asset.content, { headers: { 'Content-Type': asset.mime } });
     };
     const app = express(); app.use(express.json());
     app.use('/api/messages', require('../routes/messageRoutes'));
@@ -80,14 +98,14 @@ const send = (id, legacy, attachment, key) => {
     form.append(legacy ? 'message' : 'message_text', 'Fixture text');
     form.append('client_message_id', key);
     if (legacy) form.append('employerId', '2');
-    if (attachment) form.append('attachment', new Blob([bytes], { type: 'application/pdf' }), 'fixture.pdf');
+    if (attachment) form.append('attachment', new Blob([attachment === 'png' ? png : bytes], { type: attachment === 'png' ? 'image/png' : 'application/pdf' }), attachment === 'png' ? 'fixture.png' : 'fixture.pdf');
     return fetch(origin + (legacy ? '/api/admin-employer/messages' : '/api/messages/9'), { method: 'POST', headers: headers(id), body: form });
 };
 
 test('all four roles send text and multipart attachments, replay retries, and read persisted history', async () => {
     for (const id of [1, 2, 3, 4]) {
         for (const legacy of id === 2 || id === 4 ? [false, true] : [false]) {
-            for (const attachment of [false, true]) {
+            for (const attachment of [false, 'pdf', 'png']) {
                 const key = `role-${id}-${legacy}-${attachment}-request`;
                 const first = await send(id, legacy, attachment, key);
                 assert.equal(first.status, 201, await first.clone().text());
@@ -103,22 +121,23 @@ test('all four roles send text and multipart attachments, replay retries, and re
                 const record = (await history.json()).messages.find(row => row.id === message.id);
                 assert.ok(record);
                 const reference = legacy ? record.attachment : record.file_url;
-                assert.equal(Boolean(reference), attachment);
+                assert.equal(Boolean(reference), Boolean(attachment));
                 if (attachment) {
-                    assert.equal(record.file_mime, 'application/pdf');
-                    for (const conditional of [false, true]) {
-                        const response = await fetch(origin + reference, { headers: { ...headers(id), ...(conditional ? { 'If-None-Match': '"stale-fixture"' } : {}) } });
+                    assert.equal(record.file_mime, attachment === 'png' ? 'image/png' : 'application/pdf');
+                    for (const conditional of [false, true, 'download']) {
+                        const response = await fetch(origin + reference + (conditional === 'download' ? '?download=1' : ''), { headers: { ...headers(id), ...(conditional === true ? { 'If-None-Match': '"stale-fixture"' } : {}) } });
                         assert.equal(response.status, 200);
                         assert.equal(response.headers.get('cache-control'), 'private, no-store');
-                        assert.match(response.headers.get('content-type'), /^application\/pdf/);
-                        assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+                        assert.match(response.headers.get('content-type'), attachment === 'png' ? /^image\/png/ : /^application\/pdf/);
+                        assert.deepEqual(Buffer.from(await response.arrayBuffer()), attachment === 'png' ? png : bytes);
+                        assert.match(response.headers.get('content-disposition'), conditional === 'download' ? /^attachment;/ : /^inline;/);
                     }
                 }
             }
         }
     }
-    assert.equal(rows.length, 8);
-    assert.equal(legacyRows.length, 4);
+    assert.equal(rows.length, 12);
+    assert.equal(legacyRows.length, 6);
 });
 
 test('authentication, role scope and conversation ownership reject requests before storage access', async () => {

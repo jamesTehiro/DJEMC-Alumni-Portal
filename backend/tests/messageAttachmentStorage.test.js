@@ -86,7 +86,16 @@ test("production multipart upload stores a complete private reference and retrie
             assert.match(response.headers.get("content-disposition"), endpoint.includes("download") ? /^attachment;/ : /^inline;/);
             assert.equal(response.headers.get("cache-control"), "private, no-store");
         }
-        assert.ok(storageCalls.some(url => /authenticated\/s--/.test(url)));
+        const privatePdfRequests = storageCalls.filter(url => /^https:\/\/api\.cloudinary\.com\/v1_1\/attachment-fixture\/raw\/download\?/.test(url));
+        assert.equal(privatePdfRequests.length, 3);
+        for (const request of privatePdfRequests) {
+            const url = new URL(request);
+            assert.equal(url.searchParams.get("type"), "authenticated");
+            assert.equal(url.searchParams.get("format"), "pdf");
+            assert.equal(url.searchParams.get("public_id"), cloudPayload.publicId);
+            assert.ok(Number(url.searchParams.get("expires_at")) > Math.floor(Date.now() / 1000));
+            assert.equal(request.includes("fixture-secret"), false);
+        }
     } finally { if (previous === undefined) delete process.env.RENDER; else process.env.RENDER = previous; }
 });
 

@@ -5,7 +5,11 @@ const path = require("path");
 
 const db = require("../models");
 const bootstrapGuard = require("../middleware/bootstrapGuard");
+const rateLimits = require("../utils/rateLimitStore");
+const originalRateLimit = rateLimits.consumeRateLimit;
+rateLimits.consumeRateLimit = async () => ({ allowed: true });
 const authController = require("../controllers/authController");
+rateLimits.consumeRateLimit = originalRateLimit;
 const fileController = require("../controllers/fileController");
 const applicationController = require("../controllers/applicationController");
 const notificationController = require("../controllers/notificationController");
@@ -124,9 +128,11 @@ test("forgot password ignores admin role and returns a generic response", async 
 
 test("reset password rejects an invalid or missing token", async () => {
     const originalFindOne = db.PasswordResetToken?.findOne;
+    const originalTransaction = db.sequelize.transaction;
     if (db.PasswordResetToken) {
         db.PasswordResetToken.findOne = async () => null;
     }
+    db.sequelize.transaction = async (callback) => callback({ LOCK: { UPDATE: "UPDATE" } });
 
     const req = {
         body: { token: "missing-token", newPassword: "new-password" },
@@ -145,6 +151,7 @@ test("reset password rejects an invalid or missing token", async () => {
     if (db.PasswordResetToken) {
         db.PasswordResetToken.findOne = originalFindOne;
     }
+    db.sequelize.transaction = originalTransaction;
 });
 
 test("field encryption decrypts new encrypted values and keeps plain values readable", () => {

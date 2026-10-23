@@ -280,9 +280,29 @@ const getDownloadSourceUrl = (storedValue) => {
 // retrieved through its signed private-download API than through a CDN
 // delivery URL. Keep this URL server-side and short-lived; it is never
 // returned in an API response or written to logs.
-const privateDownloadSourceUrl = (storedValue) => {
+const parseDownloadReference = (storedValue) => {
     const parsed = parseStoredFileReference(storedValue);
-    if (!parsed || parsed.provider !== "cloudinary" || !["image", "raw"].includes(parsed.resourceType) || !["authenticated", "private"].includes(parsed.type)) return null;
+    if (parsed) return parsed;
+    // Older rows can store the raw delivery URL directly. Recover only a PDF
+    // identity from this account; never sign an arbitrary remote URL.
+    try {
+        const source = new URL(storedValue);
+        const parts = source.pathname.split("/").filter(Boolean);
+        if (source.protocol !== "https:" || source.hostname !== "res.cloudinary.com" || source.port || source.username || source.password || source.search || source.hash) return null;
+        if (parts[0] !== cloudName || parts[1] !== "raw" || !["upload", "authenticated", "private"].includes(parts[2])) return null;
+        let index = 3;
+        if (/^s--[A-Za-z0-9_-]+--$/.test(parts[index])) index++;
+        if (/^v\d+$/.test(parts[index])) index++;
+        const publicId = decodeURIComponent(parts.slice(index).join("/"));
+        if (!/\.pdf$/i.test(publicId)) return null;
+        const asset = { provider: "cloudinary", resourceType: "raw", type: parts[2], publicId, url: source.href };
+        return cloudinaryDeliveryParts(asset) ? asset : null;
+    } catch { return null; }
+};
+
+const privateDownloadSourceUrl = (storedValue) => {
+    const parsed = parseDownloadReference(storedValue);
+    if (!parsed || parsed.provider !== "cloudinary" || !["image", "raw"].includes(parsed.resourceType) || !["upload", "authenticated", "private"].includes(parsed.type)) return null;
     if (!apiKey || !apiSecret || !cloudName || !parsed.publicId) return null;
     try {
         const parts = cloudinaryDeliveryParts(parsed);
@@ -290,6 +310,7 @@ const privateDownloadSourceUrl = (storedValue) => {
         const urlFormat = path.extname(decodeURIComponent(parts.assetPath)).slice(1).toLowerCase();
         const publicIdFormat = parsed.resourceType === "raw" ? path.extname(parsed.publicId).slice(1).toLowerCase() : "";
         const format = String(parsed.format || publicIdFormat || urlFormat).toLowerCase();
+        if (parsed.type === "upload" && (parsed.resourceType !== "raw" || format !== "pdf")) return null;
         if (!/^(pdf|png|jpe?g)$/.test(format)) return null;
         if (parsed.resourceType === "raw" && format !== "pdf") return null;
         if (parsed.resourceType === "image" && format === "pdf") return null;
@@ -392,22 +413,38 @@ const storageDownloadError = (storedValue, status, failure, response = null) => 
 };
 
 const fetchStoredFile = async (storedValue, usePrivateDownloadApi) => {
-    const sourceUrl = usePrivateDownloadApi ? privateDownloadSourceUrl(storedValue) : getDownloadSourceUrl(storedValue);
+    const parsed = parseDownloadReference(storedValue);
+    // Authenticated raw PDFs must be fetched through Cloudinary's signed
+    // private-download API. Their authenticated CDN delivery URL can return
+    // 401 even when the reference and application authorization are valid.
+    // Keep the signed CDN path for authenticated images, which already works.
+    const isAuthenticatedRawPdf = parsed?.resourceType === "raw" &&
+        ["authenticated", "private"].includes(parsed.type) &&
+        String(parsed.format || path.extname(parsed.publicId || "").slice(1)).toLowerCase() === "pdf";
+    const usePrivateApi = usePrivateDownloadApi || isAuthenticatedRawPdf;
+    const sourceUrl = usePrivateApi ? privateDownloadSourceUrl(storedValue) : getDownloadSourceUrl(storedValue);
     if (!sourceUrl) {
-        const parsed = parseStoredFileReference(storedValue);
         const missingConfiguration = cloudinaryDeliveryParts(parsed) && ["authenticated", "private"].includes(parsed?.type) && (!apiSecret || !cloudName);
-        throw storageDownloadError(storedValue, missingConfiguration ? 503 : usePrivateDownloadApi ? 404 : 400, missingConfiguration ? "configuration" : "invalid_reference");
+        throw storageDownloadError(storedValue, missingConfiguration ? 503 : usePrivateApi ? 404 : 400, missingConfiguration ? "configuration" : "invalid_reference");
     }
     let response;
     try { response = await fetch(sourceUrl, { signal: AbortSignal.timeout(30000) }); }
     catch { throw storageDownloadError(storedValue, 502, "network"); }
+    if ([401, 403].includes(response.status) && parsed?.resourceType === "raw" && parsed.type === "upload" && /\.pdf$/i.test(parsed.publicId)) {
+        const privateSource = privateDownloadSourceUrl(storedValue);
+        if (privateSource) {
+            await response.body?.cancel().catch(() => {});
+            try { response = await fetch(privateSource, { signal: AbortSignal.timeout(30000) }); }
+            catch { throw storageDownloadError(storedValue, 502, "network"); }
+        }
+    }
     if (!response.ok) {
         throw storageDownloadError(storedValue, response.status >= 400 && response.status <= 599 ? response.status : 502, "provider_response", response);
     }
     return response;
 };
 
-const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null, usePrivateDownloadApi = false) => {
+const readStoredFile = async (storedValue, contentTypeOverride = null, usePrivateDownloadApi = false) => {
     const response = await fetchStoredFile(storedValue, usePrivateDownloadApi);
     let contentType = contentTypeOverride || response.headers.get("content-type") || "application/octet-stream";
     let buffer;
@@ -417,6 +454,12 @@ const sendStoredFile = async (storedValue, res, downloadName = null, contentType
     // Serve original PDF bytes as a PDF even when a legacy provider response
     // or stored metadata still labels the document as an image/octet-stream.
     if (buffer.subarray(0, 5).toString("ascii") === "%PDF-") contentType = "application/pdf";
+
+    return { buffer, contentType };
+};
+
+const sendStoredFile = async (storedValue, res, downloadName = null, contentTypeOverride = null, usePrivateDownloadApi = false) => {
+    const { buffer, contentType } = await readStoredFile(storedValue, contentTypeOverride, usePrivateDownloadApi);
 
     res.setHeader("Content-Type", contentType);
     if (downloadName) {
@@ -447,6 +490,7 @@ module.exports = {
     uploadDataUrl,
     destroyStoredFile,
     sendStoredFile,
+    readStoredFile,
     streamStoredFile,
     isStoredFileReference,
     parseStoredFileReference,

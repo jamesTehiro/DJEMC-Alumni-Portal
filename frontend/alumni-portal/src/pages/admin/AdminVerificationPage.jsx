@@ -91,7 +91,7 @@ export default function AdminVerificationPage({ role }) {
         setError("");
         setProcessingId(id);
         try {
-            const result = await api.put(`${scopeMeta.usersEndpoint}/${id}/status`, { status, ...(reason ? { reason } : {}) }, true);
+            const result = await api.put(`${scopeMeta.usersEndpoint}/${id}/status`, { status, action: "verification", ...(reason ? { reason } : {}) }, true);
             setMessage(result?.msg || `${scopeMeta.label} account updated.`);
             setRejectingEmployer(null);
             setSelectedEmployer(null);

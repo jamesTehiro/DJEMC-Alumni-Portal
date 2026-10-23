@@ -4,10 +4,11 @@ const notificationController = require("./notificationController");
 const { encrypt, decrypt } = require("../utils/fieldEncryption");
 const { toSecureFileUrl } = require("./fileController");
 const auditService = require("../services/auditService");
-const { isStoredFileReference, getStoredFileOriginalName, sendStoredFile } = require("../services/objectStorage");
+const { isStoredFileReference, getStoredFileOriginalName, sendStoredFile, readStoredFile } = require("../services/objectStorage");
+const { resolveLocalStoredFile, setFileResponseHeaders, sanitizeDownloadName } = require("../utils/storedFiles");
 const path = require("path");
 const fs = require("fs");
-const archiver = require("archiver");
+const { ZipArchive } = require("archiver");
 const INVITATION_DETAIL_COLUMNS = {
     venue: "interview_venue",
     place: "interview_place",
@@ -1085,6 +1086,15 @@ const canReadApplicationFile = (user, application) =>
     (user.role === "employer" && Number(application.Job?.employer_id) === Number(user.id)) ||
     (user.role === "alumni" && Number(application.alumni_id) === Number(user.id));
 
+const applicationFileError = (error, res) => {
+    res.removeHeader?.("Content-Disposition");
+    res.removeHeader?.("Content-Type");
+    if (error.storageDiagnostic) {
+        error.status = error.status === 404 ? 404 : error.storageDiagnostic.failure === "invalid_reference" ? 400 : error.storageDiagnostic.failure === "configuration" ? 503 : 502;
+    }
+    return error;
+};
+
 const sendPrivateApplicationFile = async (storedValue, mimeType, res) => {
     const storedPath = String(storedValue || "").trim();
     const safeMimeType = /^[\w.+-]+\/[\w.+-]+$/.test(String(mimeType || "")) ? mimeType : null;
@@ -1137,9 +1147,10 @@ exports.getApplicationDocumentFile = async (req, res, next) => {
             where: { id: req.params.documentId, application_id: application.id }
         });
         if (!document) return res.status(404).json({ msg: "Application document not found." });
+        setFileResponseHeaders(res, document.file_name || getApplicationFileName(document.file_path), req.query?.download === "1");
         return await sendPrivateApplicationFile(document.file_path, document.mime_type, res);
     } catch (err) {
-        return next(err);
+        return next(applicationFileError(err, res));
     }
 };
 
@@ -1154,9 +1165,10 @@ exports.getApplicationResumeFile = async (req, res, next) => {
         }
         if (!application.resume_path) return res.status(404).json({ msg: "Application resume not found." });
         const fileName = getApplicationFileName(application.resume_path);
+        setFileResponseHeaders(res, fileName, req.query?.download === "1");
         return await sendPrivateApplicationFile(application.resume_path, getApplicationFileMimeType(fileName), res);
     } catch (err) {
-        return next(err);
+        return next(applicationFileError(err, res));
     }
 };
 
@@ -1175,10 +1187,7 @@ exports.downloadApplicationDocuments = async (req, res, next) => {
         }
 
         // Authorization
-        const isOwner = req.user.role === "employer" && application.Job?.employer_id === req.user.id;
-        const isApplicant = req.user.role === "alumni" && application.alumni_id === req.user.id;
-        const isAdmin = req.user.role === "admin";
-        if (!isOwner && !isApplicant && !isAdmin) {
+        if (!canReadApplicationFile(req.user, application)) {
             return res.status(403).json({ msg: "Not allowed." });
         }
 
@@ -1187,48 +1196,39 @@ exports.downloadApplicationDocuments = async (req, res, next) => {
             return res.status(400).json({ msg: "No documents available for download." });
         }
 
-        // Set response headers
-        res.setHeader("Content-Type", "application/zip");
-        res.setHeader("Content-Disposition", `attachment; filename="application-${application.id}-documents.zip"`);
-
-        const archive = archiver("zip", { zlib: { level: 5 } });
-        archive.on("error", (err) => { throw err; });
-
-        archive.pipe(res);
-
-        let fileCount = 0;
+        const entries = [];
         const missingFiles = [];
-
         for (const doc of documents) {
-            const filePath = doc.file_path;
-            // Handle both local and cloud storage paths
-            if (filePath && !filePath.startsWith("http") && !filePath.startsWith("stored://")) {
-                const absolutePath = path.isAbsolute(filePath)
-                    ? filePath
-                    : path.join(__dirname, "..", filePath);
-
-                try {
-                    if (fs.existsSync(absolutePath)) {
-                        const archiveName = `${doc.requirement_code}_${doc.file_name}`;
-                        archive.file(absolutePath, { name: archiveName });
-                        fileCount++;
-                    } else {
-                        missingFiles.push(doc.requirement_code);
-                    }
-                } catch {
-                    missingFiles.push(doc.requirement_code);
+            try {
+                const value = doc.file_path;
+                const name = sanitizeDownloadName(`${doc.requirement_code}_${doc.file_name}`);
+                if (isStoredFileReference(value) || /^https?:\/\//i.test(value || "")) {
+                    const { buffer } = await readStoredFile(value, doc.mime_type);
+                    entries.push({ name, buffer });
+                } else {
+                    const local = await resolveLocalStoredFile(value);
+                    if (local) entries.push({ name, local });
+                    else missingFiles.push(doc.requirement_code);
                 }
-            } else if (filePath && filePath.startsWith("http")) {
-                // For cloud URLs, we'd need to fetch and stream — skip for now
-                missingFiles.push(doc.requirement_code);
+            } catch (error) {
+                if (error.status === 404) missingFiles.push(doc.requirement_code);
+                else throw error;
             }
         }
-
+        const fileCount = entries.length;
         if (fileCount === 0) {
-            archive.abort();
             return res.status(400).json({ msg: "No downloadable files found." });
         }
-
+        // Resolve provider failures before starting the archive response.
+        setFileResponseHeaders(res, `application-${application.id}-documents.zip`, true);
+        res.setHeader("Content-Type", "application/zip");
+        const archive = new ZipArchive({ zlib: { level: 5 } });
+        archive.on("error", error => { res.destroy(error); });
+        archive.pipe(res);
+        for (const entry of entries) {
+            if (entry.local) archive.file(entry.local, { name: entry.name });
+            else archive.append(entry.buffer, { name: entry.name });
+        }
         await archive.finalize();
 
         // Audit log
@@ -1242,6 +1242,6 @@ exports.downloadApplicationDocuments = async (req, res, next) => {
             ipAddress: req.ip
         });
     } catch (err) {
-        next(err);
+        next(applicationFileError(err, res));
     }
 };

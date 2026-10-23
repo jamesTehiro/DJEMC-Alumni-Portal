@@ -91,14 +91,12 @@ const isForgotPasswordRateLimited = async (req) => {
     return !result.allowed;
 };
 
-const getFrontendBaseUrl = (req) =>
-    String(
-        req.headers.origin ||
-        process.env.FRONTEND_URL ||
-        process.env.CLIENT_URL ||
-        process.env.APP_URL ||
-        "http://localhost:5173"
-    ).replace(/\/$/, "");
+const getFrontendBaseUrl = (req) => {
+    const configured = process.env.FRONTEND_URL || process.env.CLIENT_URL || process.env.APP_URL;
+    if (configured) return String(configured).trim().replace(/\/$/, "");
+    if (process.env.NODE_ENV === "production") return "https://djemc-alumni-portal.web.app";
+    return String(req.headers.origin || "http://localhost:5173").replace(/\/$/, "");
+};
 
 exports.register = async (req, res, next) => {
     try {
@@ -393,34 +391,24 @@ exports.forgotPassword = async (req, res, next) => {
         const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
         const resetLink = `${getFrontendBaseUrl(req)}/reset-password?token=${encodeURIComponent(rawToken)}`;
 
-        await db.PasswordResetToken.destroy({
-            where: {
-                user_id: user.id,
-                role
-            }
+        await db.sequelize.transaction(async (transaction) => {
+            await db.PasswordResetToken.destroy({ where: { user_id: user.id, role }, transaction });
+            await db.PasswordResetToken.create({ user_id: user.id, role, token, expires_at: expiresAt }, { transaction });
+            await enqueueEmails([
+                {
+                    to: user.email,
+                    subject: "Reset your password",
+                    message: [
+                        `We received a password reset request for your ${role} account.`,
+                        "",
+                        `Reset your password here: ${resetLink}`,
+                        "",
+                        "This link expires in 15 minutes.",
+                        "If you did not request this, you can safely ignore this email."
+                    ].join("\n")
+                }
+            ], { transaction });
         });
-
-        await db.PasswordResetToken.create({
-            user_id: user.id,
-            role,
-            token,
-            expires_at: expiresAt
-        });
-
-        await enqueueEmails([
-            {
-                to: user.email,
-                subject: "Reset your password",
-                message: [
-                    `We received a password reset request for your ${role} account.`,
-                    "",
-                    `Reset your password here: ${resetLink}`,
-                    "",
-                    "This link expires in 15 minutes.",
-                    "If you did not request this, you can safely ignore this email."
-                ].join("\n")
-            }
-        ]);
 
         return sendGenericForgotPasswordResponse(res);
     } catch (err) {
@@ -438,57 +426,47 @@ exports.resetPassword = async (req, res, next) => {
         }
 
         const tokenHash = hashToken(token);
-        const resetToken = await db.PasswordResetToken.findOne({ where: { token: tokenHash } });
+        const resetResult = await db.sequelize.transaction(async (transaction) => {
+            const resetToken = await db.PasswordResetToken.findOne({
+                where: { token: tokenHash },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+            const invalidToken = () => Object.assign(new Error("Reset link is invalid or has expired."), { status: 400 });
+            if (!resetToken || !isResetRoleAllowed(resetToken.role)) throw invalidToken();
 
-        if (!resetToken) {
-            return res.status(400).json({ msg: "Reset link is invalid or has expired." });
-        }
+            const expiresAt = new Date(resetToken.expires_at).getTime();
+            if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) throw invalidToken();
 
-        if (!isResetRoleAllowed(resetToken.role)) {
-            await resetToken.destroy();
-            return res.status(400).json({ msg: "Reset link is invalid or has expired." });
-        }
+            const user = await db.User.findOne({
+                where: { id: resetToken.user_id, role: resetToken.role },
+                transaction,
+                lock: transaction.LOCK.UPDATE
+            });
+            if (!user) throw invalidToken();
 
-        const expiresAt = new Date(resetToken.expires_at).getTime();
-        if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) {
-            await resetToken.destroy();
-            return res.status(400).json({ msg: "Reset link is invalid or has expired." });
-        }
-
-        const user = await db.User.findOne({
-            where: {
-                id: resetToken.user_id,
-                role: resetToken.role
-            }
-        });
-
-        if (!user) {
-            await resetToken.destroy();
-            return res.status(400).json({ msg: "Reset link is invalid or has expired." });
-        }
-
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        await db.sequelize.transaction(async (transaction) => {
-            await user.update({ password: hashedPassword }, { transaction });
-            await db.PasswordResetToken.destroy({
-                where: {
-                    user_id: user.id,
-                    role: resetToken.role
-                },
+            const consumed = await db.PasswordResetToken.destroy({
+                where: { token: tokenHash, user_id: resetToken.user_id, role: resetToken.role },
                 transaction
             });
+            if (consumed !== 1) throw invalidToken();
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            await user.update({ password: hashedPassword }, { transaction });
+            await db.PasswordResetToken.destroy({ where: { user_id: user.id, role: resetToken.role }, transaction });
+            return { user, role: resetToken.role };
         });
 
         console.warn(
-            `[password-reset] ${new Date().toISOString()} ip=${getClientIp(req)} role=${resetToken.role} user_id=${user.id}`
+            `[password-reset] ${new Date().toISOString()} ip=${getClientIp(req)} role=${resetResult.role} user_id=${resetResult.user.id}`
         );
 
         return res.json({
             msg: "Password updated successfully.",
-            role: resetToken.role
+            role: resetResult.role
         });
     } catch (err) {
+        if (err?.status === 400) return res.status(400).json({ msg: err.message });
         return next(err);
     }
 };

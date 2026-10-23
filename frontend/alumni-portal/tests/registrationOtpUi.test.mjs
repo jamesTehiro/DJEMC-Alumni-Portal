@@ -137,7 +137,7 @@ test("desktop OTP supports focus, incorrect feedback, paste, Gmail change, prese
         await page.screenshot({ path: path.join(artifacts, "registration-otp-desktop.png"), fullPage: true });
         await page.evaluate(() => [...document.querySelectorAll("button")].find(button => button.textContent === "Change Gmail address")?.click());
         await page.waitForFunction(() => document.activeElement?.name === "email");
-        assert.equal(await page.$eval('input[type="file"]', input => input.files[0]?.name), path.basename(proof));
+        assert.deepEqual(await page.$$eval('[aria-label="Selected proof of graduation documents"] li span', spans => spans.map(span => span.textContent)), [path.basename(proof)]);
         assert.equal(await page.$eval('input[name="name"]', input => input.value), "UI Fixture Graduate");
         await page.focus('input[name="email"]'); await page.keyboard.down("Control"); await page.keyboard.press("A"); await page.keyboard.up("Control"); await page.keyboard.type("ui.changed@gmail.com");
         await openOtp(page); await pasteCode(page); await page.click(".registration-otp-modal button[type=submit]");

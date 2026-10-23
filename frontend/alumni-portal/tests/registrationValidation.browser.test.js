@@ -80,7 +80,7 @@ test('both routed registration forms validate before requests, retain documents,
                 confirm: document.querySelector('[name="confirmPassword"]').value,
                 files: document.querySelector('[name="companyAddress"]')
                     ? [...document.querySelectorAll('[aria-label="Selected business permit documents"] li span')].map(span => span.textContent)
-                    : [...document.querySelector('input[type="file"]').files].map(file => file.name)
+                    : [...document.querySelectorAll('[aria-label="Selected proof of graduation documents"] li span')].map(span => span.textContent)
             }));
             try {
                 await page.goto(url); await page.waitForSelector('input[name="confirmPassword"]');

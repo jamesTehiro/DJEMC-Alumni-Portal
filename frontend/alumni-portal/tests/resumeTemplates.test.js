@@ -110,3 +110,49 @@ test("each design has its own A4 stylesheet rules and document text can wrap", (
     assert.ok(css.includes("grid-template-columns: 34mm"));
     assert.ok(!/overflow:\s*hidden/.test(css));
 });
+
+test("all templates group skills once per category, omit empty headings and preserve unknown legacy skills", () => {
+    const skills = [
+        { skill_name: "Node.js", category: "Programming", sort_order: 1 },
+        { skill_name: "Git", category: "Tools and Technologies", sort_order: 2 },
+        { skill_name: "JavaScript", category: " programming ", sort_order: 3 },
+        { skill_name: "Problem solving", category: null, sort_order: 4 },
+        { skill_name: "", category: "Empty Category" }
+    ];
+    const sections = createResumeSections({ skills });
+    assert.deepEqual(sections[0].items.map(item => item.title), ["Node.js", "JavaScript", "Git", "Problem solving"]);
+    assert.deepEqual(sections[0].items.filter(item => item.categoryHeading).map(item => item.categoryHeading), ["Programming", "Tools and Technologies", "Uncategorized"]);
+    for (const template of RESUME_TEMPLATE_OPTIONS) {
+        const html = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { skills, template_id: template.id, settings: { skill_categories: ["Empty Category"] } } }));
+        assert.equal((html.match(/class="djemc-resume-skill-category"/g) || []).length, 3);
+        assert.equal((html.match(/>Programming<\/h3>/g) || []).length, 1);
+        assert.ok(!html.includes("Empty Category"));
+        assert.ok(html.includes("Problem solving"));
+    }
+    const legacy = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { skills: [{ skill_name: "Legacy skill" }, { skill_name: "Other", category: "Uncategorized" }] } }));
+    assert.ok(legacy.includes("Legacy skill"));
+    assert.ok(!legacy.includes("djemc-resume-skill-category"));
+});
+
+test("all templates group skills once per category, omit empty headings and preserve unknown legacy skills", () => {
+    const skills = [
+        { skill_name: "Node.js", category: "Programming", sort_order: 1 },
+        { skill_name: "Git", category: "Tools and Technologies", sort_order: 2 },
+        { skill_name: "JavaScript", category: " programming ", sort_order: 3 },
+        { skill_name: "Problem solving", category: null, sort_order: 4 },
+        { skill_name: "", category: "Empty Category" }
+    ];
+    const sections = createResumeSections({ skills });
+    assert.deepEqual(sections[0].items.map(item => item.title), ["Node.js", "JavaScript", "Git", "Problem solving"]);
+    assert.deepEqual(sections[0].items.filter(item => item.categoryHeading).map(item => item.categoryHeading), ["Programming", "Tools and Technologies", "Uncategorized"]);
+    for (const template of RESUME_TEMPLATE_OPTIONS) {
+        const html = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { skills, template_id: template.id, settings: { skill_categories: ["Empty Category"] } } }));
+        assert.equal((html.match(/class="djemc-resume-skill-category"/g) || []).length, 3);
+        assert.equal((html.match(/>Programming<\/h3>/g) || []).length, 1);
+        assert.ok(!html.includes("Empty Category"));
+        assert.ok(html.includes("Problem solving"));
+    }
+    const legacy = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { skills: [{ skill_name: "Legacy skill" }, { skill_name: "Other", category: "Uncategorized" }] } }));
+    assert.ok(legacy.includes("Legacy skill"));
+    assert.ok(!legacy.includes("djemc-resume-skill-category"));
+});

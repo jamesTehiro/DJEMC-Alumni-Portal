@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
+import { Modal } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL, api } from "../../services/api";
 import useRenderDebug from "../../hooks/useRenderDebug";
@@ -78,6 +79,10 @@ export default function AdminSettingsPage({ role }) {
     const [users, setUsers] = useState([]);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [savingUserId, setSavingUserId] = useState(null);
+    const [pendingUserAction, setPendingUserAction] = useState(null);
+    const [userActionInFlight, setUserActionInFlight] = useState(false);
+    const userActionInFlightRef = useRef(false);
+    const actionMenuRefs = useRef(new Map());
     const [profileForm, setProfileForm] = useState({
         adminName: "",
         department: "",
@@ -184,70 +189,67 @@ export default function AdminSettingsPage({ role }) {
     const displayUserName = (item) =>
         role === "employer" ? item.EmployerProfile?.organization_name || item.name : item.name;
 
-    const handleDeactivate = async (userId) => {
-        await handleStatusUpdate(userId, "deactivated", "User deactivated.");
-    };
-
-    const handleReactivate = async (userId) => {
-        await handleStatusUpdate(userId, "verified", "User reactivated.");
-    };
-
-    const handleStatusUpdate = async (userId, status, successMessage) => {
+    const openUserAction = (item, action) => {
+        if (userActionInFlightRef.current) return;
         setMessage("");
         setError("");
-        const previousUsers = users;
-        setUsers((prev) =>
-            prev.map((item) => (item.id === userId ? { ...item, account_status: status } : item))
-        );
-        setSavingUserId(userId);
+        setPendingUserAction({ item, action });
+    };
+
+    const closeUserAction = () => {
+        if (!userActionInFlightRef.current) setPendingUserAction(null);
+    };
+
+    const closeActionMenu = (userId) => {
+        actionMenuRefs.current.get(String(userId))?.removeAttribute("open");
+    };
+
+    const confirmUserAction = async () => {
+        const action = pendingUserAction;
+        if (!action || userActionInFlightRef.current) return;
+        userActionInFlightRef.current = true;
+        setUserActionInFlight(true);
+        setMessage("");
+        setError("");
+        setSavingUserId(action.item.id);
         try {
-            await api.put(`${scopeMeta.usersEndpoint}/${userId}/status`, { status }, true);
-            setMessage(successMessage);
+            if (action.action === "reset") {
+                await api.post("/auth/forgot-password", { email: action.item.email, role }, false);
+                setMessage(`Password reset request submitted for ${displayUserName(action.item)}. The reset link is handled by the existing email queue.`);
+            } else {
+                const status = action.action === "deactivate" ? "deactivated" : "verified";
+                const result = await api.put(`${scopeMeta.usersEndpoint}/${action.item.id}/status`, { status, action: action.action }, true);
+                const updated = result?.user;
+                if (String(updated?.id) !== String(action.item.id) || updated?.role !== role || updated?.account_status !== status) {
+                    throw new Error("The server did not confirm the requested account status. Refresh the list before trying again.");
+                }
+                setUsers((prev) => prev.map((item) => String(item.id) === String(updated.id)
+                    ? {
+                        ...item,
+                        ...updated,
+                        can_reactivate: action.action === "deactivate",
+                        EmployerProfile: item.EmployerProfile,
+                        AlumniProfile: item.AlumniProfile
+                    }
+                    : item));
+                setMessage(action.action === "deactivate" ? "User deactivated." : "User reactivated.");
+            }
+            setPendingUserAction(null);
+            closeActionMenu(action.item.id);
         } catch (err) {
-            setUsers(previousUsers);
-            setError(err.message);
+            setError(err.message || "The requested account action failed.");
         } finally {
+            userActionInFlightRef.current = false;
+            setUserActionInFlight(false);
             setSavingUserId(null);
         }
     };
 
-    const handleResetPassword = async (item) => {
-        setMessage("");
-        setError("");
-        setSavingUserId(item.id);
-        try {
-            await api.post(
-                "/auth/forgot-password",
-                {
-                    email: item.email,
-                    role
-                },
-                false
-            );
-            setMessage(`Password reset link triggered for ${displayUserName(item)}.`);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setSavingUserId(null);
-        }
-    };
-
-    const handleDeleteEmployer = async (userId) => {
-        setMessage("");
-        setError("");
-        const previousUsers = users;
-        setUsers((prev) => prev.filter((item) => item.id !== userId));
-        setSavingUserId(userId);
-        try {
-            await api.put(`${scopeMeta.usersEndpoint}/${userId}/status`, { status: "rejected" }, true);
-            setMessage("Employer account deleted.");
-        } catch (err) {
-            setUsers(previousUsers);
-            setError(err.message);
-        } finally {
-            setSavingUserId(null);
-        }
-    };
+    const actionDescription = pendingUserAction?.action === "deactivate"
+        ? "This will block the account from protected features. The account and its data will remain in the system."
+        : pendingUserAction?.action === "reactivate"
+            ? "This will restore verified account access. Pending or rejected accounts cannot be reactivated here."
+            : "A single-use password reset link will be requested through the existing email queue. No password will be shown here.";
 
     const handleProfileChange = (event) => {
         const { name, value } = event.target;
@@ -344,7 +346,26 @@ export default function AdminSettingsPage({ role }) {
             onLogout={() => clearSessionAndGoHome(navigate)}
         >
             {message && <p className="notice success">{message}</p>}
-            {error && <p className="notice error">{error}</p>}
+            {error && !pendingUserAction && <p className="notice error" role="alert">{error}</p>}
+
+            <Modal show={Boolean(pendingUserAction)} onHide={closeUserAction} centered backdrop={userActionInFlight ? "static" : true} keyboard={!userActionInFlight}>
+                <Modal.Header closeButton={!userActionInFlight}>
+                    <Modal.Title>
+                        {pendingUserAction?.action === "deactivate" ? "Deactivate Account" : pendingUserAction?.action === "reactivate" ? "Reactivate Account" : "Reset Password"}
+                    </Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>Confirm this action for <strong>{pendingUserAction ? displayUserName(pendingUserAction.item) : ""}</strong> ({pendingUserAction?.item.email}).</p>
+                    <p className="mb-0">{actionDescription}</p>
+                    {error && <p className="notice error mt-3 mb-0" role="alert">{error}</p>}
+                </Modal.Body>
+                <Modal.Footer>
+                    <button type="button" className="secondary-btn" onClick={closeUserAction} disabled={savingUserId !== null}>Cancel</button>
+                    <button type="button" className="primary-btn" onClick={confirmUserAction} disabled={savingUserId !== null}>
+                        {savingUserId !== null ? "Processing..." : pendingUserAction?.action === "deactivate" ? "Deactivate" : pendingUserAction?.action === "reactivate" ? "Reactivate" : "Send Reset Link"}
+                    </button>
+                </Modal.Footer>
+            </Modal>
 
             <section className="content-grid" style={{ gridTemplateColumns: "1fr" }}>
                 <div className="settings-profile-card">
@@ -468,29 +489,27 @@ export default function AdminSettingsPage({ role }) {
                                 <span>{scopeMeta.label}</span>
                                 <span className="pill">{item.account_status || "pending"}</span>
                                 <div className="actions">
-                                    <details className="action-menu">
+                                    <details
+                                        className="action-menu"
+                                        ref={(node) => {
+                                            if (node) actionMenuRefs.current.set(String(item.id), node);
+                                            else actionMenuRefs.current.delete(String(item.id));
+                                        }}
+                                    >
                                         <summary>{role === "employer" ? "Choices" : "..."}</summary>
-                                        <button
-                                            type="button"
-                                            className="menu-btn reject"
-                                            onClick={() => handleDeactivate(item.id)}
-                                            disabled={savingUserId === item.id || item.account_status === "deactivated"}
-                                        >
+                                        {String(item.account_status).toLowerCase() === "verified" && <button type="button" className="menu-btn reject" onClick={() => openUserAction(item, "deactivate")} disabled={savingUserId !== null}>
                                             {savingUserId === item.id ? "Updating..." : "Deactivate"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="menu-btn approve"
-                                            onClick={() => handleReactivate(item.id)}
-                                            disabled={savingUserId === item.id || item.account_status === "verified"}
-                                        >
+                                        </button>}
+                                        {String(item.account_status).toLowerCase() === "verified" && <button type="button" className="menu-btn approve" disabled title="This account is already active.">Reactivate</button>}
+                                        {["deactivated", "suspended"].includes(String(item.account_status).toLowerCase()) && item.can_reactivate && <button type="button" className="menu-btn approve" onClick={() => openUserAction(item, "reactivate")} disabled={savingUserId !== null}>
                                             {savingUserId === item.id ? "Updating..." : "Reactivate"}
-                                        </button>
+                                        </button>}
+                                        {["deactivated", "suspended"].includes(String(item.account_status).toLowerCase()) && !item.can_reactivate && <button type="button" className="menu-btn approve" disabled title="The account history does not confirm that this account was verified before it became inactive.">Reactivate (Unavailable)</button>}
                                         <button
                                             type="button"
                                             className="menu-btn request"
-                                            onClick={() => handleResetPassword(item)}
-                                            disabled={savingUserId === item.id}
+                                            onClick={() => openUserAction(item, "reset")}
+                                            disabled={savingUserId !== null}
                                         >
                                             {savingUserId === item.id ? "Sending..." : "Reset Password"}
                                         </button>
@@ -498,10 +517,10 @@ export default function AdminSettingsPage({ role }) {
                                             <button
                                                 type="button"
                                                 className="menu-btn reject"
-                                                onClick={() => handleDeleteEmployer(item.id)}
-                                                disabled={savingUserId === item.id}
+                                                disabled
+                                                title="Permanent deletion is unavailable because employer records may have linked jobs, applications, conversations, and documents. Deactivate the account to block access while preserving its data."
                                             >
-                                                {savingUserId === item.id ? "Updating..." : "Delete Account"}
+                                                Delete Account (Unavailable)
                                             </button>
                                         )}
                                     </details>

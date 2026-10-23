@@ -30,7 +30,9 @@ test("multipart permit registration, admin preview/replacement, validation and p
     const makeProfile = () => ({ business_permit_path: null, update: async function(values) { if (!rejectSave) Object.assign(this, values); }, reload: async function() { return this; } });
     override(db.User, "findOne", async () => null);
     override(db.User, "create", async values => { user = { id: 82, account_status: "pending", ...values }; profile = makeProfile(); return user; });
-    override(db.User, "findByPk", async () => user);
+    override(db.User, "findByPk", async id => id === 1
+        ? { id: 1, role: "admin", admin_scope: "employer", account_status: "verified" }
+        : Number(id) === Number(user?.id) ? user : null);
     override(db.User, "findAll", async () => [{ id: user.id, toJSON: () => ({ ...user, EmployerProfile: { business_permit_path: profile.business_permit_path, business_permit_documents: profile.business_permit_documents } }) }]);
     override(db.EmployerProfile, "findOrCreate", async () => [profile, false]);
     override(db.EmployerProfile, "findOne", async options => {
@@ -53,6 +55,7 @@ test("multipart permit registration, admin preview/replacement, validation and p
     app.get("/api/files/:folder/:fileName", authentication, files.getSecureFile);
     app.get("/uploads/:fileName", files.getPublicImage);
     app.get("/admin/employers", authentication, role("admin"), scope("employer"), admin.getEmployerUsers);
+    app.get("/api/admin/employer/users/:userId/business-permits/:documentId", authentication, role("admin"), scope("employer"), permits.getDocument);
     app.get("/api/admin/employer/users/:userId/business-permits/:documentId", authentication, role("admin"), scope("employer"), permits.getDocument);
     app.put("/admin/employers/:userId/permit", authentication, role("admin"), scope("employer"), employerRegistrationUpload, permits.replacePermit);
     app.use((error, _req, res, _next) => res.status(error.code === "LIMIT_FILE_SIZE" ? 413 : error.code === "LIMIT_UNEXPECTED_FILE" ? 400 : error.status || 500).json({ msg: error.code === "LIMIT_FILE_SIZE" ? "File is too large." : error.publicMessage || error.message }));

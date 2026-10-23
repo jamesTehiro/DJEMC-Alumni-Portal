@@ -36,6 +36,9 @@ const allowedMimes = [
     "image/gif"
 ];
 
+const isApplicationField = (fieldName = "") =>
+    ["resume", "transcript", "certificate"].includes(fieldName) || fieldName.startsWith("requirement_");
+
 const hasAllowedChatSignature = (buffer, mimeType) => {
     if (!buffer || buffer.length < 4) return false;
     if (mimeType === "image/png") return buffer.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
@@ -129,13 +132,13 @@ const profileFileFilter = (req, file, cb) => {
 const getTargetForField = (fieldName = "") => {
     if (fieldName === "avatar_image") return { folder: "uploads/images", isPublic: true, prefix: "avatar" };
     if (fieldName === "logo_image") return { folder: "uploads/images", isPublic: true, prefix: "logo" };
-    if (fieldName === "resume") return { folder: "private_uploads/resumes", isPublic: false, prefix: "resume" };
-    if (fieldName === "transcript") return { folder: "private_uploads/documents", isPublic: false, prefix: "transcript" };
-    if (fieldName === "certificate") return { folder: "private_uploads/documents", isPublic: false, prefix: "certificate" };
+    if (fieldName === "resume") return { folder: "private_uploads/resumes", isPublic: false, prefix: "resume", deliveryType: "authenticated" };
+    if (fieldName === "transcript") return { folder: "private_uploads/documents", isPublic: false, prefix: "transcript", deliveryType: "authenticated" };
+    if (fieldName === "certificate") return { folder: "private_uploads/documents", isPublic: false, prefix: "certificate", deliveryType: "authenticated" };
     if (fieldName === "proof_document") return { folder: "private_uploads/alumni_proof", isPublic: false, prefix: "proof-document", deliveryType: "authenticated" };
     if (fieldName === "business_permit") return { folder: "private_uploads/business_permits", isPublic: false, prefix: "business-permit", deliveryType: "authenticated" };
     if (fieldName === "attachment") return { folder: "private_uploads/chat", isPublic: false, prefix: "attachment", deliveryType: "authenticated" };
-    return { folder: "private_uploads/documents", isPublic: false, prefix: fieldName || "file" };
+    return { folder: "private_uploads/documents", isPublic: false, prefix: fieldName || "file", deliveryType: "authenticated" };
 };
 
 const createCloudStorageEngine = () => ({
@@ -146,7 +149,8 @@ const createCloudStorageEngine = () => ({
         file.stream.on("end", async () => {
             try {
                 const buffer = Buffer.concat(chunks);
-                if (["attachment", "business_permit", "proof_document"].includes(file.fieldname) && !hasAllowedChatSignature(buffer, file.mimetype)) {
+                if (file.stream.truncated) return cb(null, {});
+                if ((isApplicationField(file.fieldname) || ["attachment", "business_permit", "proof_document"].includes(file.fieldname)) && !hasAllowedChatSignature(buffer, file.mimetype)) {
                     const err = new Error("The file contents do not match a supported file type.");
                     err.status = 415;
                     return cb(err);
@@ -208,7 +212,7 @@ const createCloudStorageEngine = () => ({
     }
 });
 
-const localStorage = multer.diskStorage({
+const localDiskStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         if (file.fieldname === "attachment" && (process.env.NODE_ENV === "production" || String(process.env.RENDER).toLowerCase() === "true")) {
             const err = new Error("Persistent messaging attachment storage is unavailable. Please try again later.");
@@ -237,6 +241,24 @@ const localStorage = multer.diskStorage({
         cb(null, `${file.fieldname}-${unique}${safeExt}`);
     }
 });
+
+const localStorage = {
+    _handleFile(req, file, cb) {
+        localDiskStorage._handleFile(req, file, async (error, info) => {
+            if (error || !isApplicationField(file.fieldname) || file.stream.truncated) return cb(error, info);
+            try {
+                if (!hasAllowedChatSignature(await fs.promises.readFile(info.path), file.mimetype)) {
+                    throw Object.assign(new Error("The file contents do not match a supported file type."), { status: 415 });
+                }
+                return cb(null, info);
+            } catch (validationError) {
+                await fs.promises.unlink(info.path).catch(() => {});
+                return cb(validationError);
+            }
+        });
+    },
+    _removeFile: (req, file, cb) => localDiskStorage._removeFile(req, file, cb)
+};
 
 const storage = isObjectStorageEnabled() ? createCloudStorageEngine() : localStorage;
 const businessPermitStorage = multer.diskStorage({
@@ -318,12 +340,11 @@ const dynamicRequirementFilter = (req, file, cb) => {
         return cb(err);
     }
 
-    // Enforce allowed MIME types / extensions
-    const isAllowedType =
-        allowedMimes.includes(file.mimetype) || allowedExtensions.test(file.originalname);
-    if (!isAllowedType) {
-        return cb(new Error("Invalid file type. Allowed: pdf, doc, docx, png, jpg, jpeg."));
-    }
+    // Require the declared type to match the extension. Both storage engines
+    // also check the file signature before accepting an applicant document.
+    let typeError;
+    chatFileFilter(req, file, error => { typeError = error; });
+    if (typeError) return cb(typeError);
 
     // Enforce maximum number of uploaded files
     req._uploadFileCount = (req._uploadFileCount || 0) + 1;
@@ -366,15 +387,6 @@ const applicationUpload = (req, res, next) => {
                 grouped[file.fieldname].push(file);
             }
             req.files = grouped;
-        }
-        // DEBUG: Log all uploaded files after Multer
-        console.log('[DEBUG uploadMiddleware] Object.keys(req.body):', Object.keys(req.body || {}));
-        console.log('[DEBUG uploadMiddleware] Object.keys(req.files || {}):', Object.keys(req.files || {}));
-        for (const [fieldName, files] of Object.entries(req.files || {})) {
-            console.log('[DEBUG uploadMiddleware] Uploaded field:', {
-                fieldname: fieldName,
-                originalname: files?.[0]?.originalname
-            });
         }
         return next();
     });
