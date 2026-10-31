@@ -10,7 +10,7 @@ test("both alumni forms handle batches, removal/replacement, invalid files, subm
     const root = fileURLToPath(new URL("..", import.meta.url));
     const result = await build({ stdin: { resolveDir: root, loader: "jsx", contents: `
         import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom';
-        import RegisterPage from './src/pages/RegisterPage'; import AlumniRegisterPage from './src/pages/AlumniRegisterPage';
+        import RegisterPage from './src/features/registration/pages/RegisterPage'; import AlumniRegisterPage from './src/features/registration/pages/AlumniRegisterPage';
         window.submissions=[];
         window.fixturePost=async(url,body)=>{if(url!='/auth/register')throw Error('Unexpected API');const fields=body instanceof FormData?[...body.entries()]:Object.entries(body);window.submissions.push(await Promise.all(fields.map(async([name,value])=>[name,value instanceof File?{name:value.name,body:await value.text()}:value])));return {};};
         createRoot(document.getElementById('root')).render(<MemoryRouter>{location.pathname==='/legacy'?<RegisterPage/>:<AlumniRegisterPage/>}</MemoryRouter>);

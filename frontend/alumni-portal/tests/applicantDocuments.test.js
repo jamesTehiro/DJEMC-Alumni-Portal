@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getApplicantDocumentEntries, getApplicantResumeDocument, getApplicantResumeFileUrl } from '../src/utils/applicantResume.js';
-import { openApplicantResumePrintView } from '../src/utils/applicantResumePrint.js';
+import { getApplicantDocumentEntries, getApplicantResumeDocument, getApplicantResumeFileUrl } from '../src/features/jobs/utils/applicantResume.js';
+import { openApplicantResumePrintView } from '../src/features/jobs/utils/applicantResumePrint.js';
 
 const application = () => ({
     id: 24,

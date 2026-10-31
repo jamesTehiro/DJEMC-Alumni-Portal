@@ -12,7 +12,7 @@ import {
     getApplicantResumeFileUrl,
     getApplicantResumePreviewType,
     isResumeRequirement,
-} from "../src/utils/applicantResume.js";
+} from "../src/features/jobs/utils/applicantResume.js";
 
 const deferred = () => {
     let resolve;
@@ -173,7 +173,7 @@ test("missing file records fail safely before requesting a private filesystem pa
 
 const require = createRequire(import.meta.url);
 const compiled = buildSync({
-    entryPoints: [fileURLToPath(new URL("../src/components/ApplicantResumePreview.jsx", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../src/features/jobs/components/ApplicantResumePreview.jsx", import.meta.url))],
     bundle: true, write: false, format: "cjs", platform: "node", packages: "external",
     define: { "import.meta.env": "{}" }, loader: { ".css": "empty" }, logLevel: "silent",
 });

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getRegistrationIssue } from '../src/hooks/useRegistrationValidation.js';
+import { getRegistrationIssue } from '../src/features/registration/hooks/useRegistrationValidation.js';
 
 const valid = { password: 'Exact Password 123', confirmPassword: 'Exact Password 123', consent: true };
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { ageFromBirthDate, createMembershipDraft, ensureEducationLevels, MEMBERSHIP_EDUCATION_LEVELS,
     membershipFingerprint, membershipFullName, membershipPayload, normalizeMembershipApplication,
-    unwrapMembershipResponse, validateMembershipApplication } from "../src/utils/membershipApplication.js";
+    unwrapMembershipResponse, validateMembershipApplication } from "../src/features/membership/utils/membershipApplication.js";
 
 const valid = () => createMembershipDraft({ personal_details: {
     first_name: "Alex", middle_name: "M.", last_name: "Graduate", email: "alex@example.com", contact_number: "09123456789"

@@ -20,8 +20,8 @@ test('both routed registration forms validate before requests, retain documents,
             stdin: { resolveDir: root, loader: 'jsx', contents: `
                 import React from 'react'; import {createRoot} from 'react-dom/client';
                 import {MemoryRouter, Routes, Route} from 'react-router-dom';
-                import AlumniRegisterPage from './src/pages/AlumniRegisterPage';
-                import EmployerRegisterPage from './src/pages/EmployerRegisterPage';
+                import AlumniRegisterPage from './src/features/registration/pages/AlumniRegisterPage';
+                import EmployerRegisterPage from './src/features/registration/pages/EmployerRegisterPage';
                 import 'bootstrap/dist/css/bootstrap.min.css';
                 window.registrationCalls=[];
                 window.otpFixtureSessions=new Map();

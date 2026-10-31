@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { beginMessageRequest, finishMessageRequest } from '../src/utils/messageSendRequest.js';
+import { beginMessageRequest, finishMessageRequest } from '../src/features/messaging/utils/messageSendRequest.js';
 
 test('rapid sends are suppressed and a lost response retains the same retry identity', () => {
     const ref = { current: null }, file = new File(['fixture'], 'test.pdf');

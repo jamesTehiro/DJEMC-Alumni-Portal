@@ -6,11 +6,11 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildSync } from "esbuild";
-import { createResumeSections, formatResumeDate, getResumeDocumentStyle } from "../src/components/resume/templates/resumeTemplateData.js";
-import { RESUME_TEMPLATE_OPTIONS, normalizeTemplateId } from "../src/components/resume/templates/resumeTemplateConfig.js";
+import { createResumeSections, formatResumeDate, getResumeDocumentStyle } from "../src/features/resumes/templates/resumeTemplateData.js";
+import { RESUME_TEMPLATE_OPTIONS, normalizeTemplateId } from "../src/features/resumes/templates/resumeTemplateConfig.js";
 
 const require = createRequire(import.meta.url);
-const templatePath = fileURLToPath(new URL("../src/components/resume/templates/ResumePreviewTemplate.jsx", import.meta.url));
+const templatePath = fileURLToPath(new URL("../src/features/resumes/templates/ResumePreviewTemplate.jsx", import.meta.url));
 const compiled = buildSync({ entryPoints: [templatePath], bundle: true, platform: "node", format: "cjs", packages: "external", write: false }).outputFiles[0].text;
 const compiledModule = { exports: {} };
 new Function("require", "module", "exports", compiled)(require, compiledModule, compiledModule.exports);
@@ -101,7 +101,7 @@ test("document style settings constrain invalid values and retain supported cust
 });
 
 test("each design has its own A4 stylesheet rules and document text can wrap", () => {
-    const css = readFileSync(new URL("../src/components/resume/ResumeTemplates.css", import.meta.url), "utf8");
+    const css = readFileSync(new URL("../src/features/resumes/components/ResumeTemplates.css", import.meta.url), "utf8");
     for (const template of RESUME_TEMPLATE_OPTIONS) assert.ok(css.includes(`.djemc-resume-document.djemc-resume-${template.id}`));
     assert.ok(css.includes("width: 210mm"));
     assert.ok(css.includes("height: 297mm"));

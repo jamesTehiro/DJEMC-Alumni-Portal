@@ -49,7 +49,7 @@ test("protected file fetching never forwards credentials to another origin", asy
 
 test("all messaging pages use protected file fetching and honor the download action", () => {
     for (const name of ["MessagesPage", "EmployerMessagesPage", "AdminAlumniMessagesPage", "AdminEmployerMessagesPage"]) {
-        const source = readFileSync(new URL(`../src/pages/${name}.jsx`, import.meta.url), "utf8");
+        const source = readFileSync(new URL(`../src/features/messaging/pages/${name}.jsx`, import.meta.url), "utf8");
         const start = source.indexOf("const openAttachment");
         const handler = source.slice(start, start + 1600);
         assert.match(handler, /fetchFile\([^,]+, true\)/);

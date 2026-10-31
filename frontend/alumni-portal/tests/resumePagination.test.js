@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { paginateResumeDocument, A4_WIDTH_PX, A4_HEIGHT_PX } from '../src/components/resume/templates/paginateResumeDocument.js';
+import { paginateResumeDocument, A4_WIDTH_PX, A4_HEIGHT_PX } from '../src/features/resumes/templates/paginateResumeDocument.js';
 
 // Deterministic DOM measurements isolate page-placement logic from browser fonts.
 class Element {

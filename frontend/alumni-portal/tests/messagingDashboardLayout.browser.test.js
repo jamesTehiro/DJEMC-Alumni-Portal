@@ -13,8 +13,8 @@ test('messaging images fit desktop/mobile and Alumni cards retain counts, scroll
         stdin: { resolveDir: root, loader: 'jsx', contents: `
             import React from 'react'; import {createRoot} from 'react-dom/client';
             import {MemoryRouter, useLocation} from 'react-router-dom';
-            import MessageAttachment from './src/components/MessageAttachment';
-            import AlumniPage from './src/pages/Alumnipage';
+            import MessageAttachment from './src/features/messaging/components/MessageAttachment';
+            import AlumniPage from './src/features/dashboard/alumni/Alumnipage';
             const dimensions={landscape:[3200,1800],portrait:[900,2400],square:[1400,1400],small:[320,180]};
             window.fixtureDownloads=[]; window.fixtureReads=[]; window.fixtureCalls=[];
             HTMLAnchorElement.prototype.click=function(){window.fixtureDownloads.push({name:this.download,url:this.href});};
@@ -46,7 +46,7 @@ test('messaging images fit desktop/mobile and Alumni cards retain counts, scroll
             builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const fetchFile=(...args)=>window.fixtureFile(...args); export const api={get:(...args)=>window.fixtureGet(...args)};' }));
         } }], logLevel: 'silent'
     });
-    const css = ['node_modules/bootstrap/dist/css/bootstrap.min.css','src/index.css','src/pages/MessagesPage.css','src/pages/Alumnipage.css','src/portal-responsive.css']
+    const css = ['node_modules/bootstrap/dist/css/bootstrap.min.css','src/styles/index.css','src/features/messaging/styles/MessagesPage.css','src/features/dashboard/alumni/Alumnipage.css','src/styles/portal-responsive.css']
         .map(file => readFileSync(path.join(root,file),'utf8')).join('\n') + '\n*,*::before,*::after{transition:none!important;animation:none!important;}';
     const server = createServer((req,res) => {
         if (req.url === '/bundle.js') { res.setHeader('Content-Type','text/javascript'); res.end(bundle.outputFiles[0].text); }

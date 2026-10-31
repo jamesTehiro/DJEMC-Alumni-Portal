@@ -16,7 +16,7 @@ test("employer registration selects/removes up to five files and the admin modal
     for(const [index,name] of names.entries()){const target=path.join(directory,name);await writeFile(target,`%PDF-1.7 submitted document ${index}`);paths.push(target);}
     const result=await build({stdin:{resolveDir:root,loader:"jsx",contents:`
         import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom';
-        import EmployerRegisterPage from './src/pages/EmployerRegisterPage'; import AdminVerificationPage from './src/pages/admin/AdminVerificationPage';
+        import EmployerRegisterPage from './src/features/registration/pages/EmployerRegisterPage'; import AdminVerificationPage from './src/features/verification/pages/AdminVerificationPage';
         window.submissions=[]; window.reads=[]; window.posts=[];
         window.fixtureApi={
             post:async(path,form)=>{window.posts.push(path);window.submissions=await Promise.all(form.getAll('business_permit').map(async(file,index)=>({id:String(index+1),name:file.name,mime_type:file.type,size:file.size,body:await file.text(),url:'/api/admin/employer/users/82/business-permits/'+(index+1)})));return{msg:'Registration successful'};},

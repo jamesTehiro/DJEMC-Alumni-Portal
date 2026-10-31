@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import process from 'node:process';
 import { build } from 'esbuild';
 import puppeteer from 'puppeteer';
 
@@ -13,9 +14,9 @@ test('Alumni Records separates academic fields and preserves table/profile workf
         stdin: { resolveDir: root, loader: 'jsx', contents: `
             import React from 'react'; import {createRoot} from 'react-dom/client';
             import {MemoryRouter} from 'react-router-dom';
-            import 'bootstrap/dist/css/bootstrap.min.css'; import './src/index.css';
-            import AdminUsersPage from './src/pages/admin/AdminUsersPage';
-            import './src/portal-responsive.css';
+            import 'bootstrap/dist/css/bootstrap.min.css'; import './src/styles/index.css';
+            import AdminUsersPage from './src/features/alumni-records/pages/AdminUsersPage';
+            import './src/styles/portal-responsive.css';
             const names=['Alpha Verified','Bravo Pending','Charlie Rejected','Delta Suspended','Echo Deactivated','Foxtrot Missing','Golf Custom','Hotel Empty','India Requested','Juliet Graduate','Kilo Graduate','Lima Graduate'];
             const statuses=['verified','pending','rejected','suspended','deactivated',null,'Manual review','','verified','verified','verified','verified'];
             const records=names.map((name,index)=>({id:index+1,name,role:'alumni',account_status:statuses[index],
@@ -30,7 +31,25 @@ test('Alumni Records separates academic fields and preserves table/profile workf
             records[5].AlumniRecord=null; records[5].AlumniProfile.graduation_year=2023;
             records[7].AlumniRecord=null; records[7].AlumniProfile={};
             records[8].latestProfileUpdateRequest={status:'sent'};
+            records[9].AlumniRecord.major='Software Development';
+            records[9].AlumniProfile.address='Cebu City';
+            records[10].AlumniRecord.major=' Not recorded ';
+            records[10].AlumniProfile.job_title='Not listed';
+            records[10].AlumniProfile.current_company='Not specified';
+            records[10].AlumniProfile.address='N/A';
+            records[11].AlumniRecord.major='  ';
+            records[11].AlumniProfile.job_title=null;
+            records[11].AlumniProfile.current_company='Independent Studio';
+            records[11].AlumniProfile.address='';
             window.fixtureCalls=[];
+            window.fixtureWrites=[];
+            window.fixturePost=(url,body,auth)=>{
+                if(!auth)throw Error('Missing existing authenticated API flag');
+                window.fixtureWrites.push({url,body});
+                const request={id:42,status:'sent',createdAt:new Date().toISOString()};
+                records[9].latestProfileUpdateRequest=request;
+                return Promise.resolve({msg:'Profile update request sent.',request});
+            };
             window.fixtureGet=(url,auth)=>{
                 if(!auth)throw Error('Missing existing authenticated API flag');
                 window.fixtureCalls.push(url);
@@ -42,7 +61,7 @@ test('Alumni Records separates academic fields and preserves table/profile workf
                     if(alumni.AlumniProfile.profile_visibility==='private'){
                         alumni.AlumniProfile.job_title=null; alumni.AlumniProfile.current_company=null;
                     }else alumni.AlumniProfile.EmploymentHistories=[{id:alumni.id,position:'Developer',company_name:'Fixture Labs',start_year:2021,is_current:true}];
-                    return new Promise(resolve=>{window.releaseTracking=()=>resolve({alumni,requests:[],events:[{id:alumni.id,action:'alumni.account_status.changed',metadata:{from:'pending',to:alumni.account_status},created_at:'2025-01-01T00:00:00Z'}]});});
+                    return new Promise(resolve=>{window.releaseTracking=()=>resolve({alumni,requests:alumni.latestProfileUpdateRequest?.status==='sent'?[alumni.latestProfileUpdateRequest]:[],events:[{id:alumni.id,action:'alumni.account_status.changed',metadata:{from:'pending',to:alumni.account_status},created_at:'2025-01-01T00:00:00Z'}]});});
                 }
                 throw Error('Unexpected API request: '+url);
             };
@@ -54,7 +73,7 @@ test('Alumni Records separates academic fields and preserves table/profile workf
         define: { 'import.meta.env': '{}', 'process.env.NODE_ENV': '"test"' },
         plugins: [{ name: 'records-fixture-api', setup(builder) {
             builder.onResolve({ filter: /\/services\/api$/ }, () => ({ path: 'api', namespace: 'fixture' }));
-            builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const API_BASE_URL="http://fixture.invalid/api"; export const resolveFileUrl=value=>value||""; export const api={get:(...args)=>window.fixtureGet(...args),post:()=>{throw Error("Unexpected write");}};' }));
+            builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const API_BASE_URL="http://fixture.invalid/api"; export const resolveFileUrl=value=>value||""; export const api={get:(...args)=>window.fixtureGet(...args),post:(...args)=>window.fixturePost(...args)};' }));
         } }], logLevel: 'silent'
     });
     const bundle = result.outputFiles.find(file => file.path.endsWith('.js')).text;
@@ -153,7 +172,7 @@ test('Alumni Records separates academic fields and preserves table/profile workf
             await page.waitForFunction(() => document.querySelector('.alumni-tracking-table tbody strong')?.textContent === 'Charlie Rejected');
             assert.equal((await rows())[0][4], 'Rejected');
             await search('Developer');
-            await page.waitForFunction(() => document.querySelectorAll('.alumni-profile-view-button').length === 11);
+            await page.waitForFunction(() => document.querySelectorAll('.alumni-profile-view-button').length === 9);
             await search('');
             await page.waitForFunction(() => document.querySelectorAll('.alumni-profile-view-button').length === 12);
         });
@@ -169,8 +188,9 @@ test('Alumni Records separates academic fields and preserves table/profile workf
                 await page.evaluate(() => window.releaseTracking());
                 await page.waitForSelector('.alumni-profile-overview');
                 assert.equal(await page.$eval('.alumni-profile-drawer h2', header => header.textContent), name);
-                assert.match(await page.$eval('.alumni-profile-overview', panel => panel.textContent), /SpecializationNot recorded/);
+                assert.doesNotMatch(await page.$eval('.alumni-profile-overview', panel => panel.textContent), /Major \/ Specialization|CompanyNot listed|Current PositionNot listed/);
                 assert.doesNotMatch(await page.$eval('.alumni-profile-overview', panel => panel.textContent), /Marketing Management/);
+                if (id === 2) assert.doesNotMatch(await page.$eval('.alumni-profile-overview', panel => panel.textContent), /Current Position|Company/);
                 await clickText('.alumni-profile-tabs button', 'Employment History');
                 await page.waitForFunction(() => !document.querySelector('.alumni-profile-overview'));
                 assert.match(await page.$eval('.alumni-profile-drawer-content', content => content.textContent), id === 1 ? /Fixture Labs/ : /hidden by this alumnus/);
@@ -188,6 +208,59 @@ test('Alumni Records separates academic fields and preserves table/profile workf
             assert.equal(await page.$eval('.alumni-profile-drawer h2', header => header.textContent), 'Charlie Rejected');
             await page.$eval('.alumni-profile-drawer-backdrop', backdrop => backdrop.click());
             await page.waitForFunction(() => !document.querySelector('.alumni-profile-drawer'));
+        });
+
+        await t.test('Overview cards hide missing and placeholder rows and preserve populated values', async () => {
+            const open = async index => {
+                await page.$$eval('.alumni-profile-view-button', (buttons, index) => buttons[index].click(), index);
+                await page.waitForFunction(() => !!window.releaseTracking);
+                // The GET fixture installs a new resolver synchronously when the drawer opens.
+                await page.evaluate(() => window.releaseTracking());
+                await page.waitForSelector('.alumni-profile-overview');
+            };
+            const details = () => page.$$eval('.alumni-profile-detail-row', rows => Object.fromEntries(rows.map(row => [row.querySelector('dt').textContent, row.querySelector('dd').textContent])));
+            const close = async () => { await page.click('button[aria-label="Close profile"]'); await page.waitForFunction(() => !document.querySelector('.alumni-profile-drawer')); };
+            await open(9);
+            assert.deepEqual(await details(), {Program:'BS in Information Technology (BSIT)','Year Graduated':'2025','Major / Specialization':'Software Development','Employment Status':'Employed','Current Position':'Developer',Company:'Example Company',Location:'Cebu City'});
+            assert.deepEqual(await page.$$eval('.alumni-profile-card h3', headings => headings.map(heading => heading.textContent)), ['Academic Information','Employment Information','Profile Actions','Account Status']);
+            assert.equal(await page.$eval('.alumni-profile-last-update dd', node => node.textContent), await page.evaluate(() => new Date('2020-01-01T00:00:00Z').toLocaleString()));
+            assert.doesNotMatch(await page.$eval('.alumni-profile-overview', panel => panel.textContent), /Send Message|Profile Status/);
+            await page.screenshot({path:path.join(screenshots,'drawer-complete-desktop.png'),fullPage:true});
+            const completeHeight = await page.$eval('[aria-labelledby="alumni-employment-heading"]', node => node.getBoundingClientRect().height);
+            for (const width of [1440,820,390,320]) {
+                await page.setViewport({width,height:900});
+                const layout = await page.$eval('.alumni-profile-overview', node => ({columns:getComputedStyle(node).gridTemplateColumns.split(' ').length,overflow:node.scrollWidth>node.clientWidth,cardBounds:[...node.querySelectorAll('.alumni-profile-card')].map(card=>({left:card.getBoundingClientRect().left,right:card.getBoundingClientRect().right})),drawerOverflow:node.closest('.alumni-profile-drawer').scrollWidth>node.closest('.alumni-profile-drawer').clientWidth}));
+                assert.equal(layout.columns,width<=700?1:2);
+                assert.equal(layout.overflow,false);
+                assert.equal(layout.drawerOverflow,false);
+                assert.ok(layout.cardBounds.every(box=>box.left>=0&&box.right<=width+1));
+                if(width===390) await page.screenshot({path:path.join(screenshots,'drawer-complete-mobile.png'),fullPage:true});
+            }
+            await page.setViewport({width:1440,height:1000});
+            await page.click('.alumni-profile-drawer-actions button');
+            await page.waitForSelector('.modal.show');
+            await clickText('.modal-footer button','Cancel');
+            await page.waitForFunction(()=>!document.querySelector('.modal.show'));
+            assert.deepEqual(await page.evaluate(()=>window.fixtureWrites),[]);
+            await page.click('.alumni-profile-drawer-actions button');
+            await clickText('.modal-footer button','Confirm Request');
+            await page.waitForFunction(()=>window.fixtureWrites.length===1);
+            await page.evaluate(()=>window.releaseTracking());
+            await page.waitForFunction(()=>document.querySelector('.alumni-profile-drawer-actions button')?.textContent==='Update Request Active');
+            assert.equal(await page.$eval('.alumni-profile-drawer-actions button',button=>button.disabled),true);
+            assert.deepEqual(await page.evaluate(()=>window.fixtureWrites),[{url:'/admin/alumni/users/10/profile-update-requests',body:{}}]);
+            await close();
+            await open(10);
+            assert.deepEqual(await details(),{Program:'BS in Information Technology (BSIT)','Year Graduated':'2025','Employment Status':'Employed'});
+            assert.ok(await page.$eval('[aria-labelledby="alumni-employment-heading"]',node=>node.getBoundingClientRect().height)<completeHeight);
+            await page.screenshot({path:path.join(screenshots,'drawer-missing-desktop.png'),fullPage:true});
+            await close();
+            await open(11);
+            assert.deepEqual(await details(),{Program:'BS in Information Technology (BSIT)','Year Graduated':'2025','Employment Status':'Employed',Company:'Independent Studio'});
+            await close();
+            await open(7);
+            assert.deepEqual(await details(),{Program:'Not recorded','Year Graduated':'Not recorded','Employment Status':'Not specified'});
+            await close();
         });
 
         await t.test('remaining filters align responsively and mobile retains table scrolling', async () => {

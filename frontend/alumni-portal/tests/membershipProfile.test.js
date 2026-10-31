@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fillEmptyProfileFields, membershipProfileChanges, membershipProfileValues } from "../src/utils/membershipProfile.js";
+import { fillEmptyProfileFields, membershipProfileChanges, membershipProfileValues } from "../src/features/membership/utils/membershipProfile.js";
 
 const membership = () => ({
     personal_details: {

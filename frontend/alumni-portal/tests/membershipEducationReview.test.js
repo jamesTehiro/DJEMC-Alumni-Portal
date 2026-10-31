@@ -10,11 +10,11 @@ import {
     membershipPayload,
     normalizeMembershipApplication,
     validateMembershipApplication,
-} from "../src/utils/membershipApplication.js";
+} from "../src/features/membership/utils/membershipApplication.js";
 
 const require = createRequire(import.meta.url);
 const compiled = buildSync({
-    entryPoints: [fileURLToPath(new URL("../src/components/membership/MembershipReview.jsx", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../src/features/membership/components/MembershipReview.jsx", import.meta.url))],
     bundle: true,
     write: false,
     format: "cjs",
@@ -28,7 +28,7 @@ new Function("require", "module", "exports", compiled.outputFiles[0].text)(requi
 const MembershipReview = compiledModule.exports.default;
 
 const formBundle = buildSync({
-    entryPoints: [fileURLToPath(new URL("../src/pages/MembershipApplicationPage.jsx", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../src/features/membership/pages/MembershipApplicationPage.jsx", import.meta.url))],
     bundle: true, write: false, format: "cjs", platform: "node", packages: "external",
     define: { "import.meta.env": "{}" }, loader: { ".css": "empty" }, logLevel: "silent",
 });

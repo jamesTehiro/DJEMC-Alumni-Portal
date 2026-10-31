@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../src/utils/applicationDecision.js";
-import { applicationStatusLabel } from "../src/utils/applicationStatus.js";
+import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../src/features/jobs/utils/applicationDecision.js";
+import { applicationStatusLabel } from "../src/features/jobs/utils/applicationStatus.js";
 
 const application = { id: 8, job_id: 12, recruitment_cycle: 3, status: "pending", ApplicationDocuments: [{ id: 7 }] };
 test("both decision controls allow only pending applications and lock while processing", () => {

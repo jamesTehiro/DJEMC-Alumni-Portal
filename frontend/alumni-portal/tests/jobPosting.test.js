@@ -6,11 +6,11 @@ import { fileURLToPath } from "node:url";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildSync } from "esbuild";
-import { createJobPostingForm, jobCompanyName, jobPostingPayload, postingDetailsOf, salaryDisplay, validateJobPosting } from "../src/utils/jobPosting.js";
+import { createJobPostingForm, jobCompanyName, jobPostingPayload, postingDetailsOf, salaryDisplay, validateJobPosting } from "../src/features/jobs/utils/jobPosting.js";
 
 const require = createRequire(import.meta.url);
 function component(name) {
-    const bundle = buildSync({ entryPoints: [fileURLToPath(new URL(`../src/components/jobs/${name}.jsx`, import.meta.url))], bundle: true, write: false, format: "cjs", platform: "node", external: ["react"], loader: { ".css": "empty" }, logLevel: "silent" });
+    const bundle = buildSync({ entryPoints: [fileURLToPath(new URL(`../src/features/jobs/components/${name}.jsx`, import.meta.url))], bundle: true, write: false, format: "cjs", platform: "node", external: ["react"], loader: { ".css": "empty" }, logLevel: "silent" });
     const module = { exports: {} };
     new Function("require", "module", "exports", bundle.outputFiles[0].text)(require, module, module.exports);
     return module.exports.default;
@@ -157,7 +157,7 @@ test("industry inherits the current company profile when no job override is ente
     assert.ok(html.includes("Education")); assert.ok(!html.includes("Information Technology"));
 });
 test("both role parents reuse the same form, payload and synchronous publication lock", () => {
-    for (const path of ["../src/pages/EmployerPage.jsx", "../src/pages/admin/AdminModerationPage.jsx"]) {
+    for (const path of ["../src/features/dashboard/employer/EmployerPage.jsx", "../src/features/announcements/admin/AdminModerationPage.jsx"]) {
         const source = readFileSync(new URL(path, import.meta.url), "utf8");
         assert.match(source, /<JobPostingForm/); assert.match(source, /jobPostingPayload\(form, requirements\)/);
         assert.match(source, /if \(jobSubmitInFlight.current\) return false/);
@@ -165,7 +165,7 @@ test("both role parents reuse the same form, payload and synchronous publication
         assert.match(source, /jobSubmitInFlight.current = false/);
         assert.match(source, /<InterviewDetailsModal/);
     }
-    const form = readFileSync(new URL("../src/components/jobs/JobPostingForm.jsx", import.meta.url), "utf8");
+    const form = readFileSync(new URL("../src/features/jobs/components/JobPostingForm.jsx", import.meta.url), "utf8");
     assert.match(form, /if \(!preview\) \{ setPreview\(true\); return; \}/);
     assert.match(form, /await onPublish\(\)/);
 });

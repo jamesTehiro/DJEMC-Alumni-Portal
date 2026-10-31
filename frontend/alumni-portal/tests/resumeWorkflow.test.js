@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createResumeDraft, normalizeResume, persistResume, restoreResumeDraft, resumeFingerprint, resumePayload,
-    unwrapResume, unwrapResumeList, validateResume } from '../src/utils/resumeWorkflow.js';
+    unwrapResume, unwrapResumeList, validateResume } from '../src/features/resumes/utils/resumeWorkflow.js';
 
 const draft = () => createResumeDraft({ id: 7, name: 'Alex Graduate', email: 'alex@example.com', AlumniProfile: { address: 'Manila', phone: '09123456789', job_title: 'Developer', avatar_url: '/uploads/photo.jpg' } }, 'draft-123');
 

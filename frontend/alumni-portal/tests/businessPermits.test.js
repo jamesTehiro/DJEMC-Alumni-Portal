@@ -31,12 +31,12 @@ test("document rendering supports multiple references, legacy single permits, an
 
 test("both registration entry points append every selected permit and the verification modal displays submitted documents",()=>{
     for(const page of ["EmployerRegisterPage","RegisterEmployerPage"]) {
-        const source=readFileSync(new URL(`../src/pages/${page}.jsx`,import.meta.url),"utf8");
+        const source=readFileSync(new URL(`../src/features/registration/pages/${page}.jsx`,import.meta.url),"utf8");
         assert.match(source,/BusinessPermitInput files=\{businessPermits\}/);
         assert.match(source,/businessPermits\.forEach\(file => payload\.append\("business_permit", file\)\)/);
         assert.match(source,/validateBusinessPermits\(businessPermits\)/);
     }
-    const modal=readFileSync(new URL("../src/pages/admin/AdminVerificationPage.jsx",import.meta.url),"utf8");
+    const modal=readFileSync(new URL("../src/features/verification/pages/AdminVerificationPage.jsx",import.meta.url),"utf8");
     assert.match(modal,/BusinessPermitDocuments profile=\{selectedEmployer\?\.EmployerProfile\}/);
     assert.doesNotMatch(modal,/Upload replacement business permit|No business permit uploaded/);
     assert.match(modal,/BusinessPermitPreview name=\{previewFile\.name\} request=\{previewFile\.request\}/);

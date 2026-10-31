@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 const readSource = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("dashboard job footer navigates by database ID and Jobs page restores the selected modal from the URL", () => {
-    const dashboard = readSource("../src/pages/Alumnipage.jsx");
-    const jobs = readSource("../src/pages/JobsPage.jsx");
+    const dashboard = readSource("../src/features/dashboard/alumni/Alumnipage.jsx");
+    const jobs = readSource("../src/features/jobs/pages/JobsPage.jsx");
     assert.match(dashboard, /navigate\(`\/jobs\?jobId=\$\{encodeURIComponent\(job\.id\)\}`\)/);
     assert.match(dashboard, /className="alu-job-footer alu-job-footer-link"/);
     assert.match(jobs, /useSearchParams/);
@@ -16,8 +16,8 @@ test("dashboard job footer navigates by database ID and Jobs page restores the s
 });
 
 test("feed edit opens a visible selected-post dialog and preserves failed edits", () => {
-    const feed = readSource("../src/pages/FeedPage.jsx");
-    const css = readSource("../src/pages/FeedPage.css");
+    const feed = readSource("../src/features/announcements/pages/FeedPage.jsx");
+    const css = readSource("../src/features/announcements/pages/FeedPage.css");
     assert.match(feed, /postMenuRefs\.current\[post\.id\]/);
     assert.match(feed, /setEditingPost\(post\)/);
     assert.match(feed, /setEditText\(post\?\.text \|\| ""\)/);
@@ -33,7 +33,7 @@ test("feed edit opens a visible selected-post dialog and preserves failed edits"
 });
 
 test("feed delete remains confirmed, single-flight, and connected to the API", () => {
-    const feed = readSource("../src/pages/FeedPage.jsx");
+    const feed = readSource("../src/features/announcements/pages/FeedPage.jsx");
     assert.match(feed, /if \(!editText\.trim\(\)\)/);
     assert.match(feed, /setDeleteConfirmPost\(post\)/);
     assert.match(feed, /await api\.delete\(`\/posts\/\$\{post\.sourceId\}`/);

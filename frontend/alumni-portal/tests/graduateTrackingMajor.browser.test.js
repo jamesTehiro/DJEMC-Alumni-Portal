@@ -10,7 +10,7 @@ test("Graduate Tracking major search preserves filters, pagination and existing 
     const root = fileURLToPath(new URL("..", import.meta.url));
     const output = await build({ stdin: { resolveDir: root, loader: "jsx", contents: `
         import React from 'react'; import {createRoot} from 'react-dom/client'; import {MemoryRouter} from 'react-router-dom';
-        import AdminUsersPage from './src/pages/admin/AdminUsersPage';
+        import AdminUsersPage from './src/features/alumni-records/pages/AdminUsersPage';
         const make=(id,course,major,year=2024)=>({id,name:'Graduate '+String(id).padStart(2,'0'),role:'alumni',account_status:'verified',AlumniRecord:{full_name:'Graduate '+String(id).padStart(2,'0'),course,major,batch_year:year},AlumniProfile:{course,major:'Accounting Education',graduation_year:year,employment_status:'employed',job_title:'Teacher',current_company:'Fixture School'}});
         const records=Array.from({length:12},(_,index)=>make(index+1,'BSED','Computer Education',index<6?2024:2023));
         const same=make(13,'BSED',null);same.AlumniProfile.major=' Computer Education ';

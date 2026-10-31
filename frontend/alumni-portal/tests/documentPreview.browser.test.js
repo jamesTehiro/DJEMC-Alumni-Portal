@@ -23,10 +23,10 @@ test("shared viewer previews protected chat/registration files, downloads Office
     pdf += `xref\n0 ${offsets.length}\n0000000000 65535 f \n${offsets.slice(1).map(offset => String(offset).padStart(10, '0') + ' 00000 n ').join('\n')}\ntrailer\n<< /Size ${offsets.length} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
     const result = await build({ stdin: { resolveDir: root, loader: "jsx", contents: `
         import React from 'react'; import {createRoot} from 'react-dom/client';
-        import DocumentPreview from './src/components/DocumentPreview';
-        import MessageAttachment from './src/components/MessageAttachment';
-        import GraduationProofPreview from './src/components/GraduationProofPreview';
-        import BusinessPermitPreview from './src/components/BusinessPermitPreview';
+        import DocumentPreview from './src/components/file-preview/DocumentPreview';
+        import MessageAttachment from './src/features/messaging/components/MessageAttachment';
+        import GraduationProofPreview from './src/components/file-preview/GraduationProofPreview';
+        import BusinessPermitPreview from './src/components/file-preview/BusinessPermitPreview';
         window.released=[]; const revoke=URL.revokeObjectURL.bind(URL);URL.revokeObjectURL=url=>{window.released.push(url);revoke(url);};
         window.reads=[];window.downloads=[];
         const png=Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='),c=>c.charCodeAt(0));

@@ -12,11 +12,11 @@ import {
     APPLICATION_SUCCESS_MESSAGE,
     validateSubmittedApplication,
     performApplicationSubmission
-} from "../src/utils/jobApplicationSubmission.js";
+} from "../src/features/jobs/utils/jobApplicationSubmission.js";
 
 const require = createRequire(import.meta.url);
 const compiled = buildSync({
-    entryPoints: [fileURLToPath(new URL("../src/components/RegistrationSuccessToast.jsx", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../src/features/registration/components/RegistrationSuccessToast.jsx", import.meta.url))],
     bundle: true,
     write: false,
     format: "cjs",
@@ -198,7 +198,7 @@ test("toast remains hidden without show and adds portal positioning only when ex
 });
 
 test("application modal preserves the authenticated multipart endpoint and requirement payloads", () => {
-    const source = readFileSync(new URL("../src/components/JobApplicationModal.jsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/features/jobs/components/JobApplicationModal.jsx", import.meta.url), "utf8");
     assert.match(source, /const formData = new FormData\(\)/);
     assert.match(source, /formData\.append\("job_id", job\?\.id\)/);
     assert.match(source, /formData\.append\("resume", uploadedResume\)/);
@@ -214,7 +214,7 @@ test("application modal preserves the authenticated multipart endpoint and requi
 });
 
 test("application submission locks repeated events and dismissal without losing validation or input state", () => {
-    const source = readFileSync(new URL("../src/components/JobApplicationModal.jsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/features/jobs/components/JobApplicationModal.jsx", import.meta.url), "utf8");
     assert.match(source, /const submissionInFlight = useRef\(false\)/);
     assert.match(source, /if \(submissionInFlight\.current\) return;/);
     assert.match(source, /if \(!submissionInFlight\.current\) onHide\?\.\(\)/);
@@ -231,7 +231,7 @@ test("application submission locks repeated events and dismissal without losing 
 });
 
 test("JobsPage uses the confirmed job ID, clears toast timers, and wires distinct success and error notifications", () => {
-    const source = readFileSync(new URL("../src/pages/JobsPage.jsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/features/jobs/pages/JobsPage.jsx", import.meta.url), "utf8");
     assert.match(source, /setAppliedJobIds\(\(prev\) => \[\.\.\.new Set\(\[\.\.\.prev, Number\(application\.job_id\)\]\)\]\)/);
     assert.match(source, /variant: "success", title: APPLICATION_SUCCESS_TITLE, message: APPLICATION_SUCCESS_MESSAGE/);
     assert.match(source, /variant: "error"/);
@@ -247,7 +247,7 @@ test("JobsPage uses the confirmed job ID, clears toast timers, and wires distinc
 });
 
 test("job-only toast positioning and sole card action keep mobile navigation clear", () => {
-    const source = readFileSync(new URL("../src/pages/JobPage.css", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/features/jobs/styles/JobPage.css", import.meta.url), "utf8");
     const desktop = source.match(/\.jobs-application-toast\.registration-toast-positioner\s*\{([^}]+)\}/)?.[1];
     assert.ok(desktop, "Toast positioning must be scoped to the jobs page");
     assert.match(desktop, /--portal-header-height/);

@@ -16,8 +16,8 @@ test('Registrar record deletion confirms, protects linked accounts, reports fail
         stdin: { resolveDir: root, loader: 'jsx', contents: `
             import React from 'react'; import {createRoot} from 'react-dom/client';
             import {MemoryRouter} from 'react-router-dom';
-            import 'bootstrap/dist/css/bootstrap.min.css'; import './src/index.css';
-            import RegistrarRecordsPage from './src/pages/RegistrarRecordsPage';
+            import 'bootstrap/dist/css/bootstrap.min.css'; import './src/styles/index.css';
+            import RegistrarRecordsPage from './src/features/alumni-records/pages/RegistrarRecordsPage';
             const records=Array.from({length:11},(_,index)=>({id:index+1,full_name:'Fixture Record '+String(index+1).padStart(2,'0'),course:'BSIT',major:'Software Engineering',batch_year:2020+index}));
             window.fixtureRecords=records;window.fixtureDeleteCalls=[];window.fixtureDeleteMode='success';
             window.fixtureDelete=async url=>{
@@ -36,9 +36,9 @@ test('Registrar record deletion confirms, protects linked accounts, reports fail
         plugins: [{ name: 'registrar-delete-fixtures', setup(builder) {
             builder.onResolve({ filter: /\/services\/api$/ }, () => ({ path: 'api', namespace: 'fixture' }));
             builder.onLoad({ filter: /^api$/, namespace: 'fixture' }, () => ({ contents: 'export const api={get:async()=>[],delete:(url)=>window.fixtureDelete(url)};' }));
-            builder.onResolve({ filter: /\/registrar\/useRegistrarAdminData$/ }, () => ({ path: 'registrar-hook', namespace: 'fixture' }));
+            builder.onResolve({ filter: /\/hooks\/useRegistrarAdminData$/ }, () => ({ path: 'registrar-hook', namespace: 'fixture' }));
             builder.onLoad({ filter: /^registrar-hook$/, namespace: 'fixture' }, () => ({ resolveDir: root, contents: `import React,{useState} from 'react';export default function useRegistrarAdminData(){const [records,setRecords]=useState(window.fixtureRecords);const [selectedRecord,setSelectedRecord]=useState(null);return {isAllowed:true,records,setRecords,selectedRecord,setSelectedRecord,message:'',error:'',showAddModal:false,editingRecord:null,openEditModal(){},savingRecord:false,handleSaveRecord:async()=>{},openAddModal(){},closeAddModal(){}};}` }));
-            builder.onResolve({ filter: /\/components\/AdminShell$/ }, () => ({ path: 'admin-shell', namespace: 'fixture' }));
+            builder.onResolve({ filter: /\/components\/layout\/AdminShell$/ }, () => ({ path: 'admin-shell', namespace: 'fixture' }));
             builder.onLoad({ filter: /^admin-shell$/, namespace: 'fixture' }, () => ({ loader: 'jsx', resolveDir: root, contents: `import React from 'react';export default function AdminShell({title,children}){return <main><h1>{title}</h1>{children}</main>;}` }));
             builder.onResolve({ filter: /\/components\/AddAlumniModal$/ }, () => ({ path: 'add-modal', namespace: 'fixture' }));
             builder.onResolve({ filter: /\/components\/CsvAlumniImportModal$/ }, () => ({ path: 'csv-modal', namespace: 'fixture' }));

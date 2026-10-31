@@ -12,7 +12,7 @@ test("Registrar reviews multi-file and legacy graduation proofs without disrupti
     const expectedUrls = Array.from({ length: 6 }, (_, index) => `/api/files/secure/proof-${index}`);
     const result = await build({ stdin: { resolveDir: root, loader: "jsx", contents: `
         import React from 'react';import {createRoot} from 'react-dom/client';import {MemoryRouter} from 'react-router-dom';
-        import Queue from './src/pages/RegistrarVerificationQueuePage';
+        import Queue from './src/features/verification/pages/RegistrarVerificationQueuePage';
         const documents=[
             {name:'Transcript.pdf',url:'/api/files/secure/proof-0',mime_type:'application/pdf'},
             {name:'Diploma.png',url:'/api/files/secure/proof-1',mime_type:'image/png'},

@@ -12,8 +12,8 @@ test("Admin Alumni sidebar omits membership navigation and preserves its nodes o
             import React, { lazy, Suspense } from 'react';
             import { createRoot } from 'react-dom/client';
             import { MemoryRouter, Routes, Route } from 'react-router-dom';
-            import AdminShell from './src/components/AdminShell';
-            import AdminAlumniLayout from './src/components/AdminAlumniLayout';
+            import AdminShell from './src/components/layout/AdminShell';
+            import AdminAlumniLayout from './src/components/layout/AdminAlumniLayout';
             window.accessCalls = 0;
             window.fixtureGet = () => { window.accessCalls++; return new Promise(resolve => { window.grantAccess = () => resolve({scope:'alumni',can_view:window.allowed}); }); };
             const user = {id:1,name:'Test Admin',role:'admin',admin_scope:window.scope};
@@ -99,7 +99,7 @@ test("Admin Alumni sidebar omits membership navigation and preserves its nodes o
 });
 
 test("all eight Alumni routes share the persistent shell in the application router", () => {
-    const app = readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
+    const app = readFileSync(new URL("../src/app/App.jsx", import.meta.url), "utf8");
     const group = app.slice(app.indexOf("<AdminAlumniLayout />"), app.indexOf('<Route path="/login"'));
     for (const suffix of ["", "/users", "/membership-applications", "/messages", "/moderation", "/logs", "/settings", "/verification"]) assert.ok(group.includes(`path="/admin/alumni${suffix}"`));
 });

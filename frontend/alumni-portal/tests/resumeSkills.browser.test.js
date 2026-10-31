@@ -21,9 +21,9 @@ test("Resume Builder saves and reopens categorized skills and groups preview, do
     t.diagnostic(`Local verification artifacts: ${artifacts}`);
     const result = await build({ stdin: { resolveDir: root, loader: "jsx", contents: `
         import React from 'react';import {createRoot} from 'react-dom/client';
-        import 'bootstrap/dist/css/bootstrap.min.css';import './src/index.css';
-        import ResumeBuilderPage from './src/pages/ResumeBuilderPage';
-        import {buildResumeDocumentHtml} from './src/components/resume/templates/resumeDocumentExport';
+        import 'bootstrap/dist/css/bootstrap.min.css';import './src/styles/index.css';
+        import ResumeBuilderPage from './src/features/resumes/pages/ResumeBuilderPage';
+        import {buildResumeDocumentHtml} from './src/features/resumes/templates/resumeDocumentExport';
         const initial={id:41,title:'Skills Fixture',template_id:'modern-professional',settings:{client_draft_id:'skill-categories',existing_setting:'preserved'},personalInfo:{full_name:'Fixture Graduate',email:'fixture@example.invalid'},summary:{content:'Preserved professional summary'},education:[{institution:'DJEMC',degree:'BSIT'}],skills:[{skill_name:'Problem solving',category:null}],workExperience:[],projects:[],certifications:[],trainings:[],seminars:[],awards:[],organizations:[],volunteerWork:[],languages:[],references:[]};
         if(!localStorage.getItem('fixture-saved-resume'))localStorage.setItem('fixture-saved-resume',JSON.stringify(initial));
         localStorage.setItem('user',JSON.stringify({id:7,name:'Fixture Graduate',email:'fixture@example.invalid',role:'alumni'}));localStorage.setItem('token','fixture-token');

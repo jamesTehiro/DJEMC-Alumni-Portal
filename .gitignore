@@ -31,3 +31,15 @@ uploads/
 *.sql
 *.sql.gz
 *.dump
+
+# Reviewed read-only schema helper (not a database backup)
+!backend/scripts/messagingMigrationPreflight.sql
+
+# Incomplete disposable MySQL runtime download
+/tmp/mysql-8.4.11-winx64.zip
+
+# Reviewed read-only schema helper (not a database backup)
+!backend/scripts/messagingMigrationPreflight.sql
+
+# Incomplete disposable MySQL runtime download
+/tmp/mysql-8.4.11-winx64.zip

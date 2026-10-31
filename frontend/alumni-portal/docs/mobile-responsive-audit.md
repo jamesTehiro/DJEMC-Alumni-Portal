@@ -34,28 +34,28 @@ Shared review included Sidebar.module.css, DashboardLayout, AdminShell, Navbar h
 | Resume document-name controls remain in a horizontal row on phones | Stack that row and allow editor action groups to wrap. The existing measured A4 scaling, templates, pagination, stored data, and PDF generation are unchanged. |
 | Existing record tables already have scrolling wrappers and membership education already has a mobile layout | Reuse those implementations and constrain wrapper sizing rather than replacing tables or actions. |
 
-The new cross-page rules are in `src/portal-responsive.css`, scoped to portal roots or modals belonging to an open portal, and limited to widths at or below 1024px. No global horizontal-overflow hiding was added. Green palette values were not changed. Dashboard data/calculations were not changed.
+The new cross-page rules are in `src/styles/portal-responsive.css`, scoped to portal roots or modals belonging to an open portal, and limited to widths at or below 1024px. No global horizontal-overflow hiding was added. Green palette values were not changed. Dashboard data/calculations were not changed.
 
 ## Files changed for this task
 
-- `src/portal-responsive.css` — shared compact portal and modal layout rules (new).
+- `src/styles/portal-responsive.css` — shared compact portal and modal layout rules (new).
 - `src/main.jsx` — import shared responsive CSS.
-- `src/components/Sidebar.module.css` — tablet drawer breakpoint and compact content padding.
-- `src/components/DashboardLayout.css` — align Alumni compact breakpoint.
+- `src/components/layout/Sidebar.module.css` — tablet drawer breakpoint and compact content padding.
+- `src/components/layout/DashboardLayout.css` — align Alumni compact breakpoint.
 - `src/hooks/usePortalDrawer.js` — match the tablet drawer breakpoint.
-- `src/hooks/useChatViewport.js` — keyboard viewport sizing subscription with cleanup (new).
-- `src/pages/AdminAlumniMessagesPage.jsx` — mobile list/chat state and Back control; viewport subscription.
-- `src/pages/AdminEmployerMessagesPage.jsx` — mobile list/chat state and Back control; viewport subscription.
-- `src/pages/EmployerMessagesPage.jsx` — viewport subscription.
-- `src/pages/MessagesPage.jsx` — viewport subscription and breakpoint-only view reset.
-- `src/pages/MessagesPage.css` — tablet single-panel behavior, selected-chat sizing, scroll containment, wrapping and tap sizing.
-- `src/pages/EmployerPage.jsx` — align drawer resize behavior with 1024px breakpoint.
-- `src/pages/ResumeBuilderPage.css` — compact editor controls.
-- `src/pages/admin/AdminAlumniRecordsPage.css` — drawer/header/action sizing.
-- `src/pages/admin/AdminVerificationPage.css` — internally scroll wide verification rows.
+- `src/features/messaging/hooks/useChatViewport.js` — keyboard viewport sizing subscription with cleanup (new).
+- `src/features/messaging/pages/AdminAlumniMessagesPage.jsx` — mobile list/chat state and Back control; viewport subscription.
+- `src/features/messaging/pages/AdminEmployerMessagesPage.jsx` — mobile list/chat state and Back control; viewport subscription.
+- `src/features/messaging/pages/EmployerMessagesPage.jsx` — viewport subscription.
+- `src/features/messaging/pages/MessagesPage.jsx` — viewport subscription and breakpoint-only view reset.
+- `src/features/messaging/styles/MessagesPage.css` — tablet single-panel behavior, selected-chat sizing, scroll containment, wrapping and tap sizing.
+- `src/features/dashboard/employer/EmployerPage.jsx` — align drawer resize behavior with 1024px breakpoint.
+- `src/features/resumes/pages/ResumeBuilderPage.css` — compact editor controls.
+- `src/features/alumni-records/styles/AdminAlumniRecordsPage.css` — drawer/header/action sizing.
+- `src/features/verification/styles/AdminVerificationPage.css` — internally scroll wide verification rows.
 - `tests/portalDrawer.test.js` — update the expected media query to the intentional tablet breakpoint.
 
-The earlier sidebar task also changed `src/pages/EmployerPage.css`; this task leaves those changes intact. Pre-existing backend, profile-upload, API-service, deployment/configuration, and other working-tree changes were preserved.
+The earlier sidebar task also changed `src/styles/EmployerPage.css`; this task leaves those changes intact. Pre-existing backend, profile-upload, API-service, deployment/configuration, and other working-tree changes were preserved.
 
 ## Checks
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { getJobCompanyName, getJobPostingMeta } from "../src/utils/jobDisplay.js";
+import { getJobCompanyName, getJobPostingMeta } from "../src/features/jobs/utils/jobDisplay.js";
 
 test("job company comes from its owner profile rather than caller advertisement identity", () => {
     assert.equal(getJobCompanyName({ company_name: "Spoofed", User: { name: "Owner", EmployerProfile: { organization_name: "Registered Company" } } }), "Registered Company");
@@ -17,7 +17,7 @@ test("new posting metadata supports saved JSON and safely omits missing legacy f
 });
 
 test("alumni cards omit View Job while preserving Apply, details, and job filters", () => {
-    const source = readFileSync(new URL("../src/pages/JobsPage.jsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/features/jobs/pages/JobsPage.jsx", import.meta.url), "utf8");
     assert.match(source, /<JobPostingAdvertisement job=\{selectedJob\} requirements=\{previewRequirements\}/);
     assert.doesNotMatch(source, />\s*View Job\s*</);
     assert.doesNotMatch(source, /className="job-view-btn"/);

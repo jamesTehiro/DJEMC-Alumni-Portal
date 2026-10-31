@@ -8,7 +8,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 const compiled = buildSync({
-    entryPoints: [fileURLToPath(new URL('../src/components/ApplicantDocumentWorkspace.jsx', import.meta.url))],
+    entryPoints: [fileURLToPath(new URL('../src/features/jobs/components/ApplicantDocumentWorkspace.jsx', import.meta.url))],
     bundle: true, write: false, format: 'cjs', platform: 'node', packages: 'external', jsx: 'automatic',
     define: { 'import.meta.env': '{}' }, loader: { '.css': 'empty' }, logLevel: 'silent',
 });
@@ -70,8 +70,8 @@ test('workspace handles empty and malformed snapshots explicitly without inventi
 
 test('both Employer and Admin Employer modals retain the shared workspace and existing action callbacks', () => {
     for (const page of ['EmployerPage', 'AdminEmployerPage']) {
-        const source = readFileSync(new URL(`../src/pages/${page}.jsx`, import.meta.url), 'utf8');
-        assert.match(source, /import ApplicantDocumentWorkspace, \{ ApplicantResumePrintButton \} from "\.\.\/components\/ApplicantDocumentWorkspace"/);
+        const source = readFileSync(new URL({"EmployerPage":"../src/features/dashboard/employer/EmployerPage.jsx","AdminEmployerPage":"../src/features/dashboard/admin-employer/AdminEmployerPage.jsx"}[page], import.meta.url), 'utf8');
+        assert.match(source, /import ApplicantDocumentWorkspace, \{ ApplicantResumePrintButton \} from "\.\.\/\.\.\/jobs\/components\/ApplicantDocumentWorkspace"/);
         assert.match(source, /<ApplicantDocumentWorkspace key=\{selectedApplication.id\} application=\{selectedApplication\} onDownload=\{downloadApplicationDocument\} onView=\{previewDocumentFile\} \/>/);
         assert.match(source, /<ApplicantResumePrintButton application=\{selectedApplication\} \/>/);
     }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getSkillCategories, groupResumeSkills, validateSkillCategory, validateResumeSkills } from "../src/utils/resumeSkills.js";
-import { normalizeResume, persistResume, resumePayload, validateResume } from "../src/utils/resumeWorkflow.js";
+import { getSkillCategories, groupResumeSkills, validateSkillCategory, validateResumeSkills } from "../src/features/resumes/utils/resumeSkills.js";
+import { normalizeResume, persistResume, resumePayload, validateResume } from "../src/features/resumes/utils/resumeWorkflow.js";
 
 const programming = ["Node.js", "JavaScript", "CSS", "HTML", "React", "Vite", "MySQL"].map(skill_name => ({ category: "Programming", skill_name }));
 

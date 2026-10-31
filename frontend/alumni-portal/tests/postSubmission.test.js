@@ -39,7 +39,7 @@ test("single-flight guard resets after a failed upload so the draft can be retri
 });
 
 test("Feed composer keeps its draft on failure and clears it only after a successful create", () => {
-    const source = readFileSync(new URL("../src/pages/FeedPage.jsx", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../src/features/announcements/pages/FeedPage.jsx", import.meta.url), "utf8");
     assert.match(source, /const postSubmissionRef = useRef\(false\)/);
     assert.match(source, /runSingleFlight\(postSubmissionRef/);
     assert.match(source, /disabled=\{isPosting\}/);

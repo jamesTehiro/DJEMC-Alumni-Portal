@@ -11,14 +11,14 @@ test('shared academic fields, registrar records, CSV, queue and coordinator reta
         stdin: { resolveDir: root, loader: 'jsx', contents: `
             import React,{useState} from 'react'; import {createRoot} from 'react-dom/client';
             import {MemoryRouter} from 'react-router-dom';
-            import {UndoDeleteProvider} from './src/context/UndoDeleteContext';
-            import 'bootstrap/dist/css/bootstrap.min.css'; import './src/index.css';
-            import AcademicProgramFields from './src/components/AcademicProgramFields';
-            import MasterAlumniRecordsPanel from './src/components/MasterAlumniRecordsPanel';
-            import AddAlumniModal from './src/components/AddAlumniModal';
-            import CsvAlumniImportModal from './src/components/CsvAlumniImportModal';
-            import Queue from './src/pages/RegistrarVerificationQueuePage';
-            import Coordinator from './src/pages/AdminAlumniPage';
+            import {UndoDeleteProvider} from './src/contexts/UndoDeleteContext';
+            import 'bootstrap/dist/css/bootstrap.min.css'; import './src/styles/index.css';
+            import AcademicProgramFields from './src/components/forms/AcademicProgramFields';
+            import MasterAlumniRecordsPanel from './src/features/alumni-records/components/MasterAlumniRecordsPanel';
+            import AddAlumniModal from './src/features/alumni-records/components/AddAlumniModal';
+            import CsvAlumniImportModal from './src/features/alumni-records/components/CsvAlumniImportModal';
+            import Queue from './src/features/verification/pages/RegistrarVerificationQueuePage';
+            import Coordinator from './src/features/dashboard/admin-alumni/AdminAlumniPage';
             import {programs,academicInfo} from './src/utils/academicPrograms';
             window.programs=programs;window.savedRecords=[];
             const records=[{id:1,full_name:'Business Alum',course:'BSBA',major:'Marketing Management',batch_year:2024},

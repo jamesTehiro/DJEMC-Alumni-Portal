@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { membershipSubmittedDate, requireMembershipPdf } from "../src/utils/membershipDocument.js";
+import { membershipSubmittedDate, requireMembershipPdf } from "../src/features/membership/utils/membershipDocument.js";
 
 test("submission dates use Manila time consistently with the server date filter", () => {
     assert.equal(membershipSubmittedDate("2026-10-13T16:10:00Z"), "Oct 14, 2026");
