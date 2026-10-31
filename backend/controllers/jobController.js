@@ -98,7 +98,7 @@ const assignInterviewDetails = (target, details) => {
     }
 };
 
-const createRequirementsForJob = async (jobId, requirements, version, transaction) => {
+const createRequirementsForJob = async (jobId, requirements, version, transaction, preserveCodes = false) => {
     if (!requirements || !Array.isArray(requirements) || requirements.length === 0) {
         return [];
     }
@@ -117,7 +117,7 @@ const createRequirementsForJob = async (jobId, requirements, version, transactio
                 throw new Error(`Library requirement "${req.library_code}" not found.`);
             }
             requirementCode = libItem.requirement_code;
-        } else if (req.is_custom || !requirementCode) {
+        } else if ((req.is_custom && !preserveCodes) || !requirementCode) {
             requirementCode = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 8)}_${i}`;
         }
 
@@ -136,6 +136,10 @@ const createRequirementsForJob = async (jobId, requirements, version, transactio
             is_custom: req.is_custom || false,
             allowed_types: req.allowed_types || null,
             max_file_size: req.max_file_size || null,
+            condition_enabled: req.condition_enabled || false,
+            condition_field: req.condition_field || null,
+            condition_operator: req.condition_operator || null,
+            condition_value: req.condition_value || null,
             sort_order: req.sort_order !== undefined ? req.sort_order : i
         }, { transaction });
 
@@ -352,8 +356,22 @@ exports.updateJob = async (req, res) => {
         let savedRequirementVersion = job.current_requirement_version;
 
         await db.sequelize.transaction(async (transaction) => {
-            await loadPostingUser(req, transaction);
+            const currentUser = await loadPostingUser(req, transaction);
+            const lockedJob = await db.Job.findByPk(job.id, { transaction, lock: transaction.LOCK?.UPDATE });
+            if (!lockedJob) throw new JobPostingError("Job not found", 404);
+            if (!(currentUser.role === "admin" && currentUser.admin_scope === "employer") && Number(lockedJob.employer_id) !== Number(currentUser.id)) throw new JobPostingError("Not allowed.", 403);
             const updateFields = { ...validatedFields };
+            if (updateFields.posting_details) {
+                // Preserve controls omitted by this form, using the locked record
+                // so concurrent updates cannot overwrite hidden salary/benefit data.
+                for (const key of ["compensation", "benefits"]) {
+                    if (!Object.hasOwn(req.body.posting_details, key)) {
+                        delete updateFields.posting_details[key];
+                        if (lockedJob.posting_details?.[key] !== undefined) updateFields.posting_details[key] = lockedJob.posting_details[key];
+                    }
+                }
+                if (!Object.hasOwn(req.body.posting_details, "compensation") && req.body.expected_salary === undefined) delete updateFields.expected_salary;
+            }
             if (normalizedEmploymentType !== undefined) updateFields.employment_type = normalizedEmploymentType;
             if (interviewDetails) assignInterviewDetails(updateFields, interviewDetails);
 
@@ -380,7 +398,7 @@ exports.updateJob = async (req, res) => {
                     group_id: req.group_temp_id !== undefined ? (groupMap[req.group_temp_id] || null) : (req.group_id || null)
                 }));
 
-                await createRequirementsForJob(job.id, mappedRequirements, nextVersion, transaction);
+                await createRequirementsForJob(job.id, mappedRequirements, nextVersion, transaction, true);
             } else if (requirements !== undefined) {
                 savedRequirementVersion = 0;
                 updateFields.current_requirement_version = 0;

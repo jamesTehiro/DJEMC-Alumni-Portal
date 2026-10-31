@@ -22,6 +22,7 @@ import { useUndoDelete } from "../../../hooks/useUndoDelete";
 import { BsTrash } from "react-icons/bs";
 import InterviewDetailsModal, { EMPTY_INTERVIEW_DETAILS } from "../../jobs/components/InterviewDetailsModal";
 import JobPostingForm from "../../jobs/components/JobPostingForm";
+import JobPostingEditor from "../../jobs/components/JobPostingEditor";
 import { createJobPostingForm, jobPostingPayload, validateJobPosting } from "../../jobs/utils/jobPosting";
 
 const displayValue = (value, fallback = "N/A") => {
@@ -140,6 +141,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     const [industryValue, setIndustryValue] = useState("");
     const [industrySaving, setIndustrySaving] = useState(false);
     const [form, setForm] = useState(createJobPostingForm);
+    const [editingJob, setEditingJob] = useState(null);
     const [requirements, setRequirements] = useState([]);
     const [submitting, setSubmitting] = useState(false);
     const jobSubmitInFlight = useRef(false);
@@ -1305,6 +1307,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                                             {job.recruitment_status === "closed" ? "Closed" : "Active"}
                                                         </span>
                                                         <span className="emp-type-tag">{getEmploymentTypeLabel(job.employment_type)}</span>
+                                                        <button type="button" className="emp-view-btn emp-edit-job-btn" onClick={() => setEditingJob(job)}>Edit Job</button>
                                                         <button type="button" className="emp-view-btn emp-manage-applicants-btn" onClick={() => openJobApplicants(job)}>
                                                             Manage Applicants
                                                         </button>
@@ -1632,6 +1635,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                 </div>
             </div>
 
+            <JobPostingEditor job={editingJob} onClose={() => setEditingJob(null)} onSaved={saved => setJobs(previous => previous.map(job => String(job.id) === String(saved.id) ? { ...job, ...saved } : job))} />
             <Modal
                 show={!!selectedApplication}
                 onHide={() => {

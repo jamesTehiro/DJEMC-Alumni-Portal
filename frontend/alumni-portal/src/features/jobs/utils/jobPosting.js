@@ -47,7 +47,7 @@ export function salaryDisplay(compensation, legacySalary = "") {
     return text(legacySalary);
 }
 
-export function validateJobPosting(form, requirements = []) {
+export function validateJobPosting(form, requirements = [], { allowEmptyRequirements = false } = {}) {
     const errors = [];
     if (!text(form?.title)) errors.push("Job Title is required.");
     if (!text(form?.location)) errors.push("Job Location is required.");
@@ -64,7 +64,7 @@ export function validateJobPosting(form, requirements = []) {
         try { if (!validDate(value)) errors.push(`${name} must be a valid date.`); } catch { errors.push(`${name} must be a valid date.`); }
     }
     if (application.publish_contact === true && application.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(application.contact_email)) errors.push("Contact Email must be a valid email address.");
-    if (!Array.isArray(requirements) || requirements.length === 0) errors.push("Add at least one application requirement before publishing.");
+    if (!Array.isArray(requirements) || (!allowEmptyRequirements && requirements.length === 0)) errors.push("Add at least one application requirement before publishing.");
     const requirementCodes = new Set();
     for (const [index, requirement] of (Array.isArray(requirements) ? requirements : []).entries()) {
         if (!text(requirement.label)) errors.push(`Application requirement ${index + 1} needs a label.`);

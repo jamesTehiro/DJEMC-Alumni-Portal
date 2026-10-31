@@ -25,7 +25,8 @@ function DynamicList({ id, label, items = [], onChange, placeholder }) {
     </div>;
 }
 
-export default function JobPostingForm({ value, onChange, profile, requirements, requirementsEditor, submitting = false, onPublish }) {
+export default function JobPostingForm({ value, onChange, profile, requirements, requirementsEditor, submitting = false, onPublish, mode = "create", onCancel }) {
+    const editing = mode === "edit";
     const id = useId();
     const [preview, setPreview] = useState(false);
     const [errors, setErrors] = useState([]);
@@ -39,7 +40,7 @@ export default function JobPostingForm({ value, onChange, profile, requirements,
     const setGroup = (group, key, next) => onChange(previous => ({ ...previous, posting_details: { ...previous.posting_details, [group]: { ...previous.posting_details[group], [key]: next } } }));
     const field = (name, label, fieldValue, change, props = {}) => <Field key={name} id={`${id}-${name}`} label={label} value={fieldValue} onChange={change} {...props} />;
     const check = () => {
-        const issues = validateJobPosting(value, requirements);
+        const issues = validateJobPosting(value, requirements, { allowEmptyRequirements: editing });
         setErrors(issues);
         if (issues.length) { setTimeout(() => validationRef.current?.focus(), 0); return false; }
         return true;
@@ -47,7 +48,9 @@ export default function JobPostingForm({ value, onChange, profile, requirements,
     const submit = async event => {
         event.preventDefault();
         if (submitting || !check()) return;
-        if (!preview) { setPreview(true); return; }
+        if (!editing) {
+            if (!preview) { setPreview(true); return; }
+        }
         const published = await onPublish();
         if (published) { setPreview(false); setErrors([]); }
     };
@@ -68,7 +71,7 @@ export default function JobPostingForm({ value, onChange, profile, requirements,
                     {field("vacancies", "Number of Vacancies (optional)", details.vacancy_count, next => setDetails("vacancy_count", next), { type: "number", min: 1, max: 100000, step: 1, placeholder: "e.g. 2" })}
                 </div>
             </Section>
-            <Section number={++sectionNumber} title="About the Company" description="Company identity comes from your authenticated account.">
+            <Section number={++sectionNumber} title="About the Company" description={editing ? "Company identity remains linked to the original job owner." : "Company identity comes from your authenticated account."}>
                 <div className="job-posting-field-grid">
                     {field("company", "Company / Organization", companyName, undefined, { readOnly: true, placeholder: "Your organization profile" })}
                     {field("industry", "Industry (optional)", details.industry, next => setDetails("industry", next), { maxLength: 255, placeholder: profile?.EmployerProfile?.industry || "e.g. Hospitality" })}
@@ -107,7 +110,10 @@ export default function JobPostingForm({ value, onChange, profile, requirements,
             <Section number={++sectionNumber} title="Application Requirements">
                 {requirementsEditor}
             </Section>
-            <div className="job-posting-footer"><button type="submit" className="job-posting-primary">Preview Job Posting</button></div>
+            <div className="job-posting-footer">
+                {editing && <button type="button" className="job-posting-outline" onClick={onCancel}>Cancel</button>}
+                <button type="submit" className="job-posting-primary">{editing ? submitting ? "Saving…" : "Save Changes" : "Preview Job Posting"}</button>
+            </div>
         </fieldset>}
     </form>;
 }

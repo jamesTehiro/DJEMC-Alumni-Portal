@@ -14,6 +14,7 @@ import { useUndoDelete } from "../../../hooks/useUndoDelete";
 import { getEmploymentTypeLabel } from "../../../utils/employmentTypes";
 import AdminShell from "../../../components/layout/AdminShell";
 import InterviewDetailsModal, { EMPTY_INTERVIEW_DETAILS } from "../../jobs/components/InterviewDetailsModal";
+import JobPostingEditor from "../../jobs/components/JobPostingEditor";
 import "../../../styles/AdminEmployerPage.css";
 import "../../../styles/EmployerPage.css";
 
@@ -60,6 +61,7 @@ export default function AdminEmployerPage({
     const interviewSaveInProgressRef = useRef(false);
     const [employers, setEmployers] = useState([]);
     const [jobs, setJobs] = useState([]);
+    const [editingJob, setEditingJob] = useState(null);
     const [applications, setApplications] = useState([]);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
@@ -821,6 +823,7 @@ export default function AdminEmployerPage({
                                     <div className="emp-list-item-right">
                                         <span className={`emp-status-badge ${job.recruitment_status === "closed" ? "rejected" : "approved"}`}>{job.recruitment_status === "closed" ? "STOPPED" : "ACTIVE"}</span>
                                         <span className="emp-type-tag">{getEmploymentTypeLabel(job.employment_type)}</span>
+                                        <button type="button" className="emp-view-btn emp-edit-job-btn" onClick={() => setEditingJob(job)}>Edit Job</button>
                                         <button type="button" className="emp-view-btn emp-manage-applicants-btn" onClick={() => selectJob(job)}>Manage Applicants</button>
                                         <button type="button" className={job.recruitment_status === "closed" ? "emp-reactivate-btn" : "emp-stop-btn"} disabled={recruitmentBusy !== null} onClick={() => changeRecruitment(job)}>{recruitmentBusy === job.id ? "Updating…" : job.recruitment_status === "closed" ? "Resume Recruitment" : "Stop Recruitment"}</button>
                                         <button type="button" className="emp-delete-btn" aria-label={`Delete ${job.title || "job"}`} title="Delete Job" onClick={() => handleDeleteJob(job)}><BsTrash className="emp-delete-icon" aria-hidden="true" /></button>
@@ -844,6 +847,7 @@ export default function AdminEmployerPage({
 
                 </section>
             </div>
+            <JobPostingEditor job={editingJob} onClose={() => setEditingJob(null)} onSaved={saved => setJobs(previous => previous.map(job => String(job.id) === String(saved.id) ? { ...job, ...saved } : job))} />
             <InterviewDetailsModal
                 show={!!editingInterviewJob}
                 onHide={closeJobInterviewDetails}
