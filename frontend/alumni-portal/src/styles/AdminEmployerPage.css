@@ -566,6 +566,10 @@
     transition: border-color 140ms ease, box-shadow 140ms ease;
 }
 
+.admin-user-search-field.has-query input {
+    padding-left: 14px;
+}
+
 .admin-user-search-field input:focus-visible {
     outline: none;
     border-color: #1b8a72;

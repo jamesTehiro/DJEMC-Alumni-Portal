@@ -471,9 +471,9 @@ export default function AdminSettingsPage({ role }) {
                 <div className="settings-card queue-table-wrap">
                     <SectionHeader title="User Management" meta={loadingUsers ? "Loading..." : `${users.length} Users`} />
                     <div className="admin-user-search">
-                        <label className="admin-user-search-field">
+                        <label className={`admin-user-search-field${userSearchQuery ? " has-query" : ""}`}>
                             <span className="visually-hidden">Search users by name or email</span>
-                            <FiSearch aria-hidden="true" />
+                            {!userSearchQuery && <FiSearch aria-hidden="true" />}
                             <input
                                 type="search"
                                 value={userSearchQuery}
