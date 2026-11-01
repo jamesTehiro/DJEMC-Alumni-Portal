@@ -104,6 +104,26 @@ test('updates preserve fields and replace only submitted sections on the same re
     });
 });
 
+test('all six professional templates save and reopen without changing content or existing versions', async () => {
+    await fixture(async context => {
+        await controller.createResume(request(complete()), response());
+        const sectionsBefore = structuredClone(context.state().sections);
+        for (const template of ['ats-professional', 'traditional-professional', 'modern-corporate', 'it-professional', 'fresh-graduate', 'extended-professional']) {
+            assert.equal(persistence.normalizeTemplateId(template.replace(/-/g, '_')), template);
+            const saved = response();
+            await controller.updateResume(request({ template_id: template }), saved);
+            assert.equal(saved.statusCode, 200);
+            const reopened = response(); await controller.getResume(request(), reopened);
+            assert.equal(reopened.body.template_id, template);
+            assert.equal(reopened.body.personalInfo.full_name, 'Alex');
+            assert.equal(reopened.body.projects[0].technologies, 'React');
+            assert.deepEqual(context.state().sections, sectionsBefore);
+            pdf.validateResumeHtml(`<article class="djemc-resume-page" data-resume-id="1" data-template-id="${template}">Resume</article>`, 1, template);
+        }
+        assert.equal(context.state().resumes.length, 1);
+    });
+});
+
 test('section failure rolls back creation so no empty resume is left behind', async () => {
     await fixture(async context => {
         const res = response(); await controller.createResume(request(complete()), res);

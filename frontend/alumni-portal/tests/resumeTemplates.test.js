@@ -83,6 +83,25 @@ test("existing IDs and legacy names select the corresponding design", () => {
     assert.equal(normalizeTemplateId("unknown-template"), "university-green");
 });
 
+test("the professional expansion preserves the five existing IDs and adds all six original designs", () => {
+    assert.deepEqual(RESUME_TEMPLATE_OPTIONS.map(template => template.id), [
+        "modern-professional", "executive-corporate", "university-green", "minimal-black-white", "creative-professional",
+        "ats-professional", "traditional-professional", "modern-corporate", "it-professional", "fresh-graduate", "extended-professional"
+    ]);
+    const original = structuredClone(allSectionsResume);
+    for (const template of RESUME_TEMPLATE_OPTIONS.slice(5)) {
+        const html = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { ...allSectionsResume, template_id: template.id } }));
+        const ids = [...html.matchAll(/data-section-id="([^"]+)"/g)].map(match => match[1]);
+        const canonical = createResumeSections(allSectionsResume).map(section => section.id);
+        assert.deepEqual([...ids].sort(), [...canonical].sort(), template.id);
+        assert.deepEqual(ids, template.sectionOrder || canonical, template.id);
+        assert.ok(html.includes("djemc-resume-photo"), template.id);
+        const empty = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { template_id: template.id, education: [{}], trainings: [{}], projects: [null], summary: { content: " " } } }));
+        assert.ok(!empty.includes("data-section-id="), template.id);
+    }
+    assert.deepEqual(allSectionsResume, original, "Choosing a design must not alter resume data");
+});
+
 test("long text is retained and text fields are HTML escaped", () => {
     const content = "Long description with details. ".repeat(1200);
     const html = renderToStaticMarkup(React.createElement(ResumePreviewTemplate, { resume: { personalInfo: { full_name: '<script>alert("resume")</script>' }, summary: { content } } }));

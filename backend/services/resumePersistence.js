@@ -121,7 +121,8 @@ async function readSections(resumeId, transaction) {
     return Object.fromEntries(entries);
 }
 
-const templateIds = ["modern-professional", "executive-corporate", "university-green", "minimal-black-white", "creative-professional"];
+const templateIds = ["modern-professional", "executive-corporate", "university-green", "minimal-black-white", "creative-professional",
+    "ats-professional", "traditional-professional", "modern-corporate", "it-professional", "fresh-graduate", "extended-professional"];
 function normalizeTemplateId(value, fallback = "university-green") {
     const key = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
     const aliases = { universitygreentheme: "university-green", minimalblackandwhite: "minimal-black-white" };

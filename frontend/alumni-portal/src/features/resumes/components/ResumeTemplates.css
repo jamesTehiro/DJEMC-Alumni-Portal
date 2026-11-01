@@ -116,6 +116,69 @@
 .djemc-resume-document.djemc-resume-creative-professional .djemc-resume-section-heading { border-bottom: 0.6mm solid var(--resume-accent); font-size: 9.3pt; letter-spacing: 0.5pt; }
 .djemc-resume-document.djemc-resume-creative-professional .djemc-resume-photo { border: 0; border-radius: 3mm; }
 
+/* Original professional collection. All designs use the shared measured A4 flow. */
+.djemc-resume-document.djemc-resume-ats-professional { --resume-accent: #181818 !important; --resume-ink: #181818; --resume-muted: #444; padding: 16mm 17mm 18mm; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-header { align-items: flex-start; border-bottom: 0; padding-bottom: 0; margin-bottom: 7mm; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-name { font-size: 24pt; letter-spacing: 0; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-professional-title { font-size: 11pt; font-weight: 700; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-section-heading { letter-spacing: 0; font-size: 11pt; padding-bottom: 1mm; border-bottom: 0.25mm solid #333; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-section-skills .djemc-resume-section-entries { display: block; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-section-skills .djemc-resume-entry { padding: 0; margin-bottom: 1mm; background: none; border-radius: 0; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-skill-category { margin-top: 2mm; margin-bottom: 1mm; }
+.djemc-resume-document.djemc-resume-ats-professional .djemc-resume-photo { border: 0; border-radius: 0; }
+
+.djemc-resume-document.djemc-resume-traditional-professional { --resume-accent: #111 !important; --resume-ink: #111; --resume-muted: #444; --resume-font-family: "Times New Roman", Times, serif; padding: 16mm 18mm 18mm; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-header { border-top: 0.4mm solid #111; border-bottom: 0.4mm solid #111; padding: 5mm 0; text-align: center; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-name { font-family: "Times New Roman", Times, serif; font-size: 27pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1pt; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-professional-title { font-size: 12pt; font-style: italic; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-contacts,
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-links { justify-content: center; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-section-heading { font-family: "Times New Roman", Times, serif; text-align: center; text-transform: none; font-variant: small-caps; letter-spacing: 0.4pt; border-bottom: 0; font-size: 12pt; margin-bottom: 2mm; padding: 0; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-entry-meta { font-style: italic; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-section-skills .djemc-resume-entry { padding: 0; background: none; }
+.djemc-resume-document.djemc-resume-traditional-professional .djemc-resume-photo { border: 0.25mm solid #444; border-radius: 0; }
+
+.djemc-resume-document.djemc-resume-modern-corporate { --resume-accent: #203b5a !important; --resume-ink: #223044; --resume-muted: #526174; --resume-soft: #edf2f7; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-header { background: var(--resume-accent); color: #fff; padding: 7mm 6mm; margin-bottom: 7mm; border-bottom: 1.5mm solid #aabdd0; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-name { color: #fff; font-size: 26pt; font-weight: 600; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-professional-title { color: #e4edf6; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-contacts,
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-links { color: #edf2f7; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-section-heading { display: flex; align-items: center; gap: 4mm; text-transform: none; font-size: 12pt; letter-spacing: 0; border: 0; padding-bottom: 0; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-section-heading::after { content: ""; flex: 1; border-top: 0.4mm solid #c6d3e0; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-photo { border: 0.6mm solid #fff; border-radius: 0; }
+.djemc-resume-document.djemc-resume-modern-corporate .djemc-resume-entry-subtitle { color: var(--resume-accent); }
+
+.djemc-resume-document.djemc-resume-it-professional { --resume-accent: #254b60 !important; --resume-ink: #202e35; --resume-muted: #52636b; --resume-soft: #edf3f6; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-header { border-top: 1.5mm solid var(--resume-accent); border-bottom: 0.25mm solid #cbd7dd; padding-top: 5mm; align-items: flex-start; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-name { font-size: 28pt; font-weight: 700; letter-spacing: -0.8pt; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-professional-title { font-family: "Courier New", monospace; font-size: 10.5pt; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-section { display: grid; grid-template-columns: 29mm minmax(0, 1fr); gap: 5mm; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-section-heading { align-self: start; font-family: "Courier New", monospace; font-size: 9pt; letter-spacing: 0; border-bottom: 0; padding: 1mm 0; margin: 0; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-section-skills .djemc-resume-entry { background: none; border: 0.25mm solid #c4d4dd; padding: 1mm 2mm; border-radius: 0; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-entry-detail { font-family: "Courier New", monospace; }
+.djemc-resume-document.djemc-resume-it-professional .djemc-resume-photo { width: 24mm; height: 27mm; flex-basis: 24mm; border-radius: 0; }
+
+.djemc-resume-document.djemc-resume-fresh-graduate { --resume-accent: #17604f !important; --resume-soft: #f0f6f3; }
+.djemc-resume-document.djemc-resume-fresh-graduate .djemc-resume-header { border: 0; padding: 0 0 5mm; align-items: flex-start; }
+.djemc-resume-document.djemc-resume-fresh-graduate .djemc-resume-name { font-size: 28pt; font-weight: 500; letter-spacing: -0.6pt; }
+.djemc-resume-document.djemc-resume-fresh-graduate .djemc-resume-professional-title { border-left: 0.8mm solid var(--resume-accent); padding-left: 3mm; margin-top: 3mm; font-size: 11pt; }
+.djemc-resume-document.djemc-resume-fresh-graduate .djemc-resume-section-heading { text-transform: none; font-size: 11pt; letter-spacing: 0; background: var(--resume-soft); padding: 1.6mm 3mm; border: 0; border-radius: 0 3mm 3mm 0; }
+.djemc-resume-document.djemc-resume-fresh-graduate [data-section-id="education"] .djemc-resume-entry-title { font-size: 1.1em; color: var(--resume-accent); }
+.djemc-resume-document.djemc-resume-fresh-graduate .djemc-resume-section-skills .djemc-resume-entry { border-radius: 3mm; padding: 1mm 2.5mm; }
+.djemc-resume-document.djemc-resume-fresh-graduate .djemc-resume-photo { border-radius: 50%; width: 27mm; height: 27mm; flex-basis: 27mm; border: 0.6mm solid #dcece4; }
+
+.djemc-resume-document.djemc-resume-extended-professional { --resume-accent: #303a42 !important; --resume-ink: #222b31; --resume-muted: #5c656c; --resume-soft: #f3f4f4; padding: 13mm 16mm 18mm; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-header { border-bottom: 0.8mm double #737d85; padding-bottom: 4mm; margin-bottom: 5mm; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-name { font-family: Georgia, "Times New Roman", serif; font-size: 26pt; font-weight: 500; letter-spacing: -0.3pt; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-professional-title { font-size: 10.5pt; text-transform: uppercase; letter-spacing: 1pt; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-section { margin-bottom: 4mm; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-section-heading { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; text-transform: none; letter-spacing: 0; border-bottom: 0.25mm solid #bbc1c5; padding-bottom: 1mm; margin-bottom: 2mm; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-entry { margin-bottom: 2.8mm; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-entry-meta { letter-spacing: 0.2pt; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-photo { width: 22mm; height: 26mm; flex-basis: 22mm; border-radius: 0; border: 0; }
+.djemc-resume-document.djemc-resume-extended-professional .djemc-resume-continuation-header { border-bottom: 0.8mm double #737d85; }
+
 .djemc-resume-document.djemc-resume-page { height: 297mm; min-height: 297mm; }
 .djemc-resume-document .djemc-resume-continuation-header { display: flex; justify-content: space-between; gap: 5mm; font-size: 9pt; border-bottom: 0.25mm solid #d8e2db; padding-bottom: 3mm; margin-bottom: 5mm; color: var(--resume-muted); }
 .djemc-resume-document .djemc-resume-continuation-header strong { color: var(--resume-accent); font-weight: 700; }

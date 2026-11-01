@@ -3,7 +3,13 @@ export const RESUME_TEMPLATE_OPTIONS = [
     { id: "executive-corporate", name: "Executive Corporate", description: "Formal typography, a centered heading and refined separators.", layout: "Single column · Formal" },
     { id: "university-green", name: "University Green Theme", description: "A confident DJEMC green header with clear academic sections.", layout: "Single column · DJEMC green" },
     { id: "minimal-black-white", name: "Minimal Black & White", description: "An understated black and white design with generous spacing.", layout: "Single column · Minimal" },
-    { id: "creative-professional", name: "Creative Professional", description: "A distinctive green heading and balanced columns of content.", layout: "Two columns · Creative" }
+    { id: "creative-professional", name: "Creative Professional", description: "A distinctive green heading and balanced columns of content.", layout: "Two columns · Creative" },
+    { id: "ats-professional", name: "ATS Professional", description: "A clear reading order, plain text skills and simple section headings.", layout: "Single column · ATS-friendly" },
+    { id: "traditional-professional", name: "Traditional Professional", description: "Classic serif typography and formal black-and-white rules.", layout: "Single column · Classic" },
+    { id: "modern-corporate", name: "Modern Corporate", description: "A navy masthead and structured sections for a polished business resume.", layout: "Single column · Navy" },
+    { id: "it-professional", name: "IT Professional", description: "Skills, projects and certifications lead a focused technical layout.", layout: "Section rail · Technical", sectionOrder: ["summary", "skills", "projects", "certifications", "workExperience", "education", "trainings", "seminars", "awards", "organizations", "volunteerWork", "languages", "references"] },
+    { id: "fresh-graduate", name: "Fresh Graduate", description: "Education, skills and practical learning take priority over employment.", layout: "Single column · Education first", sectionOrder: ["summary", "education", "skills", "trainings", "seminars", "projects", "workExperience", "certifications", "awards", "organizations", "volunteerWork", "languages", "references"] },
+    { id: "extended-professional", name: "Extended Professional", description: "Compact editorial sections with continuation headings for a detailed career.", layout: "Single column · Multi-page" }
 ];
 
 export function normalizeTemplateId(templateId) {

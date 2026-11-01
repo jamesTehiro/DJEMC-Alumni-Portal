@@ -1,11 +1,16 @@
 import React from "react";
-import { normalizeTemplateId } from "./resumeTemplateConfig";
+import { RESUME_TEMPLATE_OPTIONS, normalizeTemplateId } from "./resumeTemplateConfig";
 import { createResumeSections, getResumeDocumentStyle } from "./resumeTemplateData";
 
 export default function ResumePreviewTemplate({ resume = {} }) {
     const personalInfo = resume.personalInfo || {};
     const templateId = normalizeTemplateId(resume.template_id);
     const sections = createResumeSections(resume);
+    const sectionOrder = RESUME_TEMPLATE_OPTIONS.find(template => template.id === templateId)?.sectionOrder;
+    if (sectionOrder) {
+        const rank = id => sectionOrder.indexOf(id) < 0 ? sectionOrder.length : sectionOrder.indexOf(id);
+        sections.sort((left, right) => rank(left.id) - rank(right.id));
+    }
     const contacts = [personalInfo.email, personalInfo.phone, personalInfo.address].filter(Boolean);
     const links = [...new Set([personalInfo.linkedin, personalInfo.github, personalInfo.portfolio, personalInfo.website].filter(Boolean))];
 
