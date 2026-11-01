@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
+import { FiSearch, FiX } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL, api } from "../../../services/api";
 import useRenderDebug from "../../../hooks/useRenderDebug";
@@ -7,6 +8,7 @@ import useStrictSafeEffect from "../../../hooks/useStrictSafeEffect";
 import AdminShell from "../../../components/layout/AdminShell";
 import SectionHeader from "../../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "../../../utils/adminUtils";
+import { filterAdminUsers } from "../utils/adminUserSearch";
 import "../../../styles/AdminEmployerPage.css";
 
 const SETTINGS_STORAGE_KEY = {
@@ -77,6 +79,7 @@ export default function AdminSettingsPage({ role }) {
     useRenderDebug(`AdminSettingsPage:${role}`);
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
+    const [userSearchQuery, setUserSearchQuery] = useState("");
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [savingUserId, setSavingUserId] = useState(null);
     const [pendingUserAction, setPendingUserAction] = useState(null);
@@ -101,6 +104,8 @@ export default function AdminSettingsPage({ role }) {
     const user = useMemo(() => getStoredUser(), []);
     const isAllowed = isAllowedAdminScope(user, role);
     const scopeMeta = ADMIN_SCOPE_META[role];
+    const normalizedUserSearch = userSearchQuery.trim();
+    const visibleUsers = filterAdminUsers(users, userSearchQuery, role);
 
     useStrictSafeEffect(
         `AdminSettingsPage:users:${role}:${isAllowed}`,
@@ -465,6 +470,34 @@ export default function AdminSettingsPage({ role }) {
             <section className="content-grid">
                 <div className="settings-card queue-table-wrap">
                     <SectionHeader title="User Management" meta={loadingUsers ? "Loading..." : `${users.length} Users`} />
+                    <div className="admin-user-search">
+                        <label className="admin-user-search-field">
+                            <span className="visually-hidden">Search users by name or email</span>
+                            <FiSearch aria-hidden="true" />
+                            <input
+                                type="search"
+                                value={userSearchQuery}
+                                onChange={(event) => setUserSearchQuery(event.target.value)}
+                                placeholder="Search users by name or email..."
+                                aria-label="Search users by name or email"
+                            />
+                            {userSearchQuery && (
+                                <button
+                                    className="admin-user-search-clear"
+                                    type="button"
+                                    aria-label="Clear user search"
+                                    onClick={() => setUserSearchQuery("")}
+                                >
+                                    <FiX aria-hidden="true" />
+                                </button>
+                            )}
+                        </label>
+                        {normalizedUserSearch && (
+                            <span className="admin-user-search-count" aria-live="polite">
+                                {visibleUsers.length} of {users.length} users
+                            </span>
+                        )}
+                    </div>
                     <div className="queue-table">
                         <div className="queue-row header">
                             <span>Name</span>
@@ -482,7 +515,16 @@ export default function AdminSettingsPage({ role }) {
                                 <span></span>
                             </div>
                         )}
-                        {users.map((item) => (
+                        {users.length > 0 && visibleUsers.length === 0 && (
+                            <div className="queue-row admin-user-search-empty" role="status">
+                                <span>No users match your search.</span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        )}
+                        {visibleUsers.map((item) => (
                             <div className="queue-row" key={item.id}>
                                 <span>{displayUserName(item)}</span>
                                 <span>{item.email}</span>

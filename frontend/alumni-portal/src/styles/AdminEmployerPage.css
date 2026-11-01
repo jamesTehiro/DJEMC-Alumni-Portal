@@ -526,6 +526,104 @@
     gap: 0
 }
 
+.admin-user-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    min-width: 0;
+}
+
+.admin-user-search-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    width: 100%;
+    color: #64756b;
+}
+
+.admin-user-search-field > svg {
+    position: absolute;
+    left: 13px;
+    width: 17px;
+    height: 17px;
+    pointer-events: none;
+}
+
+.admin-user-search-field input {
+    width: 100%;
+    min-width: 0;
+    min-height: 42px;
+    padding: 9px 42px 9px 40px;
+    border: 1px solid #d7e2da;
+    border-radius: 10px;
+    background: #fff;
+    color: #203b36;
+    font: inherit;
+    font-size: .92rem;
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.admin-user-search-field input:focus-visible {
+    outline: none;
+    border-color: #1b8a72;
+    box-shadow: 0 0 0 3px #1b8a721f;
+}
+
+.admin-user-search-field input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.admin-user-search-clear {
+    position: absolute;
+    right: 7px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #64756b;
+    cursor: pointer;
+}
+
+.admin-user-search-clear:hover,
+.admin-user-search-clear:focus-visible {
+    background: #eef4ef;
+    color: #065845;
+}
+
+.admin-user-search-clear:focus-visible {
+    outline: 2px solid #1b8a72;
+    outline-offset: 1px;
+}
+
+.admin-user-search-count {
+    color: #64756b;
+    font-size: .82rem;
+    white-space: nowrap;
+}
+
+.admin-user-search-empty {
+    grid-template-columns: minmax(0, 1fr) .8fr 1.2fr 1fr .4fr;
+    color: #64756b;
+}
+
+@media (max-width: 575px) {
+    .admin-user-search {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .admin-user-search-count {
+        justify-self: end;
+    }
+}
+
 .queue-row {
     display: grid;
     grid-template-columns: 2fr .8fr 1.2fr 1fr .4fr;

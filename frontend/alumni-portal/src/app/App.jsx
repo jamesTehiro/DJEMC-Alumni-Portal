@@ -9,6 +9,10 @@ import LandingPage from "../features/public-site/pages/LandingPage";
 import { UndoDeleteProvider } from "../contexts/UndoDeleteContext";
 import UndoToast from "../components/ui/UndoToast";
 import { isMembershipManagementUser } from "../features/membership/utils/membershipManagement";
+// Keep the resume builder's layout and document styles available when its lazy route loads.
+import "../features/resumes/pages/ResumeBuilderPage.css";
+import "../features/resumes/components/ResumeTemplates.css";
+import "../features/resumes/components/TemplateSelector.css";
 
 const Alumnipage = lazy(() => import("../features/dashboard/alumni/Alumnipage"));
 const JobsPage = lazy(() => import("../features/jobs/pages/JobsPage"));
