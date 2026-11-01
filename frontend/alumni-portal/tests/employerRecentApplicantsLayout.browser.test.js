@@ -107,7 +107,7 @@ test('Recent Applicants fits small phones through desktop, with working search a
             console.log(JSON.stringify({ width, pageOverflow: layout.pageOverflow, listOverflow: layout.list.scrollWidth - layout.list.clientWidth, firstRow: layout.rows[0] }));
             assert.equal(layout.pageOverflow, false, `${width}: page has no horizontal overflow`);
             assert.ok(layout.list.scrollWidth <= layout.list.clientWidth + 1, `${width}: list has no horizontal overflow`);
-            assert.deepEqual(layout.rows.map(row => row.badge.text), ['PENDING', 'APPROVED', 'REJECTED', 'DECLINED']);
+            assert.deepEqual(layout.rows.map(row => row.badge.text), ['PENDING REVIEW', 'FOR INTERVIEW', 'REJECTED', 'DECLINED']);
             for (const row of layout.rows) {
                 assert.ok(row.name && row.info.includes('Applied') && row.info.includes('2026'), `${width}: name, job and date remain visible`);
                 assert.equal(row.textOverflow, false, `${width}: long names and job titles wrap`);

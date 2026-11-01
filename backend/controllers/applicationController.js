@@ -4,6 +4,7 @@ const notificationController = require("./notificationController");
 const { encrypt, decrypt } = require("../utils/fieldEncryption");
 const { toSecureFileUrl } = require("./fileController");
 const auditService = require("../services/auditService");
+const { queueApplicationDecisionEmail } = require("../utils/applicationDecisionEmail");
 const { isStoredFileReference, getStoredFileOriginalName, sendStoredFile, readStoredFile } = require("../services/objectStorage");
 const { resolveLocalStoredFile, setFileResponseHeaders, sanitizeDownloadName } = require("../utils/storedFiles");
 const path = require("path");
@@ -886,8 +887,14 @@ exports.reviewApplication = async (req, res, next) => {
                 : "Your application for " + (job.title || "the job") + " was not selected for the current recruitment process.";
             await db.Notification.create({ userId: application.alumni_id, type: "application", message, isRead: false }, { transaction });
             await db.AuditLog.create({ actor_id: req.user.id, actor_role: req.user.role, action: status === "verified" ? "application.approved" : "application.declined", target_type: "application", target_id: application.id, metadata: { previous_status: previousStatus, status, job_id: job.id, recruitment_cycle: cycle }, ip_address: req.ip }, { transaction });
-            return { application };
+            return { application, decisionEmail: {
+                applicationId: application.id, alumniId: application.alumni_id, recruitmentCycle: cycle, status,
+                job: { id: job.id, title: job.title, employer_id: job.employer_id }, updatedAt: new Date()
+            } };
         });
+        // The decision and its original in-app notification have committed. Email
+        // enqueue/delivery failures must not roll either of them back.
+        if (result.decisionEmail) await queueApplicationDecisionEmail(result.decisionEmail);
         res.json({ msg: status === "verified" ? "Application approved." : "Application declined.", application: hydrateSensitiveFields(result.application) });
     } catch (err) { next(err); }
 };

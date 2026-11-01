@@ -41,10 +41,10 @@ const applicationStatusDisplay = (status) => {
         case "rejected":
             return { label: "REJECTED", className: "rejected", icon: null };
         case "pending":
-            return { label: "PENDING", className: "pending", icon: null };
+            return { label: applicationStatusLabel(status), className: "pending", icon: null };
         default:
             return {
-                label: String(status || "pending").replaceAll("_", " ").toUpperCase(),
+                label: applicationStatusLabel(status),
                 className: "pending",
                 icon: null
             };
@@ -902,7 +902,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             const status = String(app.status || "").toLowerCase();
             const otherLabel = status === "not_verified"
                 ? "NOT APPROVED"
-                : status.replaceAll("_", " ").toUpperCase() || "UNKNOWN STATUS";
+                : status ? applicationStatusLabel(status) : "UNKNOWN STATUS";
             return (
                 <div className="emp-list-item employer-job-applicant-row" key={`app-${app.id}`}>
                     <div className="emp-list-item-left">
@@ -912,7 +912,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                     <div className="emp-list-item-right">
                         <ApplicationStatusBadge
                             status={app.status}
-                            pendingLabel="WAITING FOR APPROVAL"
+                            pendingLabel={applicationStatusLabel("pending")}
                             labelOverride={otherStatuses ? otherLabel : undefined}
                             classNameOverride={otherStatuses && ["not_verified", "rejected"].includes(status) ? "rejected" : undefined}
                         />
@@ -1250,17 +1250,17 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                                         <div className="employer-job-applicant-sections">
                                             <section className="employer-job-applicant-section" aria-labelledby="waiting-approval-heading">
                                                 <div className="employer-job-applicant-section-head">
-                                                    <h5 id="waiting-approval-heading">Waiting for Approval</h5>
+                                                    <h5 id="waiting-approval-heading">Waiting for Review</h5>
                                                     <span>{waitingForApprovalApplicants.length}</span>
                                                 </div>
-                                                {renderJobApplicantRows(waitingForApprovalApplicants, "No applicants waiting for approval.")}
+                                                {renderJobApplicantRows(waitingForApprovalApplicants, "No applicants waiting for review.")}
                                             </section>
                                             <section className="employer-job-applicant-section" aria-labelledby="ready-interview-heading">
                                                 <div className="employer-job-applicant-section-head">
-                                                    <h5 id="ready-interview-heading">Approved Applicants</h5>
+                                                    <h5 id="ready-interview-heading">For Interview</h5>
                                                     <span>{readyForInterviewApplicants.length}</span>
                                                 </div>
-                                                {renderJobApplicantRows(readyForInterviewApplicants, "No approved applicants.")}
+                                                {renderJobApplicantRows(readyForInterviewApplicants, "No applicants for interview.")}
                                             </section>
                                             {otherStatusApplicants.length > 0 && (
                                                 <section className="employer-job-applicant-section employer-job-applicant-other" aria-labelledby="other-applicants-heading">
@@ -2054,7 +2054,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                     <ApplicantResumePrintButton application={selectedApplication} />
                     <div className="applicant-modal-actions">
                         <span role="status" className="status-pill">{decisionSaving ? "Processing..." : applicationStatusLabel(selectedApplication?.status)}</span>
-                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Approve</Button>
+                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>For Interview</Button>
                         <Button variant="outline-danger" onClick={() => decideApplication("not_verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Decline</Button>
                     </div>
                 </Modal.Footer>

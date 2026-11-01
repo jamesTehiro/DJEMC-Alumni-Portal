@@ -47,12 +47,22 @@ test("approved grouping and declined counts update without changing other applic
     const approved = updateActiveApplications([application, other], 8, "verified");
     assert.equal(approved.filter(app => app.status === "pending").length, 1);
     assert.equal(approved.filter(app => app.status === "verified").length, 1);
-    assert.equal(applicationStatusLabel(approved[0].status), "APPROVED");
+    assert.equal(applicationStatusLabel(approved[0].status), "FOR INTERVIEW");
     assert.equal(approved[0].ApplicationDocuments, application.ApplicationDocuments);
     assert.deepEqual(updateActiveApplications(approved, 8, "not_verified"), [other]);
     assert.equal(application.status, "pending");
 });
 test("failed decisions propagate server error and leave records untouched", async () => {
     await assert.rejects(saveApplicationDecision(application, "verified", { async put() { throw Error("Wrong recruitment cycle"); } }, () => true), /Wrong recruitment cycle/);
+    assert.equal(application.status, "pending");
+});
+
+test("job application terminology maps display text while preserving stored statuses and declined labels", () => {
+    for (const status of ["pending", "pending_review", "submitted", undefined, null]) assert.equal(applicationStatusLabel(status), "PENDING REVIEW");
+    for (const status of ["verified", "approved", "ready_for_interview"]) assert.equal(applicationStatusLabel(status), "FOR INTERVIEW");
+    assert.equal(applicationStatusLabel("not_verified"), "DECLINED");
+    assert.equal(applicationStatusLabel("declined"), "DECLINED");
+    assert.equal(applicationStatusLabel("rejected"), "REJECTED");
+    assert.equal(applicationStatusLabel("processing"), "PROCESSING");
     assert.equal(application.status, "pending");
 });

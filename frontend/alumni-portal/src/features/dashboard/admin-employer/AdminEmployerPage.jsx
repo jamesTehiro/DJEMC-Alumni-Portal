@@ -429,7 +429,7 @@ export default function AdminEmployerPage({
                                 </div>
                                 <div className="admin-applicant-row-actions">
                             <span className={`emp-status-badge ${tone === "waiting" ? "pending" : tone === "ready" ? "approved" : "rejected"}`}>
-                                {tone === "waiting" ? "WAITING FOR APPROVAL" : tone === "ready" ? APPROVED_LABEL : status}
+                                {tone === "waiting" ? applicationStatusLabel("pending") : tone === "ready" ? APPROVED_LABEL : status}
                             </span>
                                     <Button variant="outline-success" size="sm" onClick={() => openApplicationDetails(applicant)}>
                                         View Application
@@ -838,8 +838,8 @@ export default function AdminEmployerPage({
                             <span>Applications for this job only.</span>
                         </div>
                         <p className="admin-applicant-total">{jobApplications.length} current applications</p>
-                        {renderApplicantSection("Waiting for Approval", waitingApplications, "No applicants waiting for approval.", "waiting")}
-                        {renderApplicantSection("Approved Applicants", interviewApplications, "No approved applicants.", "ready")}
+                        {renderApplicantSection("Waiting for Review", waitingApplications, "No applicants waiting for review.", "waiting")}
+                        {renderApplicantSection("For Interview", interviewApplications, "No applicants for interview.", "ready")}
                         {otherApplications.length > 0 && renderApplicantSection("Other Application Statuses", otherApplications, "No other applications.", "other")}
                         </>}
                         </>}
@@ -1254,7 +1254,7 @@ export default function AdminEmployerPage({
                     <ApplicantResumePrintButton application={selectedApplication} />
                     <div className="applicant-modal-actions">
                         <span role="status" className="status-pill">{decisionSaving ? "Processing..." : applicationStatusLabel(selectedApplication?.status)}</span>
-                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Approve</Button>
+                        <Button variant="success" onClick={() => decideApplication("verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>For Interview</Button>
                         <Button variant="outline-danger" onClick={() => decideApplication("not_verified")} disabled={!canDecideApplication(selectedApplication, decisionSaving)}>Decline</Button>
                     </div>
                 </Modal.Footer>

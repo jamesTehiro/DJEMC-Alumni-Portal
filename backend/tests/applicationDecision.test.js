@@ -10,6 +10,7 @@ async function fixture(run) {
     const overrides = [
         [db.sequelize, 'transaction', async fn => fn({ LOCK: { UPDATE: 'UPDATE' } })],
         [db.Job, 'findByPk', async () => job],
+        [db.User, 'findByPk', async () => null], // Email eligibility has its own fixture; never query a live account.
         [db.Application, 'findByPk', async () => app],
         [db.Application, 'max', async () => 2],
         [db.Application, 'update', async (values, options) => {
