@@ -37,6 +37,7 @@ db.JobRequirementSnapshot = require("./JobRequirementSnapshot")(sequelize, Seque
 db.ApplicationDocument = require("./ApplicationDocument")(sequelize, Sequelize);
 db.ApplicationResponse = require("./ApplicationResponse")(sequelize, Sequelize);
 db.AuditLog = require("./AuditLog")(sequelize, Sequelize);
+db.AccountDeletionFile = require("./AccountDeletionFile")(sequelize, Sequelize);
 db.AlumniProfileUpdateRequest = require("./AlumniProfileUpdateRequest")(sequelize, Sequelize);
 db.MembershipApplication = require("./MembershipApplication")(sequelize, Sequelize);
 db.MembershipAdministrator = require("./MembershipAdministrator")(sequelize, Sequelize);

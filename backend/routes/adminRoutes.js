@@ -5,6 +5,7 @@ const applicationController = require("../controllers/applicationController");
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const adminScopeMiddleware = require("../middleware/adminScopeMiddleware");
+router.use(require('./accountDeletionRoutes'));
 
 router.use(authMiddleware);
 router.use(roleMiddleware("admin"));

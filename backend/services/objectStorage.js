@@ -220,7 +220,7 @@ const uploadDataUrl = async ({ dataUrl, folder, prefix }) => {
     return result.publicUrl;
 };
 
-const destroyStoredFile = async (storedValue) => {
+const destroyStoredFile = async (storedValue, { verifyResult = false } = {}) => {
     const parsed = parseStoredFileReference(storedValue);
     if (!parsed) return false;
 
@@ -244,13 +244,17 @@ const destroyStoredFile = async (storedValue) => {
 
     const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${parsed.resourceType || "raw"}/destroy`, {
         method: "POST",
+        ...(verifyResult && { signal: AbortSignal.timeout(30000) }),
         headers: {
             "Content-Type": "application/x-www-form-urlencoded"
         },
         body: form.toString()
     });
 
-    return response.ok;
+    if (!response.ok) return false;
+    if (!verifyResult) return true;
+    const result = await response.json();
+    return ["ok", "not found"].includes(result?.result);
 };
 
 const authenticatedDeliveryUrl = (parsed) => {

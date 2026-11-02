@@ -10,9 +10,9 @@ import RegistrationSuccessToast from "../../registration/components/Registration
 import RegistrationValidationToast from "../../registration/components/RegistrationValidationToast";
 import useRegistrationValidation from "../../registration/hooks/useRegistrationValidation";
 import { isRegistrationGmail } from "../../../utils/registrationEmail";
+import { registrationNotice } from "../utils/adminSetupStatus";
 import "../../../styles/AuthPage.css";
 
-const LIMIT_MESSAGE = "Admin account limit reached. The portal already has all three authorized administrator accounts.";
 const ROLES = [{ value: "registrar", label: "Registrar Officer" }, { value: "alumni", label: "Alumni Coordinator" }, { value: "employer", label: "Employer Manager" }];
 const dashboard = user => `/admin/${["registrar", "employer"].includes(user.admin_scope) ? user.admin_scope : "alumni"}`;
 
@@ -20,7 +20,7 @@ export default function AdminPortalPage({ initialMode = "login", allowExistingAd
     const navigate = useNavigate();
     const [mode, setMode] = useState(initialMode);
     const [status, setStatus] = useState(null);
-    const [statusError, setStatusError] = useState("");
+    const [statusError, setStatusError] = useState(null);
     const [setup, setSetup] = useState({ name: "", email: "", password: "", confirmPassword: "", admin_scope: "registrar", bootstrap_secret: "" });
     const [login, setLogin] = useState({ email: "", password: "" });
     const [loading, setLoading] = useState(false);
@@ -35,7 +35,8 @@ export default function AdminPortalPage({ initialMode = "login", allowExistingAd
     const verification = useRegistrationOtp({ endpoint: "/auth/admin-registration-otp", storage: "djemc-admin-registration-gmail-session", restore: false,
         request: { body: operation => ({ admin_scope: setup.admin_scope, ...(["send", "resend"].includes(operation) ? { name: setup.name, password: setup.password } : {}) }),
             config: { headers: { "x-bootstrap-secret": setup.bootstrap_secret.trim() } } } });
-    const canCreate = !!status && !status.setupComplete && status.registrationConfigured && status.availableScopes?.length > 0;
+    const canCreate = !!status && !status.setupComplete && status.registrationConfigured && status.registrationAvailable !== false && status.availableScopes?.length > 0;
+    const registrationMessage = registrationNotice(status, statusError);
     const waitingForEmail = verification.open && !verification.verified && !verification.error && verification.secondsLeft > 0 && ["pending", "processing"].includes(verification.details?.email_status);
     useEffect(() => { refreshOtp.current = verification.refresh; }, [verification.refresh]);
     useEffect(() => {
@@ -48,12 +49,12 @@ export default function AdminPortalPage({ initialMode = "login", allowExistingAd
         try {
             const data = await api.get("/auth/admin-setup-status");
             setStatus(data);
-            setStatusError("");
+            setStatusError(null);
             setSetup(previous => ({ ...previous, admin_scope: data.availableScopes.includes(previous.admin_scope) ? previous.admin_scope : data.availableScopes[0] || "registrar" }));
             return data;
         } catch (failure) {
             setStatus(null);
-            setStatusError(failure.message);
+            setStatusError(failure);
             return null;
         }
     }, []);
@@ -128,9 +129,7 @@ export default function AdminPortalPage({ initialMode = "login", allowExistingAd
         <div className="auth-card">
             <div className="auth-card-header"><h1>Admin Portal</h1><p>Administrator access only</p></div>
             {error && <p className="auth-error" role="alert">{error}</p>}
-            {statusError && <p className="auth-error" role="alert">{statusError} <button type="button" className="inline-link-btn" onClick={() => void loadStatus()}>Retry availability</button></p>}
-            {status?.setupComplete && <p role="status">{LIMIT_MESSAGE}</p>}
-            {status && !status.setupComplete && !status.registrationConfigured && <p role="status">Admin registration is temporarily unavailable. Contact the system administrator.</p>}
+            {registrationMessage && <p role="status" aria-label="Admin registration availability">{registrationMessage} {statusError && <button type="button" className="inline-link-btn" onClick={() => void loadStatus()}>Retry availability</button>}</p>}
             {mode === "create" && canCreate ? <form ref={formRef} className="auth-form" onSubmit={begin} noValidate>
                 <fieldset className="registration-fields" disabled={loading || verification.busy || verification.open}>
                 <label className="field"><span>Secret Password</span><PasswordField name="bootstrap_secret" value={setup.bootstrap_secret} onChange={changeSetup} placeholder="Enter setup secret" required /></label>

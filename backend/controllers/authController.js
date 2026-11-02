@@ -242,12 +242,15 @@ exports.login = async (req, res, next) => {
 
         if (!user) return res.status(404).json({ msg: "User not found" });
 
-        if (user.account_status === "suspended" || user.account_status === "deactivated") {
+        if (user.role === 'deleted' || user.account_status === "suspended" || user.account_status === "deactivated") {
             return res.status(403).json({ msg: "Your account is suspended. Please contact administrator." });
         }
 
         if (user.account_status === "pending" && user.role !== "admin") {
             return res.status(403).json({ msg: "Your account is pending verification by administrator." });
+        }
+        if (user.role === "admin" && user.account_status !== "verified") {
+            return res.status(403).json({ code: "ADMIN_VERIFICATION_REQUIRED", msg: "Admin account verification is required before signing in." });
         }
         if (user.role === "alumni" && user.account_status !== "verified") {
             return res.status(403).json({ msg: "Your account is not approved. Please contact the Registrar Officer." });
@@ -274,91 +277,9 @@ exports.login = async (req, res, next) => {
     }
 };
 
-exports.getAdminSetupStatus = async (req, res) => {
-
-    try {
-        const admins = await db.User.findAll({
-            where: { role: "admin" },
-            attributes: ["id", "admin_scope", "email"]
-        })
-
-        const registrarAdminExists = admins.some((a) => a.admin_scope === "registrar")
-        const alumniAdminExists = admins.some((a) => a.admin_scope === "alumni")
-        const employerAdminExists = admins.some((a) => a.admin_scope === "employer")
-
-        res.json({
-            registrarAdminExists,
-            alumniAdminExists,
-            employerAdminExists,
-            setupComplete: registrarAdminExists && alumniAdminExists && employerAdminExists,
-            availableScopes: ADMIN_SCOPES.filter((scope) => !admins.some((a) => a.admin_scope === scope))
-        })
-    } catch (err) {
-        return next(err);
-    }
-
-}
-
-exports.setupAdmin = async (req, res, next) => {
-
-    try {
-        const { name, email, password, admin_scope } = req.body
-
-        if (!name || !email || !password || !admin_scope) {
-            return res.status(400).json({ msg: "Name, email, password, and admin role are required." })
-        }
-
-        if (!ADMIN_SCOPES.includes(admin_scope)) {
-            return res.status(400).json({ msg: "Invalid admin role." })
-        }
-
-        const scopeExists = await db.User.findOne({
-            where: { role: "admin", admin_scope }
-        })
-
-        if (scopeExists) {
-            return res.status(400).json({ msg: `The ${admin_scope} admin account already exists.` })
-        }
-
-        const emailExists = await db.User.findOne({ where: { email } })
-        if (emailExists) {
-            return res.status(400).json({ msg: "Email is already in use." })
-        }
-
-        const adminCount = await db.User.count({ where: { role: "admin" } })
-        if (adminCount >= ADMIN_SCOPES.length) {
-            return res.status(400).json({ msg: "Admin accounts are already configured. Contact system administrator." })
-        }
-
-        const hashed = await bcrypt.hash(password, 10)
-
-        const user = await db.User.create({
-            name,
-            email,
-            password: hashed,
-            role: "admin",
-            admin_scope,
-            account_status: "verified"
-        })
-
-        res.json({
-            msg: `${admin_scope} admin account created.`,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                admin_scope: user.admin_scope
-            }
-        })
-    } catch (err) {
-        if (err?.name === "SequelizeUniqueConstraintError") {
-            return res.status(400).json({ msg: `The ${admin_scope} admin account already exists.` });
-        }
-        return next(err);
-    }
-
-}
+// Keep legacy controller imports on the same guarded registration implementation.
+exports.getAdminSetupStatus = require("./adminRegistrationController").status;
+exports.setupAdmin = require("./adminRegistrationController").create;
 
 exports.forgotPassword = async (req, res, next) => {
     try {

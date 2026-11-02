@@ -1,6 +1,8 @@
 
+require("./adminOtpEnvironment");
 const { Sequelize } = require("sequelize");
 const path = require("path");
+const fs = require('node:fs');
 
 require("dotenv").config({
     path: path.join(__dirname, "..", ".env")
@@ -33,7 +35,10 @@ const sequelize = new Sequelize(
         ...(isProduction && {
             dialectOptions: {
                 ssl: {
-                    rejectUnauthorized: false
+                    ca: fs.readFileSync(process.env.DB_CA_FILE || path.join(__dirname, '../cert/ca.pem'), 'utf8'),
+                    rejectUnauthorized: true,
+                    verifyIdentity: true,
+                    minVersion: 'TLSv1.2'
                 }
             }
         }),

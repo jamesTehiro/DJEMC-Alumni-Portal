@@ -1,0 +1,611 @@
+{
+  "metadataOnly": true,
+  "remote": true,
+  "inspectedAt": "2026-11-01T23:52:12.725Z",
+  "tables": [
+    {
+      "table_name": "alumniprofiles",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "alumniprofileupdaterequests",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "alumnirecords",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "announcements",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "applicationdocuments",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "applicationresponses",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "applications",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "auditlogs",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "comments",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "conversationparticipants",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "conversations",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "email_queue_jobs",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "employerconversations",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "employermessages",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "employerprofiles",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "employmenthistories",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "interviews",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "jobrequirements",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "jobrequirementsnapshots",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "jobs",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "membershipadministrators",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "membershipapplications",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "message_send_requests",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "messages",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "notifications",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "password_reset_tokens",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "posts",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "rate_limit_entries",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "registration_email_verifications",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "requirementgroups",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "requirementlibrary",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeawards",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumecertifications",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeeducations",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumelanguages",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeorganizations",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumepersonalinfo",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeprojects",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumereferences",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumes",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeseminars",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeskills",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumesummaries",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumetrainings",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeversions",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumevolunteerworks",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "resumeworkexperiences",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "sequelizemeta",
+      "engine": "InnoDB"
+    },
+    {
+      "table_name": "users",
+      "engine": "InnoDB"
+    }
+  ],
+  "foreignKeys": [
+    {
+      "table_name": "alumniprofiles",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "alumniprofileupdaterequests",
+      "column_name": "alumni_user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "alumniprofileupdaterequests",
+      "column_name": "email_queue_job_id",
+      "referenced_table": "email_queue_jobs",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "alumniprofileupdaterequests",
+      "column_name": "notification_id",
+      "referenced_table": "notifications",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "alumniprofileupdaterequests",
+      "column_name": "requested_by",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "NO ACTION"
+    },
+    {
+      "table_name": "announcements",
+      "column_name": "admin_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "applicationdocuments",
+      "column_name": "application_id",
+      "referenced_table": "applications",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "applicationdocuments",
+      "column_name": "original_document_id",
+      "referenced_table": "applicationdocuments",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "applicationdocuments",
+      "column_name": "reviewed_by",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "applicationresponses",
+      "column_name": "application_id",
+      "referenced_table": "applications",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "applicationresponses",
+      "column_name": "reviewed_by",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "applications",
+      "column_name": "alumni_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "applications",
+      "column_name": "job_id",
+      "referenced_table": "jobs",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "auditlogs",
+      "column_name": "actor_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "comments",
+      "column_name": "announcement_id",
+      "referenced_table": "announcements",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "comments",
+      "column_name": "post_id",
+      "referenced_table": "posts",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "comments",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "conversationparticipants",
+      "column_name": "conversation_id",
+      "referenced_table": "conversations",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "conversationparticipants",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "employerconversations",
+      "column_name": "adminId",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "employerconversations",
+      "column_name": "employerId",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "employermessages",
+      "column_name": "conversationId",
+      "referenced_table": "employerconversations",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "employerprofiles",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "employmenthistories",
+      "column_name": "alumni_id",
+      "referenced_table": "alumniprofiles",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "interviews",
+      "column_name": "application_id",
+      "referenced_table": "applications",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "jobrequirements",
+      "column_name": "group_id",
+      "referenced_table": "requirementgroups",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "jobrequirements",
+      "column_name": "job_id",
+      "referenced_table": "jobs",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "jobrequirements",
+      "column_name": "library_id",
+      "referenced_table": "requirementlibrary",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "jobrequirementsnapshots",
+      "column_name": "application_id",
+      "referenced_table": "applications",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "jobrequirementsnapshots",
+      "column_name": "job_id",
+      "referenced_table": "jobs",
+      "referenced_column": "id",
+      "delete_rule": "NO ACTION"
+    },
+    {
+      "table_name": "jobs",
+      "column_name": "employer_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "membershipadministrators",
+      "column_name": "granted_by",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "membershipadministrators",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "NO ACTION"
+    },
+    {
+      "table_name": "membershipapplications",
+      "column_name": "alumni_user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "NO ACTION"
+    },
+    {
+      "table_name": "messages",
+      "column_name": "conversation_id",
+      "referenced_table": "conversations",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "messages",
+      "column_name": "sender_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "interview_id",
+      "referenced_table": "interviews",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "password_reset_tokens",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "posts",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "registration_email_verifications",
+      "column_name": "consumed_by_user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    },
+    {
+      "table_name": "requirementgroups",
+      "column_name": "job_id",
+      "referenced_table": "jobs",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeawards",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumecertifications",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeeducations",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumelanguages",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeorganizations",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumepersonalinfo",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeprojects",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumereferences",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumes",
+      "column_name": "user_id",
+      "referenced_table": "users",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeseminars",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeskills",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumesummaries",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumetrainings",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeversions",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumevolunteerworks",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "resumeworkexperiences",
+      "column_name": "resume_id",
+      "referenced_table": "resumes",
+      "referenced_column": "id",
+      "delete_rule": "CASCADE"
+    },
+    {
+      "table_name": "users",
+      "column_name": "alumni_record_id",
+      "referenced_table": "alumnirecords",
+      "referenced_column": "id",
+      "delete_rule": "SET NULL"
+    }
+  ]
+}

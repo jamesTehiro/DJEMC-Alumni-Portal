@@ -4,6 +4,7 @@ const authController = require("../controllers/authController");
 const { registrationUpload } = require("../middleware/uploadMiddleware");
 const bootstrapGuard = require("../middleware/bootstrapGuard");
 const registrationOtp = require("../controllers/registrationOtpController");
+const adminRegistration = require("../controllers/adminRegistrationController");
 
 router.post("/registration-otp/send", registrationOtp.rateLimit("send"), registrationOtp.send);
 router.post("/registration-otp/resend", registrationOtp.rateLimit("send"), registrationOtp.resend);
@@ -13,7 +14,15 @@ router.post("/register", registrationOtp.rateLimit("submit", ["ip"]), registrati
 router.post("/login", authController.login);
 router.post("/forgot-password", authController.forgotPassword);
 router.post("/reset-password", authController.resetPassword);
-router.get("/admin-setup-status", bootstrapGuard, authController.getAdminSetupStatus);
-router.post("/admin-setup", bootstrapGuard, authController.setupAdmin);
+// Availability contains only counts/scopes. All mutations require the setup
+// secret and database-backed rate limits, even when global proxy mode is used.
+// This read-only aggregate uses the existing global limiter, not the OTP store:
+// registration configuration/schema must not gate discovery of existing login.
+router.get("/admin-setup-status", adminRegistration.status);
+router.post("/admin-setup", registrationOtp.rateLimit("submit"), bootstrapGuard, adminRegistration.create);
+router.post("/admin-registration-otp/send", registrationOtp.rateLimit("send"), bootstrapGuard, adminRegistration.send);
+router.post("/admin-registration-otp/resend", registrationOtp.rateLimit("send"), bootstrapGuard, adminRegistration.resend);
+router.post("/admin-registration-otp/verify", registrationOtp.rateLimit("verify"), bootstrapGuard, adminRegistration.verify);
+router.post("/admin-registration-otp/status", registrationOtp.rateLimit("status"), bootstrapGuard, adminRegistration.otpStatus);
 
 module.exports = router;

@@ -11,6 +11,8 @@
     "verify:diagnostic-startup": "node scripts/checkMessagingDiagnosticStartup.js",
     "dev": "nodemon server.js",
     "email-worker": "node workers/emailQueueWorker.js",
+    "account-deletion-cleanup": "node workers/accountDeletionCleanupWorker.js",
+    "migrate:account-deletion": "node scripts/applyAccountDeletionMigration.js",
     "migrate:message-attachments": "node scripts/applyMessageAttachmentMigrations.js",
     "migrate:messaging-storage": "node scripts/repairMessagingStorage.js",
     "migrate:application-document-paths": "node scripts/applyApplicationDocumentPathMigration.js",

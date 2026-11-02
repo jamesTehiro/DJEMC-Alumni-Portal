@@ -154,6 +154,7 @@ apiClient.interceptors.response.use(
 
         const failure = new Error(message);
         failure.status = error.response?.status;
+        failure.contentType = contentType;
         failure.field = responseData?.field;
         failure.code = responseData?.code;
         failure.retryAfter = responseData?.retry_after;

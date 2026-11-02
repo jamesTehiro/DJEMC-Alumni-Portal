@@ -28,13 +28,16 @@ const emailFailureCategory = error => {
 const digest = value => crypto.createHash("sha256").update(value).digest("hex");
 const validSession = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 
-function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = crypto.randomInt }) {
+function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = crypto.randomInt, purpose = "alumni-registration", deliveryStatus }) {
+    if (!["alumni-registration", "admin-registration"].includes(purpose)) throw new Error("Unsupported verification purpose");
+    // Preserve existing Alumni sessions. Admin sessions use a separate namespace.
+    const sessionDigest = session => digest(purpose === "alumni-registration" ? session : `${purpose}:${session}`);
     const secret = () => {
         const value = process.env.REGISTRATION_OTP_SECRET;
         if (!value || Buffer.byteLength(value) < 32) throw fail(503, "OTP_UNAVAILABLE", "Gmail verification is temporarily unavailable.", { failureCategory: "otp_secret_missing_or_short" });
         return value;
     };
-    const hashOtp = (email, sessionHash, otp) => crypto.createHmac("sha256", secret()).update(`${email}\n${sessionHash}\n${otp}`).digest("hex");
+    const hashOtp = (email, sessionHash, otp) => crypto.createHmac("sha256", secret()).update(`${purpose === "alumni-registration" ? "" : purpose + "\n"}${email}\n${sessionHash}\n${otp}`).digest("hex");
     const validate = (email, session) => {
         if (!isGmail(email)) throw fail(400, "INVALID_GMAIL", "Enter a valid @gmail.com address.");
         if (!validSession(session)) throw fail(400, "INVALID_SESSION", "Start Gmail verification again in this browser.");
@@ -53,7 +56,7 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
             ? "This Gmail address has an existing registration. Contact the Registrar Officer for review or resubmission; your records are preserved."
             : "Gmail is already registered, including accounts pending Registrar approval.");
     };
-    const matches = (row, email, session) => row && row.email === email && row.session_hash === digest(session);
+    const matches = (row, email, session) => row && row.email === email && row.session_hash === sessionDigest(session);
     const history = row => {
         let entries;
         try { entries = typeof row.resend_history === "string" ? JSON.parse(row.resend_history) : row.resend_history; }
@@ -62,11 +65,11 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
         return entries.filter(time => time > now() - SEND_WINDOW);
     };
     const grant = row => jwt.sign({
-        purpose: "alumni-registration", email: row.email, session_hash: row.session_hash,
+        purpose, email: row.email, session_hash: row.session_hash,
         verified_at: new Date(row.verified_at).getTime(),
         iat: Math.floor(new Date(row.verified_at).getTime() / 1000),
         exp: Math.floor((new Date(row.verified_at).getTime() + GRANT_TTL) / 1000)
-    }, secret(), { algorithm: "HS256", audience: "alumni-registration", issuer: "alumni-portal" });
+    }, secret(), { algorithm: "HS256", audience: purpose, issuer: "alumni-portal" });
     const view = row => {
         const resends = history(row);
         const verified = row.status === "verified" && now() < new Date(row.verified_at).getTime() + GRANT_TTL;
@@ -93,7 +96,7 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
             validate(email, session);
             secret();
             await ensureAvailable(email);
-            const sessionHash = digest(session);
+            const sessionHash = sessionDigest(session);
             const otp = String(randomInt(0, 1000000)).padStart(6, "0");
             const otpHash = hashOtp(email, sessionHash, otp);
             // Atomic reservation serializes first requests across Render instances.
@@ -123,23 +126,22 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
                 if (row.expires_at != null) resends.push(time);
                 await row.update({ email, session_hash: sessionHash, otp_hash: otpHash, status: "sending", expires_at: new Date(time + OTP_TTL),
                     verified_at: null, failed_attempts: 0, sent_at: new Date(time), resend_history: resends }, { transaction });
-                return {};
+                return { expiresAt: new Date(time + OTP_TTL) };
             }); } catch (error) {
                 if (!error?.publicMessage) markFailure(error, "database_error");
                 throw error;
             }
-            if (reservation.reused) return reservation.reused;
+            if (reservation.reused) return deliveryStatus ? service.status(email, session) : reservation.reused;
             const where = { email_key: emailKey(email), session_hash: sessionHash, otp_hash: otpHash, status: "sending" };
             try {
-                // Reuse the verified sender and existing Brevo transport. Plaintext
-                // OTPs never enter the durable queue, which can delay delivery.
+                // Alumni keeps direct delivery; Admin supplies the existing queue.
                 const text = ["Hello,", "", "Thank you for registering with the DJEMC Alumni Tracking and Job Portal System.", "",
                     "Your email verification code is:", "", otp, "", "This code is valid for 5 minutes.", "",
                     "Please enter the code on the registration page to verify your Gmail address.", "",
                     "If you did not request this verification, you may safely ignore this email.", "",
                     "Don Jose Ecleo Memorial College", "Alumni Tracking and Job Portal System"].join("\n");
                 const html = `<div style="background:#f6f2e9;padding:24px;font-family:Arial,sans-serif;color:#173f2a"><div style="max-width:540px;margin:auto;background:#fff;border-radius:12px;padding:28px"><h2 style="color:#1f6b49">Verify your Gmail address</h2><p>Hello,</p><p>Thank you for registering with the DJEMC Alumni Tracking and Job Portal System.</p><p>Your email verification code is:</p><p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f6f2e9;padding:16px;text-align:center">${otp}</p><p>This code is valid for <strong>5 minutes</strong>.</p><p>Please enter the code on the registration page to verify your Gmail address.</p><p>If you did not request this verification, you may safely ignore this email.</p><hr><p>Don Jose Ecleo Memorial College<br>Alumni Tracking and Job Portal System</p></div></div>`;
-                await sendEmail(email, "DJEMC Alumni Registration — Email Verification Code", text, { html });
+                await sendEmail(email, `DJEMC ${purpose === "admin-registration" ? "Admin" : "Alumni"} Registration — Email Verification Code`, text, { html }, { email_key: emailKey(email), otp_hash: otpHash, expires_at: reservation.expiresAt });
             } catch (error) {
                 const wait = Math.max(COOLDOWN, Math.min(SEND_WINDOW, Number(error.retryAfterMs) || 0));
                 try {
@@ -161,7 +163,7 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
             validate(email, session);
             const row = await db.RegistrationEmailVerification.findByPk(emailKey(email));
             if (!matches(row, email, session)) throw fail(403, "INVALID_SESSION", "Start Gmail verification again for this address.");
-            return view(row);
+            return { ...view(row), ...(deliveryStatus && row.status !== "verified" && row.status !== "consumed" ? { email_status: await deliveryStatus(row) } : {}) };
         },
         async verify(emailValue, session, otp) {
             const email = normalizeEmail(emailValue);
@@ -174,6 +176,11 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
                 if (row.failed_attempts >= 5) return { error: fail(429, "OTP_ATTEMPTS", "Too many incorrect attempts. Request a new code.") };
                 if (row.status !== "sent" || !row.otp_hash) return { error: fail(400, "OTP_NOT_READY", "Request a new code, or wait for the current email request to finish.") };
                 if (now() >= new Date(row.expires_at).getTime()) return { error: fail(400, "OTP_EXPIRED", "Your code has expired. Request a new code.") };
+                if (deliveryStatus) {
+                    const delivery = await deliveryStatus(row, transaction);
+                    if (delivery === "failed") return { error: fail(503, "OTP_DELIVERY_FAILED", "Email delivery failed. Wait before requesting a new code.") };
+                    if (delivery !== "sent") return { error: fail(409, "OTP_QUEUED", "Your verification email is queued. Wait for delivery, then try again.") };
+                }
                 const wellFormed = typeof otp === "string" && /^\d{6}$/.test(otp);
                 const supplied = hashOtp(email, row.session_hash, wellFormed ? otp : "invalid");
                 if (!wellFormed || !crypto.timingSafeEqual(Buffer.from(row.otp_hash, "hex"), Buffer.from(supplied, "hex"))) {
@@ -192,9 +199,9 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
             validate(email, session);
             let claims;
             try {
-                claims = jwt.verify(authorization, secret(), { algorithms: ["HS256"], audience: "alumni-registration", issuer: "alumni-portal", clockTimestamp: Math.floor(now() / 1000) });
+                claims = jwt.verify(authorization, secret(), { algorithms: ["HS256"], audience: purpose, issuer: "alumni-portal", clockTimestamp: Math.floor(now() / 1000) });
             } catch { throw fail(403, "GMAIL_VERIFICATION_REQUIRED", "Verify your Gmail address before submitting registration. Verification lasts 10 minutes."); }
-            if (claims.purpose !== "alumni-registration" || claims.email !== email || claims.session_hash !== digest(session))
+            if (claims.purpose !== purpose || claims.email !== email || claims.session_hash !== sessionDigest(session))
                 throw fail(403, "GMAIL_VERIFICATION_REQUIRED", "Verification does not match this Gmail address and registration session.");
             const row = await lock(email, session, transaction);
             if (row.status !== "verified" || !row.verified_at || row.consumed_at || claims.verified_at !== new Date(row.verified_at).getTime() || now() >= new Date(row.verified_at).getTime() + GRANT_TTL)

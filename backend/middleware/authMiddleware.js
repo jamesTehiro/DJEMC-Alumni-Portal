@@ -50,8 +50,14 @@ module.exports = async (req, res, next) => {
         return res.status(401).json({ msg: "Session is no longer valid." });
     }
 
-    if (["deactivated", "suspended", "inactive"].includes(String(account.account_status || "").toLowerCase())) {
+    if (account.role === 'deleted' || ["deactivated", "suspended", "inactive"].includes(String(account.account_status || "").toLowerCase())) {
         return res.status(403).json({ msg: "This account is inactive. Contact an administrator for help." });
+    }
+    if (account.role === "admin" && account.account_status !== "verified") {
+        return res.status(403).json({ code: "ADMIN_VERIFICATION_REQUIRED", msg: "Admin account verification is required before continuing." });
+    }
+    if (account.role === "admin" && account.account_status !== "verified") {
+        return res.status(403).json({ code: "ADMIN_VERIFICATION_REQUIRED", msg: "Admin account verification is required before continuing." });
     }
 
     // Database state is authoritative so role or scope changes also take effect

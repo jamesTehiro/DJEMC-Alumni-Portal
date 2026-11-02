@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from 'react-bootstrap';
 import { api } from '../../../services/api';
+import { deletionFailure, loadDeletionImpact } from '../utils/accountDeletionApi';
 
 const countLabels = {
     Job: 'Posted jobs', Application: 'Applications', ApplicationDocument: 'Application documents',
@@ -24,11 +25,11 @@ export default function AccountDeletionModal({ item, role, endpoint, onClose, on
     const generation = useRef(0);
     const fetchPreview = useCallback(async request => {
         try {
-            const data = await api.get(`${endpoint}/${item.id}/deletion-impact`, true);
+            const data = await loadDeletionImpact(endpoint, item.id);
             if (request !== generation.current) return;
             if (data?.account?.id !== item.id || data?.account?.role !== role || !data?.confirmationToken) throw new Error('The server did not confirm this account. Reload the preview.');
             setPreview(data);
-        } catch (failure) { if (request === generation.current) setError(failure.message || 'Unable to load deletion impact.'); }
+        } catch (failure) { if (request === generation.current) setError(deletionFailure(failure)); }
         finally { if (request === generation.current) setLoading(false); }
     }, [endpoint, item.id, role]);
     // The parent keys this dialog by role/account so every opening starts clean.
@@ -49,7 +50,7 @@ export default function AccountDeletionModal({ item, role, endpoint, onClose, on
             if (result?.success !== true || result?.deletedUserId !== item.id || result?.role !== role) throw new Error('The server did not confirm deletion. Refresh the user list before retrying.');
             onDeleted(result);
         } catch (failure) {
-            setError(failure.message || 'Account deletion failed.');
+            setError(deletionFailure(failure));
             setPreview(null); setConfirmation('');
         } finally { inFlight.current = false; setBusy(false); onBusyChange(false); }
     };
@@ -63,10 +64,7 @@ export default function AccountDeletionModal({ item, role, endpoint, onClose, on
                 <dt>Email</dt><dd style={{ overflowWrap: 'anywhere' }}>{account.email}</dd>
                 <dt>Role</dt><dd>{role === 'employer' ? 'Employer' : 'Alumni'}</dd>
             </dl>
-            <p>This action will remove the account and its associated data according to the deletion policy.</p>
-            <p>{role === 'employer' ? 'Associated job postings, applications, and application documents will be removed. Alumni accounts and saved resumes will be preserved.' : 'Submitted applications, saved resumes, and private account documents will be removed. Employer job postings will be preserved.'}</p>
-            <p>All membership forms, Registrar master records, shared messages and attachments, forum content, audit logs, and email history will be preserved. Shared account references will display “Deleted account”. Queued email to this account will be cancelled.</p>
-            <strong>This action cannot be undone.</strong>
+            <p>Deleting this account is permanent and cannot be undone.</p>
             <h6 className="mt-3">Deletion impact</h6>
             {loading && <p role="status">Loading actual database counts...</p>}
             {preview && <>

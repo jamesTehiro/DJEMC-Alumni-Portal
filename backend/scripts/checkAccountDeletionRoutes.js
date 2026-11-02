@@ -1,0 +1,8 @@
+﻿// Anonymous GET-only deployment contract probe. No tokens, account data or DDL.
+async function check({baseUrl='https://djemc-alumni-backend.onrender.com/api',fetchImpl=fetch}={}){
+ const base=new URL(baseUrl);if(!['https:','http:'].includes(base.protocol)||base.username||base.password||base.search||base.hash)throw new Error('Invalid API base URL');
+ const routes=await Promise.all(['alumni','employer'].map(async role=>{try{const res=await fetchImpl(base.toString().replace(/\/$/,'')+`/admin/${role}/users/1/deletion-impact`,{method:'GET',headers:{Accept:'application/json',Origin:'https://djemc-alumni-portal.web.app'},redirect:'error',signal:AbortSignal.timeout(20000)});const marker=res.headers.get('x-account-deletion-api');const result={role,status:res.status,json:String(res.headers.get('content-type')).includes('application/json'),versionMarker:marker,frontendOriginAllowed:res.headers.get('access-control-allow-origin')==='https://djemc-alumni-portal.web.app'};await res.body?.cancel();return result;}catch(error){return{role,error:error.code||error.name};}}));
+ return{readOnly:true,credentialsSent:false,permanentDeletionReadinessVerified:false,routeContractVerified:routes.every(row=>row.status===401&&row.json&&row.versionMarker==='v1'),routes};
+}
+if(require.main===module){const args=process.argv.slice(2);if(args.length&&!(args.length===2&&args[0]==='--base-url'))throw new Error('Use --base-url API_URL');check({...(args.length?{baseUrl:args[1]}:{})}).then(report=>{console.log(JSON.stringify(report,null,2));if(!report.routeContractVerified)process.exitCode=1;}).catch(()=>{console.error('[DELETION_ROUTE_PROBE_FAILED]');process.exitCode=1;});}
+module.exports={check};

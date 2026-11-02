@@ -25,6 +25,8 @@ test('settings deletion modal confirms impact, rejects duplicate sends, preserve
             window.fixtureGet=async url=>{
                 if(url.endsWith('/deletion-impact')){
                     window.calls.push({method:'preview',url});
+                    if(window.previewError)throw Object.assign(new Error(window.previewError.message),window.previewError);
+                    if(window.previewHtml)return '<html>Wrong deployment</html>';
                     if(window.previewFails)throw new Error('Fixture preview failure');
                     return {account:{id:11,name:'Target account',email:'target@example.invalid',role},counts:{Job:role==='employer'?3:0,Application:4,ApplicationDocument:7,Resume:role==='alumni'?2:0,ResumeVersion:2},
                         preserved:{'MembershipApplication.alumni_user_id':1,'Message.sender_id':3},confirmationToken:'fixture-preview-token',canDelete:!window.previewBlocked,blockers:window.previewBlocked?['Policy awaits approval']:[]};
@@ -81,12 +83,24 @@ test('settings deletion modal confirms impact, rejects duplicate sends, preserve
             assert.equal(await page.evaluate(() => window.calls.filter(call => call.method === 'delete').length), 0);
             await clickText('.modal-footer button', 'Cancel'); await page.waitForFunction(() => !document.querySelector('.modal'));
             await page.evaluate(() => { window.previewFails = false; });
+            for(const scenario of [{status:404,contentType:'text/html',message:'Fixture HTML route miss',expected:'deletion API endpoint was not found'}, {status:404,message:'Account not found or already deleted.',expected:'Account not found'}, {status:503,message:'Cleanup schema is not ready.',expected:'Cleanup schema'}, {status:403,message:'Admin scope access denied.',expected:'scope access denied'}]){
+                await page.evaluate(error => { window.previewError=error; },scenario);
+                await page.$eval('.action-menu',node=>{node.open=true;});await clickText('.menu-btn','Delete Account');
+                await page.waitForFunction(text=>document.querySelector('.modal-body')?.textContent.includes(text),{},scenario.expected);
+                assert.equal(await finalDisabled(),true);await clickText('.modal-footer button','Cancel');await page.waitForFunction(()=>!document.querySelector('.modal'));
+            }
+            await page.evaluate(()=>{window.previewError=null;window.previewHtml=true;});
+            await page.$eval('.action-menu',node=>{node.open=true;});await clickText('.menu-btn','Delete Account');
+            await page.waitForFunction(()=>document.querySelector('.modal-body')?.textContent.includes('non-JSON response'));
+            assert.equal(await finalDisabled(),true);await clickText('.modal-footer button','Cancel');await page.waitForFunction(()=>!document.querySelector('.modal'));
+            await page.evaluate(()=>{window.previewHtml=false;});
             await open();
             await page.screenshot({ path: fileURLToPath(new URL(`../../../tmp/account-deletion-${role}.png`, import.meta.url)) });
             assert.equal(await finalDisabled(), true);
             assert.match(await page.$eval('.modal-body', node => node.textContent), /Applications4/);
             assert.match(await page.$eval('.modal-body', node => node.textContent), /Application documents7/);
-            assert.match(await page.$eval('.modal-body', node => node.textContent), /All membership forms/);
+            assert.match(await page.$eval('.modal-body', node => node.textContent), /Preserved membership forms/);
+            assert.doesNotMatch(await page.$eval('.modal-body', node => node.textContent), /Associated job postings, applications|All membership forms, Registrar master records|Submitted applications, saved resumes/);
             await page.type('#account-delete-confirmation', 'delete'); assert.equal(await finalDisabled(), true);
             await page.$eval('#account-delete-confirmation', node => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(node, ''); node.dispatchEvent(new Event('input', { bubbles: true })); });
             await page.type('#account-delete-confirmation', 'DELETE'); assert.equal(await finalDisabled(), false);

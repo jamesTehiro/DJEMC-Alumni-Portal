@@ -1,5 +1,6 @@
 // server.js
 
+require("./config/adminOtpEnvironment"); // Capture Admin-only provenance before shared dotenv defaults.
 const path = require("path");
 const fs = require("fs");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
@@ -101,7 +102,7 @@ const corsOptions = {
         return callback(new Error(`CORS blocked: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-bootstrap-secret"],
     credentials: true,
     optionsSuccessStatus: 204
 };
@@ -187,6 +188,9 @@ app.use("/api/admin-employer", require("./routes/adminEmployerMessageRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/resumes", require("./routes/resumeRoutes"));
 app.use("/api/membership", require("./routes/membershipRoutes"));
+
+// Unknown API routes must never fall through to a static SPA or Express HTML.
+app.use('/api', require('./middleware/apiNotFound'));
 
 // --- SERVE REACT BUILD ---
 const reactBuildPath = path.join(__dirname, "dist");

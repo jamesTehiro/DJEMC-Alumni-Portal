@@ -1,3 +1,4 @@
+require("../config/adminOtpEnvironment");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const { Op } = require("sequelize");
@@ -68,6 +69,16 @@ const markJobFailed = (job, error) => {
 };
 const processJob = async job => {
     if (!await db.EmailQueueJob.findOne({ where: lease(job), attributes: ["id"] })) return;
+    try {
+        if (!await require("../services/adminOtpQueue").isActiveAdminOtpJob(db, job, Date.now(), { requireConfiguration: true })) {
+            await writeState(job, { status: "failed", processing_started_at: null, last_error: JSON.stringify({ code: "OTP_EXPIRED_REPLACED_OR_CONFIG_MISMATCH" }) });
+            return;
+        }
+    } catch (error) {
+        if (error.code !== "ADMIN_OTP_CONFIG") throw error;
+        await writeState(job, { status: "failed", processing_started_at: null, last_error: JSON.stringify({ code: "ADMIN_OTP_CONFIG" }) });
+        return;
+    }
     console.log("[email] processing", { jobId: job.id, attempts: job.attempts });
     let receipt;
     try { receipt = await sendEmail(job.to, job.subject, job.message); }
