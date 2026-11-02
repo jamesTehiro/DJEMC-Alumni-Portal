@@ -1,24 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../../services/api";
 
 const storageKey = "djemc-registration-gmail-session";
 const normalize = email => String(email || "").trim().toLowerCase();
-export function readRegistrationSession() {
+export function readRegistrationSession(key = storageKey) {
     try {
-        const saved = JSON.parse(sessionStorage.getItem(storageKey));
+        const saved = JSON.parse(sessionStorage.getItem(key));
         return saved && typeof saved.email === "string" && /^[a-f0-9]{64}$/.test(saved.token) ? saved : null;
     } catch { return null; }
 }
-const persist = session => {
+const persist = (session, key = storageKey) => {
     try {
-        if (session) sessionStorage.setItem(storageKey, JSON.stringify(session));
-        else sessionStorage.removeItem(storageKey);
+        if (session) sessionStorage.setItem(key, JSON.stringify(session));
+        else sessionStorage.removeItem(key);
     } catch { /* Verification still works in memory when browser storage is disabled. */ }
 };
 
-export default function useRegistrationOtp() {
-    const [session, setSession] = useState(readRegistrationSession);
-    const [restored] = useState(() => !!readRegistrationSession());
+export default function useRegistrationOtp({ endpoint = "/auth/registration-otp", storage = storageKey, request = {}, restore = true } = {}) {
+    const [session, setSession] = useState(() => readRegistrationSession(storage));
+    const [restored] = useState(() => !!readRegistrationSession(storage));
+    const requestRef = useRef(request);
+    useEffect(() => { requestRef.current = request; }, [request]);
+    const post = useCallback((operation, payload) => {
+        const context = requestRef.current;
+        const body = typeof context.body === "function" ? context.body(operation) : context.body;
+        return api.post(`${endpoint}/${operation}`, { ...body, ...payload }, false, context.config || {});
+    }, [endpoint]);
     const [details, setDetails] = useState(null);
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -39,16 +46,16 @@ export default function useRegistrationOtp() {
     }, []);
     useEffect(() => {
         const saved = initialSession.current;
-        if (!saved) return;
+        if (!saved || !restore) return;
         let active = true;
         const version = generation.current;
-        api.post("/auth/registration-otp/status", { email: saved.email, session_token: saved.token }).then(result => {
+        post("status", { email: saved.email, session_token: saved.token }).then(result => {
             if (active && generation.current === version) accept(result);
         }).catch(() => {
             if (active && generation.current === version) setError("Complete the form, then request a new verification code if your previous session has expired.");
         });
         return () => { active = false; };
-    }, []);
+    }, [post, restore]);
     const time = clock + serverOffset;
     const verified = !!details?.verified && time < new Date(details.verification_expires_at).getTime();
     const secondsLeft = Math.max(0, Math.ceil((new Date(details?.expires_at || 0).getTime() - time) / 1000));
@@ -61,7 +68,7 @@ export default function useRegistrationOtp() {
         if (!current || current.email !== email) {
             current = { email, token: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, "0")).join("") };
             setSession(current);
-            persist(current);
+            persist(current, storage);
             setDetails(null);
         }
         inFlight.current = true;
@@ -69,12 +76,12 @@ export default function useRegistrationOtp() {
         setError("");
         setOpen(true);
         try {
-            accept(await api.post(`/auth/registration-otp/${resend ? "resend" : "send"}`, { email, session_token: current.token }));
+            accept(await post(resend ? "resend" : "send", { email, session_token: current.token }));
         } catch (failure) {
             setError(failure.message);
             // A timed-out request may have reserved/sent a code. Recover its
             // authoritative state without sending another email automatically.
-            try { accept(await api.post("/auth/registration-otp/status", { email, session_token: current.token })); }
+            try { accept(await post("status", { email, session_token: current.token })); }
             catch { /* Keep the send error visible. */ }
         } finally {
             inFlight.current = false;
@@ -87,10 +94,10 @@ export default function useRegistrationOtp() {
         setBusy(true);
         setError("");
         try {
-            accept(await api.post("/auth/registration-otp/verify", { email: session.email, session_token: session.token, otp: code }));
+            accept(await post("verify", { email: session.email, session_token: session.token, otp: code }));
         } catch (failure) {
             setError(failure.message);
-            try { accept(await api.post("/auth/registration-otp/status", { email: session.email, session_token: session.token })); }
+            try { accept(await post("status", { email: session.email, session_token: session.token })); }
             catch { /* Keep the verification error visible. */ }
         } finally {
             inFlight.current = false;
@@ -99,7 +106,7 @@ export default function useRegistrationOtp() {
     };
     const clear = () => {
         generation.current += 1;
-        persist(null);
+        persist(null, storage);
         setSession(null);
         setDetails(null);
         setError("");
@@ -110,5 +117,14 @@ export default function useRegistrationOtp() {
         // also recovers an ambiguous/time-out response without duplicate mail.
         void send(email);
     };
-    return { session, details, open, setOpen, busy, error, verified, secondsLeft, cooldown, windowWait, send, verify, clear, start, restored };
+    const refresh = async () => {
+        if (!session || inFlight.current) return;
+        inFlight.current = true;
+        setBusy(true);
+        setError("");
+        try { accept(await post("status", { email: session.email, session_token: session.token })); }
+        catch (failure) { setError(failure.message); }
+        finally { inFlight.current = false; setBusy(false); }
+    };
+    return { session, details, open, setOpen, busy, error, verified, secondsLeft, cooldown, windowWait, send, verify, clear, start, restored, refresh };
 }

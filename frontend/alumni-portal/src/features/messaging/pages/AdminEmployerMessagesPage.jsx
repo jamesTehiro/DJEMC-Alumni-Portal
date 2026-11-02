@@ -314,7 +314,7 @@ export default function AdminEmployerMessagesPage() {
     };
 
     const sendMessage = async () => {
-        if (!activeConversation || (!draft.trim() && !attachment)) return;
+        if (!activeConversation || activeConversation.read_only || (!draft.trim() && !attachment)) return;
         const attempt = beginMessageRequest(sendAttemptRef, activeThread, draft.trim(), attachment);
         if (!attempt) return;
         let sent = false;
@@ -657,6 +657,7 @@ export default function AdminEmployerMessagesPage() {
                         </div>
 
                         <div className="chat-composer">
+                            {activeConversation?.read_only && <p role="status">This account was deleted. Conversation history is preserved.</p>}
                             <AttachmentSelectionPreview file={attachment} onRemove={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
                             <div className="composer-row">
                                 <button
@@ -664,6 +665,7 @@ export default function AdminEmployerMessagesPage() {
                                     className="attach-btn"
                                     onClick={() => fileInputRef.current?.click()}
                                     title="Add file"
+                                    disabled={activeConversation?.read_only}
                                 >
                                     <FiPaperclip />
                                 </button>
@@ -675,6 +677,7 @@ export default function AdminEmployerMessagesPage() {
                                     onChange={(e) => { const selected = e.target.files?.[0] || null; if (selected && selected.size > MAX_ATTACHMENT_BYTES) { setError(`This file is too large. Maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`); e.target.value = ""; return; } setError(""); setAttachment(selected); }}
                                 />
                                 <Form.Control
+                                    disabled={activeConversation?.read_only}
                                     placeholder={
                                         activeConversation?.threadType === "forum"
                                             ? "Write a forum message..."
@@ -689,7 +692,7 @@ export default function AdminEmployerMessagesPage() {
                                         }
                                     }}
                                 />
-                                <Button className="send-btn" onClick={sendMessage} disabled={sending || !activeConversation}>
+                                <Button className="send-btn" onClick={sendMessage} disabled={sending || !activeConversation || activeConversation.read_only}>
                                     {sending ? <Spinner animation="border" size="sm" /> : <FiSend />}
                                 </Button>
                             </div>

@@ -9,6 +9,7 @@ import AdminShell from "../../../components/layout/AdminShell";
 import SectionHeader from "../../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "../../../utils/adminUtils";
 import { filterAdminUsers } from "../utils/adminUserSearch";
+import AccountDeletionModal from '../components/AccountDeletionModal';
 import "../../../styles/AdminEmployerPage.css";
 
 const SETTINGS_STORAGE_KEY = {
@@ -83,6 +84,7 @@ export default function AdminSettingsPage({ role }) {
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [savingUserId, setSavingUserId] = useState(null);
     const [pendingUserAction, setPendingUserAction] = useState(null);
+    const [pendingDeletion, setPendingDeletion] = useState(null);
     const [userActionInFlight, setUserActionInFlight] = useState(false);
     const userActionInFlightRef = useRef(false);
     const actionMenuRefs = useRef(new Map());
@@ -353,6 +355,17 @@ export default function AdminSettingsPage({ role }) {
             {message && <p className="notice success">{message}</p>}
             {error && !pendingUserAction && <p className="notice error" role="alert">{error}</p>}
 
+            {pendingDeletion && <AccountDeletionModal key={`${role}:${pendingDeletion.id}`} item={pendingDeletion} role={role} endpoint={scopeMeta.usersEndpoint}
+                onClose={() => setPendingDeletion(null)}
+                onBusyChange={busy => { userActionInFlightRef.current = busy; setSavingUserId(busy ? pendingDeletion.id : null); }}
+                onDeleted={result => {
+                    setUsers(previous => previous.filter(item => item.id !== result.deletedUserId));
+                    setWarningForm(previous => String(previous.userId) === String(result.deletedUserId) ? { ...previous, userId: '' } : previous);
+                    closeActionMenu(result.deletedUserId);
+                    setPendingDeletion(null);
+                    setMessage(result.msg);
+                }} />}
+
             <Modal show={Boolean(pendingUserAction)} onHide={closeUserAction} centered backdrop={userActionInFlight ? "static" : true} keyboard={!userActionInFlight}>
                 <Modal.Header closeButton={!userActionInFlight}>
                     <Modal.Title>
@@ -555,16 +568,17 @@ export default function AdminSettingsPage({ role }) {
                                         >
                                             {savingUserId === item.id ? "Sending..." : "Reset Password"}
                                         </button>
-                                        {role === "employer" && (
                                             <button
                                                 type="button"
                                                 className="menu-btn reject"
-                                                disabled
-                                                title="Permanent deletion is unavailable because employer records may have linked jobs, applications, conversations, and documents. Deactivate the account to block access while preserving its data."
+                                                disabled={savingUserId !== null}
+                                                onClick={() => {
+                                                    if (userActionInFlightRef.current) return;
+                                                    setError(''); setMessage(''); closeActionMenu(item.id); setPendingDeletion(item);
+                                                }}
                                             >
-                                                Delete Account (Unavailable)
+                                                Delete Account
                                             </button>
-                                        )}
                                     </details>
                                 </div>
                             </div>

@@ -57,3 +57,17 @@ test('HTML and malformed login responses cannot be treated as a successful login
  }
 });
 
+test('HTTP failures preserve backend notifications and distinguish transport failures', async () => {
+ const { api } = loadApi({ PROD: true });
+ for (const status of [400, 401, 403, 409, 429, 500, 503]) {
+  const adapter = async () => { throw { response: { status, data: { msg: `fixture response ${status}`, code: 'FIXTURE', retry_after: 60 }, headers: {} } }; };
+  await assert.rejects(api.post('/auth/admin-setup', {}, false, { adapter }), error => error.status === status && error.message === `fixture response ${status}` && error.code === 'FIXTURE' && error.retryAfter === 60);
+ }
+ for (const status of [400, 401, 403, 409, 429, 500, 503]) {
+  const adapter = async () => { throw { message: 'Axios internal detail', response: { status, data: {}, headers: {} } }; };
+  await assert.rejects(api.post('/auth/admin-setup', {}, false, { adapter }), error => error.status === status && !error.message.includes('Axios'));
+ }
+ const adapter = async () => { throw { code: 'ERR_NETWORK', message: 'Network Error', request: {} }; };
+ await assert.rejects(api.post('/auth/admin-setup', {}, false, { adapter }), error => error.status === undefined && /Unable to reach the server/.test(error.message));
+});
+

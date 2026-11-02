@@ -393,7 +393,7 @@ export default function MessagesPage() {
     };
 
     const sendMessage = async () => {
-        if (!activeConversationId || (!draft.trim() && !attachment)) return;
+        if (!activeConversationId || activeConversation?.other_participant?.role === 'deleted' || (!draft.trim() && !attachment)) return;
         const attempt = beginMessageRequest(sendAttemptRef, activeConversationId, draft.trim(), attachment);
         if (!attempt) return;
         let sent = false;
@@ -738,6 +738,7 @@ export default function MessagesPage() {
                                 className="attach-btn"
                                 onClick={() => fileInputRef.current?.click()}
                                 title="Add file"
+                                disabled={activeConversation?.other_participant?.role === 'deleted'}
                             >
                                 <FiPaperclip />
                             </button>
@@ -761,6 +762,7 @@ export default function MessagesPage() {
                                 as={isMobile ? "textarea" : "input"}
                                 rows={1}
                                 placeholder="Write a message..."
+                                disabled={activeConversation?.other_participant?.role === 'deleted'}
                                 value={draft}
                                 onChange={(e) => {
                                     setDraft(e.target.value);
@@ -776,7 +778,7 @@ export default function MessagesPage() {
                                     }
                                 }}
                             />
-                            <Button className="send-btn" onClick={sendMessage} disabled={sending}>
+                            <Button className="send-btn" onClick={sendMessage} disabled={sending || activeConversation?.other_participant?.role === 'deleted'}>
                                 {sending ? <Spinner animation="border" size="sm" /> : <FiSend />}
                             </Button>
                         </div>

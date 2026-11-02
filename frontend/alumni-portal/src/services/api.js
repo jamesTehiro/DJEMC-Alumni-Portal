@@ -127,10 +127,19 @@ apiClient.interceptors.response.use(
     (error) => {
         const responseData = error.response?.data;
 
+        const status = error.response?.status;
+        const fallback = {
+            400: "Check the information entered and try again.",
+            401: "Authentication failed. Please sign in again.",
+            403: "You are not authorized to perform this action.",
+            409: "This account or administrative role is already registered.",
+            429: "Too many requests. Please wait before trying again."
+        }[status] || (status >= 500 ? "Server temporarily unavailable. Please try again later." : null);
         let message =
             responseData?.msg ||
             responseData?.message ||
-            error.message ||
+            fallback ||
+            (!error.response && (error.request || error.code === "ERR_NETWORK") ? "Unable to reach the server. Check your connection and try again. If this continues, contact support." : error.message) ||
             "Request failed";
 
         // Detect a frontend HTML fallback instead of an API response.
