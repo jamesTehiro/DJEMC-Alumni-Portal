@@ -1,9 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../src/features/jobs/utils/applicationDecision.js";
+import { applicationDecisionFeedback, canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../src/features/jobs/utils/applicationDecision.js";
 import { applicationStatusLabel } from "../src/features/jobs/utils/applicationStatus.js";
 
 const application = { id: 8, job_id: 12, recruitment_cycle: 3, status: "pending", ApplicationDocuments: [{ id: 7 }] };
+test("both portals distinguish queueing, processing, provider acceptance and failure", () => {
+    const result = { msg: "Application selected for interview." };
+    assert.equal(applicationDecisionFeedback(result), result.msg);
+    const queued = applicationDecisionFeedback({ ...result, email: { status: "queued" } });
+    assert.match(queued, /queued for delivery/); assert.doesNotMatch(queued, /sent|accepted|delivered/);
+    assert.match(applicationDecisionFeedback({ ...result, email: { status: "processing" } }), /being processed/);
+    assert.match(applicationDecisionFeedback({ ...result, email: { status: "sent" } }), /inbox delivery is not confirmed/);
+    assert.match(applicationDecisionFeedback({ ...result, email: { status: "failed" } }), /notification failed/);
+    assert.match(applicationDecisionFeedback({ ...result, email: { status: "failed", reason: "enqueue_failed" } }), /could not be queued/);
+    assert.match(applicationDecisionFeedback({ ...result, email: { status: "failed", reason: "invalid_registered_email" } }), /unavailable for this registered account/);
+});
 test("both decision controls allow only pending applications and lock while processing", () => {
     for (const status of ["pending", "pending_review", "submitted"]) {
         assert.equal(canDecideApplication({ ...application, status }), true);

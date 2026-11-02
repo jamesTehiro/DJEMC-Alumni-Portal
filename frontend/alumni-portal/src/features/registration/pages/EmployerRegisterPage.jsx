@@ -7,14 +7,18 @@ import BackToHome from "../../../components/ui/BackToHome";
 import RegistrationSuccessToast from "../components/RegistrationSuccessToast";
 import RegistrationValidationToast from "../components/RegistrationValidationToast";
 import useRegistrationValidation from "../hooks/useRegistrationValidation";
+import useRegistrationOtp, { readRegistrationSession } from "../hooks/useRegistrationOtp";
+import RegistrationOtpModal from "../components/RegistrationOtpModal";
+import { isRegistrationGmail } from "../../../utils/registrationEmail";
 import BusinessPermitInput from "../../../components/forms/BusinessPermitInput";
 import { validateBusinessPermits } from "../../../utils/businessPermits";
 import "../../../styles/AuthPage.css";
+const EMPLOYER_SESSION = "djemc-employer-registration-gmail-session";
 
 export default function EmployerRegisterPage() {
     const [form, setForm] = useState({
         name: "",
-        email: "",
+        email: readRegistrationSession(EMPLOYER_SESSION)?.email || "",
         companyAddress: "",
         websiteUrl: "",
         password: "",
@@ -25,6 +29,10 @@ export default function EmployerRegisterPage() {
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const submitting = useRef(false);
+    const formRef = useRef(null);
+    const emailRef = useRef(null);
+    const focusEmailAfterOtpClose = useRef(false);
+    const verification = useRegistrationOtp({ endpoint: "/auth/employer-registration-otp", storage: EMPLOYER_SESSION, pollDelivery: true });
     const { notice, dismiss, validate } = useRegistrationValidation();
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -33,17 +41,25 @@ export default function EmployerRegisterPage() {
     const [consentRead, setConsentRead] = useState(false);
     const requiredMark = useMemo(() => <span className="required-mark"> *</span>, []);
 
-    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+    const handleChange = (e) => {
+        if (e.target.name === "email" && e.target.value.trim().toLowerCase() !== form.email.trim().toLowerCase()) verification.clear();
+        setForm({ ...form, [e.target.name]: e.target.value });
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (submitting.current || submitted) return;
+        if (submitting.current || submitted || verification.busy) return;
         setError("");
         const permitError = validateBusinessPermits(businessPermits);
         if (!validate(e.currentTarget, {
             ...form, employer: true,
-            requiredIssue: permitError ? { field: "document", title: "Business Permit Required", message: permitError } : null
+            requiredIssue: !isRegistrationGmail(form.email) ? { field: "email", title: "Gmail Required", message: "Enter a valid @gmail.com address." }
+                : permitError ? { field: "document", title: "Business Permit Required", message: permitError } : null
         })) return;
+        if (!verification.verified || verification.session?.email !== form.email.trim().toLowerCase()) {
+            verification.start(form.email);
+            return;
+        }
         submitting.current = true;
         setLoading(true);
         setSuccess("");
@@ -53,14 +69,18 @@ export default function EmployerRegisterPage() {
             payload.append("email", form.email);
             payload.append("password", form.password);
             payload.append("role", "employer");
+            payload.append("session_token", verification.session.token);
+            payload.append("registration_authorization", verification.details.registration_authorization);
             payload.append("company_address", form.companyAddress);
             payload.append("website_url", form.websiteUrl);
             businessPermits.forEach(file => payload.append("business_permit", file));
             await api.post("/auth/register", payload);
             setSubmitted(true);
             setSuccess(true);
+            verification.clear();
         } catch (err) {
             setError(err.message);
+            if (["GMAIL_VERIFICATION_REQUIRED", "INVALID_SESSION"].includes(err.code)) verification.clear();
         } finally {
             submitting.current = false;
             setLoading(false);
@@ -106,7 +126,11 @@ export default function EmployerRegisterPage() {
                         <p>Register your organization for the employer portal.</p>
                     </div>
                     {error && <p className="auth-error">{error}</p>}
-                    <form className="auth-form" onSubmit={handleSubmit} noValidate>
+                    {verification.error && !verification.open && <p className="auth-error" role="alert">{verification.error}</p>}
+                    {verification.verified && <p className="alert alert-success" role="status">Gmail verified. Submit your account for business permit review and employer approval.</p>}
+                    {verification.restored && !submitted && <p className="small text-muted">Your Gmail verification session was restored. Re-enter your registration details and reselect your business permits. Passwords and files are not stored in your browser.</p>}
+                    <form ref={formRef} className="auth-form" onSubmit={handleSubmit} noValidate>
+                        <fieldset className="registration-fields" disabled={loading || submitted || verification.busy || verification.open}>
                         <label className="field">
                             <span>Company Name{requiredMark}</span>
                             <label className="line-input">
@@ -117,7 +141,7 @@ export default function EmployerRegisterPage() {
                         <label className="field">
                             <span>Gmail{requiredMark}</span>
                             <label className="line-input">
-                                <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="organization@gmail.com" required />
+                                <input ref={emailRef} type="email" name="email" value={form.email} onChange={handleChange} placeholder="organization@gmail.com" required />
                                 <FiMail className="input-icon" />
                             </label>
                         </label>
@@ -143,7 +167,7 @@ export default function EmployerRegisterPage() {
                             <span>Confirm Password *</span>
                             <PasswordField id="employer-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Confirm your password" autoComplete="new-password" aria-label="Confirm Password" required />
                         </label>
-                        <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading} />
+                        <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading || submitted || verification.busy || verification.open} />
                         <label className="consent-row">
                             <input
                                 type="checkbox"
@@ -160,9 +184,10 @@ export default function EmployerRegisterPage() {
                                 and understand how company information and uploaded documents will be used.
                             </span>
                         </label>
-                        <button className="primary-btn auth-submit" type="submit" disabled={loading || submitted}>
-                            {loading ? "Creating..." : "Create Employer Account"}
+                        <button className="primary-btn auth-submit" type="submit" disabled={loading || submitted || verification.busy}>
+                            {loading ? "Creating..." : verification.verified ? "Create Employer Account" : "Verify Gmail & Continue"}
                         </button>
+                        </fieldset>
                     </form>
                     <p className="auth-footer">
                         Already have an account? <Link className="inline-link-btn" to="/login/employer">Sign in</Link>
@@ -288,6 +313,15 @@ export default function EmployerRegisterPage() {
                     </div>
                 )}
             </div>
+            <RegistrationOtpModal verification={{ ...verification, busy: verification.busy || loading }} email={form.email} employer submitting={loading}
+                onChangeEmail={() => { focusEmailAfterOtpClose.current = true; verification.clear(); }}
+                onExited={() => {
+                    if (focusEmailAfterOtpClose.current) {
+                        focusEmailAfterOtpClose.current = false;
+                        requestAnimationFrame(() => { emailRef.current?.focus(); emailRef.current?.select(); });
+                    }
+                }}
+                onContinue={() => { verification.setOpen(false); requestAnimationFrame(() => formRef.current?.requestSubmit()); }} />
         </>
     );
 }

@@ -29,7 +29,7 @@ const digest = value => crypto.createHash("sha256").update(value).digest("hex");
 const validSession = value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
 
 function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = crypto.randomInt, purpose = "alumni-registration", deliveryStatus }) {
-    if (!["alumni-registration", "admin-registration"].includes(purpose)) throw new Error("Unsupported verification purpose");
+    if (!["alumni-registration", "admin-registration", "employer-registration"].includes(purpose)) throw new Error("Unsupported verification purpose");
     // Preserve existing Alumni sessions. Admin sessions use a separate namespace.
     const sessionDigest = session => digest(purpose === "alumni-registration" ? session : `${purpose}:${session}`);
     const secret = () => {
@@ -134,14 +134,14 @@ function createRegistrationOtp({ db, sendEmail, now = Date.now, randomInt = cryp
             if (reservation.reused) return deliveryStatus ? service.status(email, session) : reservation.reused;
             const where = { email_key: emailKey(email), session_hash: sessionHash, otp_hash: otpHash, status: "sending" };
             try {
-                // Alumni keeps direct delivery; Admin supplies the existing queue.
+                // Alumni keeps direct delivery; Admin and Employer supply the existing queue.
                 const text = ["Hello,", "", "Thank you for registering with the DJEMC Alumni Tracking and Job Portal System.", "",
                     "Your email verification code is:", "", otp, "", "This code is valid for 5 minutes.", "",
                     "Please enter the code on the registration page to verify your Gmail address.", "",
                     "If you did not request this verification, you may safely ignore this email.", "",
                     "Don Jose Ecleo Memorial College", "Alumni Tracking and Job Portal System"].join("\n");
                 const html = `<div style="background:#f6f2e9;padding:24px;font-family:Arial,sans-serif;color:#173f2a"><div style="max-width:540px;margin:auto;background:#fff;border-radius:12px;padding:28px"><h2 style="color:#1f6b49">Verify your Gmail address</h2><p>Hello,</p><p>Thank you for registering with the DJEMC Alumni Tracking and Job Portal System.</p><p>Your email verification code is:</p><p style="font-size:32px;font-weight:bold;letter-spacing:8px;background:#f6f2e9;padding:16px;text-align:center">${otp}</p><p>This code is valid for <strong>5 minutes</strong>.</p><p>Please enter the code on the registration page to verify your Gmail address.</p><p>If you did not request this verification, you may safely ignore this email.</p><hr><p>Don Jose Ecleo Memorial College<br>Alumni Tracking and Job Portal System</p></div></div>`;
-                await sendEmail(email, `DJEMC ${purpose === "admin-registration" ? "Admin" : "Alumni"} Registration — Email Verification Code`, text, { html }, { email_key: emailKey(email), otp_hash: otpHash, expires_at: reservation.expiresAt });
+                await sendEmail(email, `DJEMC ${purpose === "admin-registration" ? "Admin" : purpose === "employer-registration" ? "Employer" : "Alumni"} Registration — Email Verification Code`, text, { html }, { email_key: emailKey(email), otp_hash: otpHash, expires_at: reservation.expiresAt });
             } catch (error) {
                 const wait = Math.max(COOLDOWN, Math.min(SEND_WINDOW, Number(error.retryAfterMs) || 0));
                 try {

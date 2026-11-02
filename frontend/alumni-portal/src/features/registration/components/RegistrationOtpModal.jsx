@@ -39,24 +39,25 @@ function OtpEntry({ ready, busy, verify }) {
     );
 }
 
-export default function RegistrationOtpModal({ verification, email, onChangeEmail, onContinue, onExited, admin = false, submitting = false }) {
+export default function RegistrationOtpModal({ verification, email, onChangeEmail, onContinue, onExited, admin = false, employer = false, submitting = false }) {
     const { open, setOpen, busy, error, verified, details, secondsLeft, cooldown, windowWait, send, verify } = verification;
     const limited = details?.resends_remaining === 0 && windowWait > 0;
     const expired = details?.status === "sent" && secondsLeft === 0;
     const locked = details?.attempts_remaining === 0;
-    const ready = details?.status === "sent" && !expired && !locked && (!admin || details.email_status === "sent");
+    const queued = admin || employer;
+    const ready = details?.status === "sent" && !expired && !locked && (!queued || details.email_status === "sent");
     return (
         <Modal show={open} onHide={() => !busy && setOpen(false)} onExited={onExited} centered backdrop={busy ? "static" : true} keyboard={!busy} dialogClassName="registration-otp-modal">
             <Modal.Header closeButton={!busy}><Modal.Title>Verify your Gmail</Modal.Title></Modal.Header>
             <Modal.Body>
                 <p>Verification address: <strong className="otp-email">{email.trim().toLowerCase()}</strong></p>
-                <p className="text-muted small">{admin ? "Check your inbox and spam folder. Gmail verification is required before creating your admin account." : "Check your inbox and spam folder. Registrar approval is still required after registration."}</p>
+                <p className="text-muted small">{admin ? "Check your inbox and spam folder. Gmail verification is required before creating your admin account." : employer ? "Check your inbox and spam folder. Employer approval and business permit review are still required after registration." : "Check your inbox and spam folder. Registrar approval is still required after registration."}</p>
                 {busy && <p role="status"><Spinner size="sm" animation="border" className="me-2" />Please wait...</p>}
                 {error && <div className="alert alert-danger" role="alert">{error}</div>}
-                {admin && !verified && details?.email_status === "sent" && <p role="status">OTP sent successfully. Check your Gmail inbox and spam folder.</p>}
-                {admin && !verified && ["pending", "processing"].includes(details?.email_status) && <p role="status">Your verification email is queued for delivery. Check delivery status before entering the code.</p>}
-                {admin && !verified && details?.email_status === "failed" && <p className="text-danger" role="alert">Email delivery failed. Wait before requesting a new code.</p>}
-                {admin && !verified && details && <button type="button" className="btn btn-outline-success mb-3" disabled={busy} onClick={() => void verification.refresh()}>Check delivery status</button>}
+                {queued && !verified && details?.email_status === "sent" && <p role="status">OTP sent successfully. Check your Gmail inbox and spam folder.</p>}
+                {queued && !verified && ["pending", "processing"].includes(details?.email_status) && <p role="status">Your verification email is queued for delivery. Check delivery status before entering the code.</p>}
+                {queued && !verified && details?.email_status === "failed" && <p className="text-danger" role="alert">Email delivery failed. Wait before requesting a new code.</p>}
+                {queued && !verified && details && <button type="button" className="btn btn-outline-success mb-3" disabled={busy} onClick={() => void verification.refresh()}>Check delivery status</button>}
                 {verified ? <div className="alert alert-success" role="status">Gmail verified successfully. Submit your registration within 10 minutes.</div> : <>
                     <p id="otp-expiry" className="small">
                         {details?.status === "sent" && !expired ? `Code expires in ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}.` : "Codes expire after 5 minutes."}
@@ -74,7 +75,7 @@ export default function RegistrationOtpModal({ verification, email, onChangeEmai
                 </>}
                 <button type="button" className="btn btn-link text-success px-0 mt-2" disabled={busy} onClick={onChangeEmail}>Change Gmail address</button>
             </Modal.Body>
-            {verified && <Modal.Footer><button type="button" className="primary-btn" disabled={submitting} onClick={onContinue}>{submitting ? "Creating account..." : "Create Account"}</button></Modal.Footer>}
+            {verified && <Modal.Footer><button type="button" className="primary-btn" disabled={submitting} onClick={onContinue}>{submitting ? "Creating account..." : employer ? "Create Employer Account" : "Create Account"}</button></Modal.Footer>}
         </Modal>
     );
 }

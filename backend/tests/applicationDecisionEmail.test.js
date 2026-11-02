@@ -54,7 +54,8 @@ async function fixture(run) {
         const rows = values.map(value => ({ id: state.queue.length + 1, max_attempts: 5, ...value }));
         state.queue.push(...rows); return rows;
     });
-    change(db.EmailQueueJob, "findOne", async ({ where }) => state.queue.find(row => row.id === where.id && row.status === where.status && row.attempts === where.attempts));
+    change(db.EmailQueueJob, "findOne", async ({ where }) => state.queue.find(row => where.dedupe_key
+        ? row.dedupe_key === where.dedupe_key : row.id === where.id && row.status === where.status && row.attempts === where.attempts));
     change(db.EmailQueueJob, "update", async (values, { where }) => {
         const row = state.queue.find(row => row.id === where.id && row.status === where.status && row.attempts === where.attempts);
         if (!row) return [0]; Object.assign(row, values); return [1];
@@ -94,16 +95,19 @@ for (const user of [{ id: 12, role: "employer" }, { id: 99, role: "admin", admin
         assert.equal(state.queue.length, 1); assert.equal(state.queue[0].to, state.applicant.email);
         assert.equal(state.queue[0].dedupe_key, `job-application-decision:74:2:${status}`);
         assert.equal(state.queue[0].status, "pending"); assert.equal(state.requests.length, 0, "decision handler never calls Brevo synchronously");
-        assert.equal(res.body.email, undefined); assert.doesNotMatch(JSON.stringify(res.body), /registered\.applicant|Email sent/);
+        assert.deepEqual(res.body.email, { status: "queued" }); assert.doesNotMatch(JSON.stringify(res.body), /registered\.applicant|Email sent/);
         assert.deepEqual(state.application.ApplicationDocuments, documents); assert.deepEqual(state.application.JobRequirementSnapshot, snapshot);
         assert.equal(state.application.id, 74); assert.equal(state.application.recruitment_cycle, 2); assert.equal(state.application.is_archived, false);
         const row = await deliver(); assert.equal(row.status, "sent"); assert.equal(state.requests.length, 1);
         const sent = state.requests[0]; assert.deepEqual(sent.to, [{ email: state.applicant.email }]);
-        assert.equal(sent.subject, status === "verified" ? "Job Application Update – Application Approved" : "Job Application Update – Office Assistant");
+        assert.equal(sent.subject, `Job Application Update – ${status === "verified" ? "For Interview" : "Declined"}: Office Assistant`);
         for (const text of ["Dear Registered Applicant,", "Office Assistant", "Original Company", "Date Updated:", "Philippine Time", "Don Jose Ecleo Memorial College", "https://djemc-alumni-portal.web.app"]) assert.ok(sent.textContent.includes(text), text);
-        assert.ok(sent.textContent.includes(`Application Status: ${status === "verified" ? "Approved" : "Declined"}`));
-        assert.doesNotMatch(sent.textContent, /private-resume|Private employer notes|untrusted@|attacker@|job offer|you are hired|For Interview/i);
+        assert.ok(sent.textContent.includes(`Application Status: ${status === "verified" ? "For Interview" : "Declined"}`));
+        assert.doesNotMatch(sent.textContent, /private-resume|Private employer notes|untrusted@|attacker@|job offer|you are hired/i);
+        if (status === "verified") assert.match(sent.textContent, /does not confirm an interview schedule/);
         assert.equal(sent.htmlContent, undefined, "dynamic values are sent exclusively as plain text"); assert.equal(sent.attachment, undefined);
+        assert.deepEqual((await decide(status, { user })).body.email, { status: "sent" });
+        assert.equal(state.requests.length, 1); assert.equal(state.queue.length, 1); assert.equal(state.notifications.length, 1);
     }));
 }
 
@@ -130,10 +134,16 @@ for (const failure of ["compare-and-set", "update", "notification", "commit"]) t
 
 test("enqueue failure is sanitized and never reverses committed decision or in-app notification", () => fixture(async ({ state, decide }) => {
     state.failQueue = true;
-    assert.equal((await decide("verified")).statusCode, 200); assert.equal(state.application.status, "verified"); assert.equal(state.notifications.length, 1); assert.equal(state.queue.length, 0);
+    const failed = await decide("verified");
+    assert.equal(failed.statusCode, 200); assert.deepEqual(failed.body.email, { status: "failed", reason: "enqueue_failed" });
+    assert.equal(state.application.status, "verified"); assert.equal(state.notifications.length, 1); assert.equal(state.queue.length, 0);
     const logs = JSON.stringify(state.logs); assert.match(logs, /application-decision-email/); assert.match(logs, /ER_NO_SUCH_TABLE/);
     assert.doesNotMatch(logs, /private@example|secret-api-key|Registered Applicant|private provider body|registered\.applicant/);
-    await decide("verified"); assert.equal(state.lookups.length, 2, "retrying an unchanged decision does not enqueue anew");
+    state.failQueue = false;
+    assert.deepEqual((await decide("verified")).body.email, { status: "queued" });
+    assert.equal(state.queue.length, 1, "an authorized retry recovers the missing queue row");
+    assert.equal(state.notifications.length, 1); assert.equal(state.audits.length, 1);
+    await decide("verified"); assert.equal(state.queue.length, 1);
 }));
 
 test("Brevo rate limits retry the same row; ambiguous failures are held without changing the decision", () => fixture(async ({ state, decide, deliver }) => {
@@ -144,30 +154,55 @@ test("Brevo rate limits retry the same row; ambiguous failures are held without 
 }));
 test("recipient lookup failure is logged safely after a successful decision", () => fixture(async ({ state, decide }) => {
     state.failRecipientLookup = true;
-    assert.equal((await decide("verified")).statusCode, 200); assert.equal(state.application.status, "verified");
+    const failed = await decide("verified");
+    assert.equal(failed.statusCode, 200); assert.equal(failed.body.email.status, "failed"); assert.equal(state.application.status, "verified");
     assert.equal(state.notifications.length, 1); assert.equal(state.queue.length, 0);
     assert.match(JSON.stringify(state.logs), /ER_BAD_FIELD_ERROR/); assert.doesNotMatch(JSON.stringify(state.logs), /private@example|private SQL detail/);
 }));
 test("Brevo 503 does not roll back saved decline and does not create another queue record", () => fixture(async ({ state, decide, deliver }) => {
     await decide("not_verified"); state.providerStatus = 503; const row = await deliver();
     assert.equal(row.status, "failed"); assert.equal(JSON.parse(row.last_error).deliveryUnknown, true);
-    assert.equal(state.application.status, "not_verified"); assert.equal(state.notifications.length, 1); await decide("not_verified"); assert.equal(state.queue.length, 1);
+    assert.equal(state.application.status, "not_verified"); assert.equal(state.notifications.length, 1);
+    assert.deepEqual((await decide("not_verified")).body.email, { status: "failed" }); assert.equal(state.queue.length, 1);
 }));
 
-for (const recipient of [null, { email: "" }, { email: "not-an-email" }, { email: "registered@example.invalid" }, { email: "x@gmail.com\r\nBcc: private@gmail.com" }, { email_verified_at: null }, { email_verified_at: "invalid-date" }, { account_status: "pending" }, { account_status: "suspended" }, { role: "employer" }]) test(`missing, invalid or unverified registered recipient is skipped safely: ${JSON.stringify(recipient)}`, () => fixture(async ({ state, decide }) => {
+for (const recipient of [null, { email: "" }, { email: "not-an-email" }, { email: "registered@example.invalid" }, { email: "x@gmail.com\r\nBcc: private@gmail.com" }, { account_status: "pending" }, { account_status: "suspended" }, { role: "employer" }]) test(`missing, invalid or unverified registered recipient is skipped safely: ${JSON.stringify(recipient)}`, () => fixture(async ({ state, decide }) => {
     state.applicant = recipient === null ? null : { ...state.applicant, ...recipient };
-    assert.equal((await decide("verified")).statusCode, 200); assert.equal(state.application.status, "verified"); assert.equal(state.notifications.length, 1); assert.equal(state.queue.length, 0); assert.match(JSON.stringify(state.logs), /skipped/);
+    const failed = await decide("verified");
+    assert.equal(failed.statusCode, 200); assert.equal(failed.body.email.status, "failed"); assert.equal(state.application.status, "verified"); assert.equal(state.notifications.length, 1); assert.equal(state.queue.length, 0); assert.match(JSON.stringify(state.logs), /skipped/);
     assert.doesNotMatch(JSON.stringify(state.logs), /@gmail|@example|Registered Applicant/);
 }));
 
 test("templates use Philippine decision date, safe subject text and the existing approval meaning", () => {
     const data = { applicantName: "Applicant <script>literal text</script>", jobTitle: "Role\r\nBcc: private@example.invalid", companyName: "Company & Organization", updatedAt: new Date("2026-10-31T16:30:00Z") };
     const approved = buildApplicationDecisionEmail({ ...data, status: "verified" });
-    assert.match(approved.message, /November 1, 2026/); assert.match(approved.message, /approved for the next stage/); assert.doesNotMatch(approved.message, /For Interview|job offer|hired/i);
+    assert.match(approved.message, /November 1, 2026/); assert.match(approved.message, /selected to proceed to the interview stage/); assert.doesNotMatch(approved.message, /job offer|hired/i);
     const declined = buildApplicationDecisionEmail({ ...data, status: "not_verified" }); assert.doesNotMatch(declined.subject, /[\r\n]/);
-    assert.equal(declined.subject, "Job Application Update – Role Bcc: private@example.invalid");
+    assert.equal(declined.subject, "Job Application Update – Declined: Role Bcc: private@example.invalid");
     assert.ok(buildApplicationDecisionEmail({ ...data, status: "not_verified", jobTitle: "x".repeat(255) }).subject.length <= 255);
     assert.throws(() => buildApplicationDecisionEmail({ ...data, status: "pending" }));
 });
+
+for (const user of [{ id: 12, role: "employer" }, { id: 99, role: "admin", admin_scope: "employer" }]) {
+    for (const status of ["verified", "not_verified"]) test(`${user.role} ${status}: legacy verified Gmail recipient uses the job-post eligibility rule`, () => fixture(async ({ state, decide, deliver }) => {
+        state.applicant.email_verified_at = null;
+        assert.deepEqual((await decide(status, { user })).body.email, { status: "queued" });
+        assert.equal(state.queue.length, 1); assert.equal(state.queue[0].to, state.applicant.email);
+        assert.equal((await deliver()).status, "sent"); assert.equal(state.requests.length, 1);
+        assert.equal(state.applicant.email_verified_at, null, "notification delivery never alters verification records");
+    }));
+}
+
+test("an already processing email is reported accurately without a second enqueue", () => fixture(async ({ state, decide }) => {
+    await decide("verified"); state.queue[0].status = "processing";
+    assert.deepEqual((await decide("verified")).body.email, { status: "processing" });
+    assert.equal(state.queue.length, 1); assert.equal(state.notifications.length, 1); assert.equal(state.requests.length, 0);
+}));
+
+test("a saved decision with no email row can recover after a process interrupted enqueue", () => fixture(async ({ state, decide }) => {
+    state.application.status = "verified";
+    assert.deepEqual((await decide("verified")).body.email, { status: "queued" });
+    assert.equal(state.queue.length, 1); assert.equal(state.notifications.length, 0); assert.equal(state.audits.length, 0);
+}));
 
 test.after(() => db.sequelize.close());

@@ -866,7 +866,11 @@ exports.reviewApplication = async (req, res, next) => {
             const cycle = await db.Application.max("recruitment_cycle", { where: { job_id: job.id }, transaction }) || 1;
             if (Number(application.job_id) !== Number(job.id) || Number(application.recruitment_cycle) !== Number(recruitment_cycle) || Number(cycle) !== Number(recruitment_cycle)) fail(409, "Application does not belong to the selected job and current recruitment cycle.");
             if (application.is_archived) fail(409, "Restore this application before reviewing it.");
-            if (application.status === status) return { application };
+            const decisionEmail = {
+                applicationId: application.id, alumniId: application.alumni_id, recruitmentCycle: cycle, status,
+                job: { id: job.id, title: job.title, employer_id: job.employer_id }, updatedAt: application.updatedAt || new Date()
+            };
+            if (application.status === status) return { application, decisionEmail };
             if (!["pending", "pending_review", "submitted"].includes(application.status)) fail(409, "This application already has a final decision or is processing.");
             const previousStatus = application.status;
             // Compare-and-set inside the transaction: only the winner emits side effects.
@@ -887,15 +891,12 @@ exports.reviewApplication = async (req, res, next) => {
                 : "Your application for " + (job.title || "the job") + " was not selected for the current recruitment process.";
             await db.Notification.create({ userId: application.alumni_id, type: "application", message, isRead: false }, { transaction });
             await db.AuditLog.create({ actor_id: req.user.id, actor_role: req.user.role, action: status === "verified" ? "application.approved" : "application.declined", target_type: "application", target_id: application.id, metadata: { previous_status: previousStatus, status, job_id: job.id, recruitment_cycle: cycle }, ip_address: req.ip }, { transaction });
-            return { application, decisionEmail: {
-                applicationId: application.id, alumniId: application.alumni_id, recruitmentCycle: cycle, status,
-                job: { id: job.id, title: job.title, employer_id: job.employer_id }, updatedAt: new Date()
-            } };
+            return { application, decisionEmail: { ...decisionEmail, updatedAt: new Date() } };
         });
         // The decision and its original in-app notification have committed. Email
         // enqueue/delivery failures must not roll either of them back.
-        if (result.decisionEmail) await queueApplicationDecisionEmail(result.decisionEmail);
-        res.json({ msg: status === "verified" ? "Application approved." : "Application declined.", application: hydrateSensitiveFields(result.application) });
+        const email = await queueApplicationDecisionEmail(result.decisionEmail);
+        res.json({ msg: status === "verified" ? "Application selected for interview." : "Application declined.", application: hydrateSensitiveFields(result.application), email });
     } catch (err) { next(err); }
 };
 

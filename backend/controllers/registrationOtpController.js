@@ -4,8 +4,12 @@ const { consumeRateLimit } = require("../utils/rateLimitStore");
 const { createRegistrationOtp, digest } = require("../services/registrationOtp");
 const { emailKey } = require("../utils/registrationEmail");
 const otp = createRegistrationOtp({ db, sendEmail });
+const { enqueueEmails } = require("../utils/emailQueue");
+const { createEmployerOtpQueue } = require("../services/employerOtpQueue");
+const employerOtp = createRegistrationOtp({ db, purpose: "employer-registration", ...createEmployerOtpQueue({ db, enqueueEmails }) });
 
 exports.otp = otp;
+exports.employerOtp = employerOtp;
 exports.rateLimit = (operation, dimensions = ["ip", "email", "session"]) => async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     try {
@@ -35,12 +39,12 @@ exports.rateLimit = (operation, dimensions = ["ip", "email", "session"]) => asyn
         return res.status(503).json({ msg: "Registration verification is temporarily unavailable." });
     }
 };
-const handle = method => async (req, res, next) => {
+const handle = (method, service = otp) => async (req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     try {
         return res.json(method === "resend"
-            ? await otp.send(req.body?.email, req.body?.session_token, { resend: true })
-            : await otp[method](req.body?.email, req.body?.session_token, req.body?.otp));
+            ? await service.send(req.body?.email, req.body?.session_token, { resend: true })
+            : await service[method](req.body?.email, req.body?.session_token, req.body?.otp));
     } catch (error) {
         const safeCategories = new Set([
             "otp_secret_missing_or_short", "resend_history_invalid", "database_error",
@@ -71,3 +75,7 @@ exports.send = handle("send");
 exports.resend = handle("resend");
 exports.verify = handle("verify");
 exports.status = handle("status");
+exports.employerSend = handle("send", employerOtp);
+exports.employerResend = handle("resend", employerOtp);
+exports.employerVerify = handle("verify", employerOtp);
+exports.employerStatus = handle("status", employerOtp);

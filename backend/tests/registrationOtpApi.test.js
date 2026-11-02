@@ -16,6 +16,37 @@ const controller = require("../controllers/registrationOtpController");
 rateLimits.consumeRateLimit = originalConsume;
 const { digest } = require("../services/registrationOtp");
 test.after(() => db.sequelize.close());
+
+for (const [prefix, service] of [['registration-otp', controller.otp], ['employer-registration-otp', controller.employerOtp]]) test(`${prefix} POST routes reach the scoped service, preserve sessions and retain rate limits`, async () => {
+    const express = require('express');
+    const app = express(); app.use(express.json()); app.use('/api/auth', require('../routes/authRoutes'));
+    app.use('/api', require('../middleware/apiNotFound'));
+    const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
+    const base = `http://127.0.0.1:${server.address().port}/api/auth/${prefix}`;
+    const originals = { send: service.send, verify: service.verify, status: service.status };
+    const calls = [];
+    try {
+        for (const method of ['send', 'verify', 'status']) service[method] = async (...args) => { calls.push({ method, args }); return { verified: false, email_status: 'pending' }; };
+        rateMode = 'allow';
+        for (const operation of ['send', 'resend', 'verify', 'status']) {
+            const res = await fetch(`${base}/${operation}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: 'fixture.employer@gmail.com', session_token: 'c'.repeat(64), otp: '123456' }) });
+            assert.equal(res.status, 200); assert.equal((await res.json()).email_status, 'pending');
+        }
+        assert.deepEqual(calls.map(call => call.method), ['send', 'send', 'verify', 'status']);
+        assert.ok(calls.every(call => call.args[0] === 'fixture.employer@gmail.com' && call.args[1] === 'c'.repeat(64)), 'all operations preserve the email/session binding');
+        assert.deepEqual(calls[1].args[2], { resend: true }); assert.equal(calls[2].args[2], '123456');
+        const wrongMethod = await fetch(`${base}/status`);
+        assert.equal(wrongMethod.status, 404); assert.equal((await wrongMethod.json()).code, 'API_ROUTE_NOT_FOUND');
+        assert.equal(calls.length, 4, 'GET must not invoke an OTP operation');
+        rateMode = 'deny';
+        const denied = await fetch(`${base}/send`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        assert.equal(denied.status, 429); assert.equal(calls.length, 4);
+    } finally {
+        Object.assign(service, originals); rateMode = 'allow';
+        server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
+    }
+});
 const response = () => ({ headers: {}, statusCode: 200, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } });
 
 test("OTP rate limits bind IP, canonical Gmail and session without trusting forwarded headers", async () => {

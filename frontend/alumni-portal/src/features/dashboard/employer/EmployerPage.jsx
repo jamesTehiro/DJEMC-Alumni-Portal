@@ -1,7 +1,7 @@
 import ApplicantDocumentWorkspace, { ApplicantResumePrintButton } from "../../jobs/components/ApplicantDocumentWorkspace";
 import ApplicantResumePreview from "../../jobs/components/ApplicantResumePreview";
 import { isResumeRequirement, getApplicantDocumentFilename, getApplicantResumeDocument, getApplicantResumeFileUrl } from "../../jobs/utils/applicantResume";
-import { canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../../jobs/utils/applicationDecision";
+import { applicationDecisionFeedback, canDecideApplication, saveApplicationDecision, updateActiveApplications } from "../../jobs/utils/applicationDecision";
 import { APPROVED_LABEL, applicationStatusLabel } from "../../jobs/utils/applicationStatus";
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Card, Form, Button, Modal, Spinner, Row, Col, Alert } from "react-bootstrap";
@@ -102,6 +102,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
     const navigate = useNavigate();
     const decisionBusy = useRef(false);
     const [decisionSaving, setDecisionSaving] = useState(false);
+    const [decisionNotice, setDecisionNotice] = useState(null);
     const [jobs, setJobs] = useState([]);
     const [applications, setApplications] = useState([]);
     const [archivedApplications, setArchivedApplications] = useState([]);
@@ -613,6 +614,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
         if (!canDecideApplication(selectedApplication, decisionBusy.current)) return;
         decisionBusy.current = true;
         setDecisionSaving(true);
+        setDecisionNotice(null);
         setError("");
         try {
             const result = await saveApplicationDecision(selectedApplication, status, api, message => window.confirm(message));
@@ -622,8 +624,13 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
             setJobApplicants(update);
             setSelectedApplication(previous => previous?.id === selectedApplication.id
                 ? { ...previous, status: result.application?.status || status } : previous);
-            setMessage(result.msg);
-        } catch (err) { setError(err.message || "Unable to update application."); }
+            setMessage(result.email?.status === "failed" ? result.msg : applicationDecisionFeedback(result));
+            if (result.email?.status === "failed") setError(applicationDecisionFeedback(result));
+            setDecisionNotice({ applicationId: selectedApplication.id, text: applicationDecisionFeedback(result), failed: result.email?.status === "failed" });
+        } catch (err) {
+            const text = err.message || "Unable to update application.";
+            setError(text); setDecisionNotice({ applicationId: selectedApplication.id, text, failed: true });
+        }
         finally { decisionBusy.current = false; setDecisionSaving(false); }
     };
 
@@ -771,6 +778,7 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
 
     const openApplicationDetails = async (application) => {
         if (!application) return;
+        setDecisionNotice(null);
 
         const alumniId = application?.alumni?.id;
         if (!alumniId) {
@@ -2051,6 +2059,8 @@ export default function EmployerPage({ hideRecruitmentActions = false }) {
                 </Modal.Body>
 
                 <Modal.Footer className="applicant-modal-footer">
+                    {decisionNotice && Number(decisionNotice.applicationId) === Number(selectedApplication?.id) && <p data-application-decision-notice role={decisionNotice.failed ? "alert" : "status"}
+                        className={`alert alert-${decisionNotice.failed ? "warning" : "success"} w-100 mb-2`}>{decisionNotice.text}</p>}
                     <ApplicantResumePrintButton application={selectedApplication} />
                     <div className="applicant-modal-actions">
                         <span role="status" className="status-pill">{decisionSaving ? "Processing..." : applicationStatusLabel(selectedApplication?.status)}</span>

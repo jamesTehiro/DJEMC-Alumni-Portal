@@ -3,6 +3,8 @@ import { api } from "../../../services/api";
 
 const storageKey = "djemc-registration-gmail-session";
 const normalize = email => String(email || "").trim().toLowerCase();
+const missingEmployerRoute = (endpoint, failure) => endpoint === "/auth/employer-registration-otp"
+    && (failure?.status === 404 || failure?.code === "API_ROUTE_NOT_FOUND");
 export function readRegistrationSession(key = storageKey) {
     try {
         const saved = JSON.parse(sessionStorage.getItem(key));
@@ -16,7 +18,7 @@ const persist = (session, key = storageKey) => {
     } catch { /* Verification still works in memory when browser storage is disabled. */ }
 };
 
-export default function useRegistrationOtp({ endpoint = "/auth/registration-otp", storage = storageKey, request = {}, restore = true } = {}) {
+export default function useRegistrationOtp({ endpoint = "/auth/registration-otp", storage = storageKey, request = {}, restore = true, pollDelivery = false } = {}) {
     const [session, setSession] = useState(() => readRegistrationSession(storage));
     const [restored] = useState(() => !!readRegistrationSession(storage));
     const requestRef = useRef(request);
@@ -24,7 +26,15 @@ export default function useRegistrationOtp({ endpoint = "/auth/registration-otp"
     const post = useCallback((operation, payload) => {
         const context = requestRef.current;
         const body = typeof context.body === "function" ? context.body(operation) : context.body;
-        return api.post(`${endpoint}/${operation}`, { ...body, ...payload }, false, context.config || {});
+        return api.post(`${endpoint}/${operation}`, { ...body, ...payload }, false, context.config || {}).catch(failure => {
+            if (missingEmployerRoute(endpoint, failure)) {
+                const unavailable = new Error("Employer Gmail verification API is unavailable in the deployed backend. Please contact support to update the backend deployment.");
+                unavailable.status = 404;
+                unavailable.code = "API_ROUTE_NOT_FOUND";
+                throw unavailable;
+            }
+            throw failure;
+        });
     }, [endpoint]);
     const [details, setDetails] = useState(null);
     const [open, setOpen] = useState(false);
@@ -51,11 +61,12 @@ export default function useRegistrationOtp({ endpoint = "/auth/registration-otp"
         const version = generation.current;
         post("status", { email: saved.email, session_token: saved.token }).then(result => {
             if (active && generation.current === version) accept(result);
-        }).catch(() => {
-            if (active && generation.current === version) setError("Complete the form, then request a new verification code if your previous session has expired.");
+        }).catch(failure => {
+            if (active && generation.current === version) setError(missingEmployerRoute(endpoint, failure) ? failure.message
+                : "Complete the form, then request a new verification code if your previous session has expired.");
         });
         return () => { active = false; };
-    }, [post, restore]);
+    }, [post, restore, endpoint]);
     const time = clock + serverOffset;
     const verified = !!details?.verified && time < new Date(details.verification_expires_at).getTime();
     const secondsLeft = Math.max(0, Math.ceil((new Date(details?.expires_at || 0).getTime() - time) / 1000));
@@ -79,6 +90,7 @@ export default function useRegistrationOtp({ endpoint = "/auth/registration-otp"
             accept(await post(resend ? "resend" : "send", { email, session_token: current.token }));
         } catch (failure) {
             setError(failure.message);
+            if (missingEmployerRoute(endpoint, failure)) return;
             // A timed-out request may have reserved/sent a code. Recover its
             // authoritative state without sending another email automatically.
             try { accept(await post("status", { email, session_token: current.token })); }
@@ -97,6 +109,7 @@ export default function useRegistrationOtp({ endpoint = "/auth/registration-otp"
             accept(await post("verify", { email: session.email, session_token: session.token, otp: code }));
         } catch (failure) {
             setError(failure.message);
+            if (missingEmployerRoute(endpoint, failure)) return;
             try { accept(await post("status", { email: session.email, session_token: session.token })); }
             catch { /* Keep the verification error visible. */ }
         } finally {
@@ -126,5 +139,13 @@ export default function useRegistrationOtp({ endpoint = "/auth/registration-otp"
         catch (failure) { setError(failure.message); }
         finally { inFlight.current = false; setBusy(false); }
     };
+    const refreshRef = useRef(null);
+    useEffect(() => { refreshRef.current = refresh; });
+    const awaitingDelivery = pollDelivery && open && !error && !verified && secondsLeft > 0 && ["pending", "processing"].includes(details?.email_status);
+    useEffect(() => {
+        if (!awaitingDelivery) return;
+        const timer = window.setInterval(() => { void refreshRef.current?.(); }, 5000);
+        return () => window.clearInterval(timer);
+    }, [awaitingDelivery]);
     return { session, details, open, setOpen, busy, error, verified, secondsLeft, cooldown, windowWait, send, verify, clear, start, restored, refresh };
 }

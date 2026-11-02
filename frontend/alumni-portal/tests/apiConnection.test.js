@@ -20,11 +20,39 @@ const adapter = (inspect, data = { token: 'valid-session-token', user: { id: 1, 
  return { config, data, status: 200, statusText: 'OK', headers: { 'content-type': typeof data === 'string' ? 'text/html' : 'application/json' } };
 };
 test('production and local defaults target the correct backend and respect overrides', () => {
- assert.equal(loadApi(loadEnv('production', root)).API_BASE_URL, 'https://djemc-alumni-backend.onrender.com/api');
+ assert.equal(loadApi({ ...loadEnv('production', root), PROD: true }).API_BASE_URL, 'https://djemc-alumni-backend.onrender.com/api');
  assert.equal(loadApi({ PROD: true }).API_BASE_URL, 'https://djemc-alumni-backend.onrender.com/api');
  assert.equal(loadApi({ PROD: false }).API_BASE_URL, 'http://localhost:5000/api');
  assert.equal(loadApi({ PROD: true, VITE_API_BASE_URL: ' https://custom-api.example/api/ ' }).API_BASE_URL, 'https://custom-api.example/api');
  assert.equal(loadApi({ VITE_API_BASE_URL: 'http://localhost:5000/api' }).API_BASE_URL, 'http://localhost:5000/api');
+});
+
+test('production rejects local networks, Firebase Hosting, insecure URLs and incorrect API prefixes', () => {
+ for (const target of ['http://localhost:5000/api', 'https://localhost:5000/api', 'https://127.0.0.1/api', 'https://192.168.1.10/api',
+  'https://10.0.0.2/api', 'https://172.16.0.2/api', 'https://[::1]/api', '/api', 'https://djemc-alumni-portal.web.app/api',
+  'https://djemc-alumni-portal.firebaseapp.com/api', 'https://backend.local/api', 'https://backend.test/api/api',
+  'https://backend.test', 'https://user:password@backend.test/api', 'https://backend.test/api?token=private']) {
+  assert.throws(() => loadApi({ PROD: true, VITE_API_BASE_URL: target }), /Invalid production VITE_API_BASE_URL/);
+ }
+});
+
+test('all Alumni and Employer OTP operations use POST on the production Render API and preserve the session', async () => {
+ const { api } = loadApi({ ...loadEnv('production', root), PROD: true });
+ storedToken = null;
+ const session = 'c'.repeat(64);
+ for (const prefix of ['registration-otp', 'employer-registration-otp']) {
+  for (const operation of ['send', 'resend', 'status', 'verify']) {
+   await api.post(`/auth/${prefix}/${operation}`, { email: 'fixture@gmail.com', session_token: session, ...(operation === 'verify' ? { otp: '123456' } : {}) }, false, {
+    adapter: adapter(config => {
+     assert.equal(config.method, 'post');
+     assert.equal(require('axios').getUri(config), `https://djemc-alumni-backend.onrender.com/api/auth/${prefix}/${operation}`);
+     const body = JSON.parse(config.data);
+     assert.equal(body.session_token === session, true, 'the same session must bind each operation');
+     assert.equal(body.email, 'fixture@gmail.com');
+    }, { verified: false })
+   });
+  }
+ }
 });
 test('login omits invalid tokens and still receives JSON through the production API base', async () => {
  const { api } = loadApi(loadEnv('production', root));

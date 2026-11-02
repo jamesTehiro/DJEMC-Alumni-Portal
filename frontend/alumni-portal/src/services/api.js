@@ -1,8 +1,6 @@
 
 import axios from "axios";
-
-const DEFAULT_PRODUCTION_API_URL =
-    "https://djemc-alumni-backend.onrender.com/api";
+import { PRODUCTION_API_URL, validateProductionApiUrl } from "./apiConfiguration";
 
 const DEFAULT_LOCAL_API_URL = "http://localhost:5000/api";
 
@@ -15,7 +13,7 @@ const getApiBaseUrl = () => {
 
     // Production must use the configured Render backend.
     if (import.meta.env.PROD) {
-        return configuredUrl || DEFAULT_PRODUCTION_API_URL;
+        return validateProductionApiUrl(configuredUrl || PRODUCTION_API_URL);
     }
 
     // Local development can use .env or the local backend.

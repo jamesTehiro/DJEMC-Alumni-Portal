@@ -70,13 +70,14 @@ const markJobFailed = (job, error) => {
 const processJob = async job => {
     if (!await db.EmailQueueJob.findOne({ where: lease(job), attributes: ["id"] })) return;
     try {
-        if (!await require("../services/adminOtpQueue").isActiveAdminOtpJob(db, job, Date.now(), { requireConfiguration: true })) {
+        if (!await require("../services/adminOtpQueue").isActiveAdminOtpJob(db, job, Date.now(), { requireConfiguration: true })
+            || !await require("../services/employerOtpQueue").isActiveEmployerOtpJob(db, job)) {
             await writeState(job, { status: "failed", processing_started_at: null, last_error: JSON.stringify({ code: "OTP_EXPIRED_REPLACED_OR_CONFIG_MISMATCH" }) });
             return;
         }
     } catch (error) {
-        if (error.code !== "ADMIN_OTP_CONFIG") throw error;
-        await writeState(job, { status: "failed", processing_started_at: null, last_error: JSON.stringify({ code: "ADMIN_OTP_CONFIG" }) });
+        if (!["ADMIN_OTP_CONFIG", "EMPLOYER_OTP_CONFIG"].includes(error.code)) throw error;
+        await writeState(job, { status: "failed", processing_started_at: null, last_error: JSON.stringify({ code: error.code }) });
         return;
     }
     console.log("[email] processing", { jobId: job.id, attempts: job.attempts });
