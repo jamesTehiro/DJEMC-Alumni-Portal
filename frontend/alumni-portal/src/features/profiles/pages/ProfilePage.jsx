@@ -640,7 +640,7 @@ export default function ProfilePage() {
 
                     <Card className="resume-card">
                         <Card.Body>
-                            <h5 className="resume-title">Digital Resume Preview</h5>
+                            <h5 className="resume-title">Alumni Profile Preview</h5>
 
                             <div className="resume-preview">
                                 <div

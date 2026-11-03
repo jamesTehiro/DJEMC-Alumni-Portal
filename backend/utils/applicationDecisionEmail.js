@@ -20,10 +20,10 @@ const buildApplicationDecisionEmail = ({ status, applicantName, jobTitle, compan
     const subject = `Job Application Update – ${approved ? "For Interview" : "Declined"}: ${title}`;
     const introduction = approved
         ? `We are pleased to inform you that you have been selected to proceed to the interview stage for the position of ${title} at ${company}.\n\n` +
-          `Please log in to the ${portalName} to check for interview details and further instructions from the employer. This selection notice does not confirm an interview schedule.`
+        "Please wait for further communication from the employer regarding the interview schedule and other necessary arrangements. The employer will contact you directly with additional details."
         : `Thank you for your interest in the ${title} position at ${company} and for taking the time to submit your application.\n\n` +
-          "After reviewing your application, we regret to inform you that your application has not been selected to proceed to the next stage of the recruitment process.\n\n" +
-          `We appreciate your interest and encourage you to explore other employment opportunities available through the ${portalName}.`;
+        "After reviewing your application, we regret to inform you that your application has not been selected to proceed to the next stage of the recruitment process.\n\n" +
+        `We appreciate your interest and encourage you to explore other employment opportunities available through the ${portalName}.`;
     return {
         subject: Array.from(subject).slice(0, 255).join(""),
         message: `Dear ${name},\n\n${introduction}\n\nApplication Details:\n` +
@@ -63,8 +63,10 @@ const queueApplicationDecisionEmail = async ({ applicationId, alumniId, recruitm
         const owner = await db.User.findByPk(job.employer_id, {
             attributes: ["id", "name"], include: [{ model: db.EmployerProfile, attributes: ["organization_name"] }]
         });
-        const content = buildApplicationDecisionEmail({ status, applicantName: applicant.name, jobTitle: job.title,
-            companyName: owner?.EmployerProfile?.organization_name || owner?.name, updatedAt });
+        const content = buildApplicationDecisionEmail({
+            status, applicantName: applicant.name, jobTitle: job.title,
+            companyName: owner?.EmployerProfile?.organization_name || owner?.name, updatedAt
+        });
         const queued = await enqueueEmails([{
             to: normalizeEmail(applicant.email), ...content,
             dedupe_key
