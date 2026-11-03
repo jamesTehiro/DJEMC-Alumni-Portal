@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Card, Button } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { FiBell } from "react-icons/fi";
@@ -15,6 +15,7 @@ export default function NotificationPage() {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [dismissing, setDismissing] = useState([]);
     const [activeNotification, setActiveNotification] = useState(null);
     const [interviewDetailsLoading, setInterviewDetailsLoading] = useState(false);
     const [interviewDetailsError, setInterviewDetailsError] = useState("");
@@ -81,6 +82,19 @@ export default function NotificationPage() {
         });
     };
 
+    const dismissReminder = async (item) => {
+        setError("");
+        setDismissing((previous) => [...previous, item.id]);
+        try {
+            await api.delete(`/notifications/${item.id}`, true);
+            setNotifications((previous) => previous.filter((notification) => notification.id !== item.id));
+        } catch (err) {
+            setError(err.message || "Unable to dismiss this reminder. Please try again.");
+        } finally {
+            setDismissing((previous) => previous.filter((id) => id !== item.id));
+        }
+    };
+
     const unreadCount = notifications.filter((n) => !n.isRead).length;
 
     const isInterviewNotification = (item) => {
@@ -90,7 +104,7 @@ export default function NotificationPage() {
 
     const handleOpen = async (item) => {
         if (!item.isRead) await markAsRead(item.id);
-        if (item.type === "profile_update_request") {
+        if (["profile_update_request", "profile_update_reminder"].includes(item.type)) {
             navigate("/profile");
             return;
         }
@@ -130,7 +144,7 @@ export default function NotificationPage() {
                     <div>
                         <h2>Notifications</h2>
                         <p>
-                            In-app fallback for important updates. Email notifications are still sent.
+                            Updates and reminders from the portal. Some updates are also sent by email.
                         </p>
                     </div>
                 </div>
@@ -171,16 +185,19 @@ export default function NotificationPage() {
                                     size="sm"
                                     variant="outline-danger"
                                     className="notification-delete-btn"
+                                    disabled={dismissing.includes(item.id)}
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        handleDeleteNotification(item);
+                                        if (item.type === "profile_update_reminder") dismissReminder(item);
+                                        else handleDeleteNotification(item);
                                     }}
                                 >
-                                    Delete
+                                    {item.type === "profile_update_reminder" ? (dismissing.includes(item.id) ? "Dismissing…" : "Dismiss") : "Delete"}
                                 </Button>
                             </div>
+                            {item.type === "profile_update_reminder" && <h3 className="notification-reminder-title">Profile Update Reminder</h3>}
                             <p className="notification-message">{item.message}</p>
-                            {item.type === "profile_update_request" && (
+                            {["profile_update_request", "profile_update_reminder"].includes(item.type) && (
                                 <Button
                                     size="sm"
                                     variant="success"
@@ -189,7 +206,7 @@ export default function NotificationPage() {
                                         handleOpen(item);
                                     }}
                                 >
-                                    Update Profile
+                                    {item.type === "profile_update_reminder" ? "View Profile" : "Update Profile"}
                                 </Button>
                             )}
                             {!item.isRead && (

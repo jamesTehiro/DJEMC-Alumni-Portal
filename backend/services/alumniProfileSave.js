@@ -77,6 +77,8 @@ async function saveAlumniProfile({ user, body, avatarPath, normalizeImagePath })
             await membership.update({ profile_completed_at: new Date() }, { transaction });
             await db.AuditLog.create({ actor_id: owner.id, actor_role: "alumni", action: "membership.profile.completed", target_type: "membership_application", target_id: membership.id, metadata: { fields: ["profile_completed_at"] } }, { transaction });
         }
+        const reminders = require("./alumniProfileReminders");
+        if (reminders.enabled()) await reminders.createReminders({ db }).resetAfterProfileSave(owner.id, transaction);
         const updated = await db.User.findByPk(owner.id, {
             attributes: { exclude: ["password"] },
             include: [{ model: db.AlumniProfile, include: [{ model: db.EmploymentHistory }] }, { model: db.EmployerProfile }],

@@ -471,6 +471,11 @@ const ensureDatabaseReady = async () => {
     // migration commands, including the employer permit and OTP migrations.
     await db.EmployerProfile.findOne({ attributes: ["business_permit_documents"], where: { id: -1 }, raw: true });
     await verifyRegistrationOtpSchema(db);
+    if (require("./services/alumniProfileReminders").enabled()) {
+        const changes = await require("./migrations/20261103-create-alumni-profile-reminders").inspect(db.sequelize.getQueryInterface());
+        if (changes.length) throw new Error("Apply the Alumni profile reminder migration before enabling reminders.");
+        require("./workers/alumniProfileReminderWorker").pollInterval();
+    }
 
     if (isProduction) {
         // Verify the deployed schema can serve login queries before accepting traffic.
@@ -561,6 +566,13 @@ const startEmailWorker = () => {
     console.log("Email queue worker started (PID: " + worker.pid + ").");
 };
 
+const startAlumniProfileReminderWorker = () => {
+    if (!require("./services/alumniProfileReminders").enabled() || process.env.ALUMNI_PROFILE_REMINDER_EMBEDDED_WORKER === "false") return;
+    const worker = require("child_process").fork(path.join(__dirname, "workers", "alumniProfileReminderWorker.js"), [], { stdio: "inherit", env: { ...process.env } });
+    worker.on("exit", () => { setTimeout(startAlumniProfileReminderWorker, 5000); });
+    worker.on("error", () => { console.error("[ALUMNI_PROFILE_REMINDER_WORKER_FAILED]"); });
+};
+
 const startup = (async () => {
     await require("./utils/jobTableDiagnostics").logJobTableDiagnostics(db);
     return ensureDatabaseReady();
@@ -580,6 +592,7 @@ startup
 
         // Start the email queue worker in the background
         startEmailWorker();
+        startAlumniProfileReminderWorker();
     })
     .catch((err) => {
         // eslint-disable-next-line no-console

@@ -143,6 +143,20 @@ export default function AdminUsersPage({ role }) {
         return resolveFileUrl(profile.AlumniProfile?.avatar_url || profile.EmployerProfile?.logo_url || "");
     };
 
+    const refreshEmploymentMetrics = async () => {
+        if (role !== "alumni") return;
+        try {
+            const summary = await api.get("/admin/alumni/tracking-summary", true);
+            const { employed, unemployed, selfEmployed } = summary || {};
+            if (![employed, unemployed, selfEmployed].every(value => Number.isSafeInteger(value) && value >= 0)) throw new Error("Invalid employment metric data.");
+            // Profile refreshes update employment only. Preserve the existing
+            // official master-list total and its initial loading behavior.
+            setTrackingSummary(previous => ({ ...previous, employed, unemployed, selfEmployed }));
+        } catch {
+            setTrackingActivityError("The alumni details were loaded, but employment metrics could not be refreshed. Please reload this page.");
+        }
+    };
+
     const openProfilePreview = async (item) => {
         if (!item?.id) return;
 
@@ -170,6 +184,7 @@ export default function AdminUsersPage({ role }) {
                 AlumniRecord: latestProfile.AlumniRecord || item.AlumniRecord,
                 imageUrl: getProfileImage(latestProfile) || fallbackProfile.imageUrl
             });
+            await refreshEmploymentMetrics();
         } catch (err) {
             setTrackingActivityError(err.message || "Failed to load alumni tracking details.");
         } finally {
@@ -192,6 +207,7 @@ export default function AdminUsersPage({ role }) {
                 : item));
             const refreshed = await api.get(`/admin/alumni/users/${selectedProfile.id}/tracking`, true);
             setTrackingData(refreshed);
+            await refreshEmploymentMetrics();
         } catch (err) {
             setTrackingActivityError(err.message || "Unable to send the profile update request.");
         } finally {

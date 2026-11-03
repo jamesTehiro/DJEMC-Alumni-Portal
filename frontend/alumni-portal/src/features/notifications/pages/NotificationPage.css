@@ -135,6 +135,13 @@
     line-height: 1.45;
 }
 
+.notification-reminder-title {
+    color: #1b6f52;
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+
 @media (max-width: 767.98px) {
     .notification-page {
         padding: 16px;

@@ -39,6 +39,7 @@ db.ApplicationResponse = require("./ApplicationResponse")(sequelize, Sequelize);
 db.AuditLog = require("./AuditLog")(sequelize, Sequelize);
 db.AccountDeletionFile = require("./AccountDeletionFile")(sequelize, Sequelize);
 db.AlumniProfileUpdateRequest = require("./AlumniProfileUpdateRequest")(sequelize, Sequelize);
+db.AlumniProfileReminder = require("./AlumniProfileReminder")(sequelize, Sequelize);
 db.MembershipApplication = require("./MembershipApplication")(sequelize, Sequelize);
 db.MembershipAdministrator = require("./MembershipAdministrator")(sequelize, Sequelize);
 
