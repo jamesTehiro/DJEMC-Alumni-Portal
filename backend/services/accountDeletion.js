@@ -40,6 +40,8 @@ function createAccountDeletion({ db, env = process.env }) {
         // Some installations additionally enforce the modeled notification owner FK.
         allowed.add('notifications.userId>users.id');
         allowed.add('message_send_requests.sender_id>users.id');
+        // Private reminder clocks cascade with their owner; no shared records.
+        allowed.add('alumni_profile_reminders.user_id>users.id');
         const deleting = ['User', 'Application', 'ApplicationDocument', 'ApplicationResponse', 'Interview', 'Job',
             'JobRequirement', 'RequirementGroup', 'JobRequirementSnapshot', 'Resume', ...resumeChildren,
             'AlumniProfile', 'EmployerProfile', 'EmploymentHistory', 'Notification', 'PasswordResetToken',
@@ -58,9 +60,14 @@ function createAccountDeletion({ db, env = process.env }) {
             { type: db.Sequelize.QueryTypes.SELECT, transaction });
         const touched = new Set([...parents, ...retainedReferences.map(([name]) => table(db[name])), table(db.EmailQueueJob), table(db.AccountDeletionFile)]);
         for (const name of touched) {
-            if (!engines.some(row => row.table_name === name && row.engine === 'InnoDB')) fail(503, 'Account deletion schema is not ready. Review required tables and transactional storage engines.');
+            if (!engines.some(row => row.table_name === name && row.engine === 'InnoDB')) {
+                fail(503, `Account deletion schema is not ready: required table "${name}" must exist and use InnoDB.`);
+            }
         }
-        if (!(await require('./accountDeletionSchema').inspect(db.sequelize.getQueryInterface())).ready) fail(503, 'Account deletion cleanup schema is not ready. Review the cleanup migration and index.');
+        const cleanupSchema = await require('./accountDeletionSchema').inspect(db.sequelize.getQueryInterface());
+        if (!cleanupSchema.ready) {
+            fail(503, `Account deletion cleanup schema is not ready (${cleanupSchema.issues.join(', ')}). Apply the reviewed account deletion migration.`);
+        }
     }
 
     async function buildPlan(actor, role, id, transaction, lock = false) {

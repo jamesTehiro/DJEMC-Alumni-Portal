@@ -47,23 +47,22 @@ exports.getAlumniUsers = async (req, res) => {
             })
             : [];
         const latestRequestByUser = new Map();
-        const latestStatusEventByUser = new Map();
+        const previouslyVerifiedUserIds = new Set();
         requests.forEach((request) => {
             if (!latestRequestByUser.has(Number(request.alumni_user_id))) {
                 latestRequestByUser.set(Number(request.alumni_user_id), request);
             }
         });
         statusEvents.forEach((event) => {
-            if (!latestStatusEventByUser.has(Number(event.target_id))) {
-                latestStatusEventByUser.set(Number(event.target_id), event);
+            if (event.metadata?.from === "verified" || event.metadata?.to === "verified") {
+                previouslyVerifiedUserIds.add(Number(event.target_id));
             }
         });
         res.json(users.map((user) => ({
             ...user.toJSON(),
             latestProfileUpdateRequest: latestRequestByUser.get(Number(user.id)) || null,
             can_reactivate: ["deactivated", "suspended"].includes(String(user.account_status).toLowerCase())
-                && latestStatusEventByUser.get(Number(user.id))?.metadata?.from === "verified"
-                && latestStatusEventByUser.get(Number(user.id))?.metadata?.to === user.account_status
+                && previouslyVerifiedUserIds.has(Number(user.id))
         })));
     } catch (err) {
         res.status(500).json({ msg: err.message });
@@ -275,14 +274,13 @@ exports.updateAlumniUserStatus = async (req, res) => {
             let eligible = false;
             if (action === "deactivate") eligible = user.account_status === "verified";
             if (action === "reactivate") {
-                const lastStatusEvent = await db.AuditLog.findOne({
+                const statusEvents = await db.AuditLog.findAll({
                     where: { target_type: "alumni", target_id: user.id, action: "alumni.account_status.changed" },
-                    order: [["created_at", "DESC"]],
+                    attributes: ["metadata"],
                     transaction
                 });
                 eligible = ["deactivated", "suspended"].includes(user.account_status)
-                    && lastStatusEvent?.metadata?.from === "verified"
-                    && lastStatusEvent?.metadata?.to === user.account_status;
+                    && statusEvents.some(event => event.metadata?.from === "verified" || event.metadata?.to === "verified");
             }
             if (action === "verification") eligible = status === "pending" || user.account_status === "pending";
             if (!eligible) {
@@ -422,9 +420,17 @@ exports.getEmployerUsers = async (req, res) => {
             order: [["created_at", "DESC"]]
         }) : [];
         const latestDecision = new Map();
-        const latestStatusEvent = new Map();
+        const previouslyApprovedUserIds = new Set();
         decisions.forEach((decision) => { if (!latestDecision.has(Number(decision.target_id))) latestDecision.set(Number(decision.target_id), decision); });
-        statusEvents.forEach((event) => { if (!latestStatusEvent.has(Number(event.target_id))) latestStatusEvent.set(Number(event.target_id), event); });
+        decisions.forEach((decision) => {
+            if (decision.action === "employer.verification.approved") previouslyApprovedUserIds.add(Number(decision.target_id));
+        });
+        const previouslyVerifiedUserIds = new Set();
+        statusEvents.forEach((event) => {
+            if (event.metadata?.from === "verified" || event.metadata?.to === "verified") {
+                previouslyVerifiedUserIds.add(Number(event.target_id));
+            }
+        });
 
         res.json(
             users.map((user) => {
@@ -436,10 +442,8 @@ exports.getEmployerUsers = async (req, res) => {
                     reason: decision.metadata?.reason || null,
                     admin_id: decision.actor_id
                 } : null;
-                const statusEvent = latestStatusEvent.get(Number(user.id));
                 plain.can_reactivate = ["deactivated", "suspended"].includes(String(user.account_status).toLowerCase())
-                    && ((statusEvent?.metadata?.from === "verified" && statusEvent?.metadata?.to === user.account_status)
-                        || decision?.action === "employer.verification.approved");
+                    && (previouslyVerifiedUserIds.has(Number(user.id)) || previouslyApprovedUserIds.has(Number(user.id)));
 
                 if (plain.EmployerProfile) {
                     const documents = require("../services/employerPermitDocuments").permitDocumentPayload(plain.EmployerProfile, user.id);
@@ -460,6 +464,8 @@ exports.getEmployerUsers = async (req, res) => {
 
 exports.updateEmployerUserStatus = async (req, res) => {
     try {
+        const userId = Number(req.params.userId);
+        if (!Number.isSafeInteger(userId) || userId < 1) return res.status(400).json({ msg: "Invalid employer user ID." });
         const status = normalizeAccountStatus(req.body.status);
         const isVerificationDecision = ["verified", "rejected"].includes(status);
         if (!["verified", "rejected", "suspended", "deactivated"].includes(status)) {
@@ -476,27 +482,27 @@ exports.updateEmployerUserStatus = async (req, res) => {
         if (status === "verified" && req.body.action === "reactivate") {
             const result = await db.sequelize.transaction(async (transaction) => {
                 const user = await db.User.findOne({
-                    where: { id: req.params.userId, role: "employer", account_status: { [db.Sequelize.Op.in]: ["deactivated", "suspended"] } },
+                    where: { id: userId, role: "employer", account_status: { [db.Sequelize.Op.in]: ["deactivated", "suspended"] } },
                     transaction,
                     lock: transaction.LOCK.UPDATE
                 });
                 if (!user) {
-                    const existing = await db.User.findOne({ where: { id: req.params.userId, role: "employer" }, transaction });
+                    const existing = await db.User.findOne({ where: { id: userId, role: "employer" }, transaction });
                     const err = new Error(existing ? "This employer is not eligible for reactivation." : "Employer user not found.");
                     err.status = existing ? 409 : 404;
                     throw err;
                 }
-                const latestStatusEvent = await db.AuditLog.findOne({
+                const statusEvents = await db.AuditLog.findAll({
                     where: { target_type: "employer", target_id: user.id, action: "employer.account_status.changed" },
-                    order: [["created_at", "DESC"]],
+                    attributes: ["metadata"],
                     transaction
                 });
                 const approval = await db.AuditLog.findOne({
                     where: { target_type: "employer", target_id: user.id, action: "employer.verification.approved" },
                     transaction
                 });
-                const historyConfirmsVerified = latestStatusEvent?.metadata?.from === "verified"
-                    && latestStatusEvent?.metadata?.to === user.account_status;
+                const historyConfirmsVerified = statusEvents.some(event =>
+                    event.metadata?.from === "verified" || event.metadata?.to === "verified");
                 if (!historyConfirmsVerified && !approval) {
                     const err = new Error("Employer verification history does not confirm that this account was approved.");
                     err.status = 409;
@@ -527,12 +533,12 @@ exports.updateEmployerUserStatus = async (req, res) => {
 
             const result = await db.sequelize.transaction(async (transaction) => {
                 const user = await db.User.findOne({
-                    where: { id: req.params.userId, role: "employer", account_status: "pending" },
+                    where: { id: userId, role: "employer", account_status: "pending" },
                     transaction,
                     lock: transaction.LOCK.UPDATE
                 });
                 if (!user) {
-                    const existing = await db.User.findOne({ where: { id: req.params.userId, role: "employer" }, transaction });
+                    const existing = await db.User.findOne({ where: { id: userId, role: "employer" }, transaction });
                     const err = new Error(existing ? "This employer verification has already been decided. Refresh the list to see the latest status." : "Employer user not found.");
                     err.status = existing ? 409 : 404;
                     throw err;
@@ -598,15 +604,15 @@ exports.updateEmployerUserStatus = async (req, res) => {
                 : status === "deactivated" ? ["verified"] : ["verified", "pending"];
             const [updated] = await db.User.update(
                 { account_status: status },
-                { where: { id: req.params.userId, role: "employer", account_status: { [db.Sequelize.Op.in]: allowedCurrentStatuses } }, transaction }
+                { where: { id: userId, role: "employer", account_status: { [db.Sequelize.Op.in]: allowedCurrentStatuses } }, transaction }
             );
             if (!updated) {
-                const user = await db.User.findOne({ where: { id: req.params.userId, role: "employer" }, transaction });
+                const user = await db.User.findOne({ where: { id: userId, role: "employer" }, transaction });
                 const err = new Error(user ? "Employer status cannot be changed from its current state." : "Employer user not found.");
                 err.status = user ? 409 : 404;
                 throw err;
             }
-            const user = await db.User.findByPk(req.params.userId, { transaction });
+            const user = await db.User.findByPk(userId, { transaction });
             const [profile] = await db.EmployerProfile.findOrCreate({ where: { user_id: user.id }, defaults: { user_id: user.id }, transaction });
             profile.verified = status === "verified";
             await profile.save({ transaction });
@@ -702,5 +708,3 @@ exports.deleteEmployerJob = async (req, res) => {
         res.status(500).json({ msg: err.message });
     }
 };
-
-

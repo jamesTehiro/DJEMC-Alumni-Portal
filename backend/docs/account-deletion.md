@@ -4,6 +4,8 @@ Latest production readiness review (2026-11-02): **NO-GO**. See [the exact inven
 
 Latest route/modal repair: [production diagnosis, current verification limits and deployment checklist](account-deletion-route-repair.md). Permanent deletion remains disabled.
 
+Pre-migration read-only check (2026-11-10) confirmed the inspected account/dependency tables use InnoDB and the reviewed foreign-key scan had no unreviewed dependencies, but `account_deletion_files` was absent. With explicit approval, the existing additive migration was applied to the configured database; the table and due index now pass readiness checks, with zero outbox rows and no account records changed. Read-only alumni and employer previews now return the impact and remain blocked by the unset permanent-deletion policy. The Render deployment and cleanup worker have not been verified.
+
 ## Dependency map (prepared before implementation)
 
 Source inspection covered both settings scopes, admin routes/status actions, authentication, every registered Sequelize model/association, historical migrations, private storage, messaging, email queue and audit logging. `account-deletion-schema.json` records a metadata-only inspection of the configured remote MySQL database. All existing tables use InnoDB. Existing CASCADE constraints on users include messages, audit logs and posts: deleting a user directly would destroy retained content. No constraints will be changed.
@@ -21,6 +23,7 @@ Source inspection covered both settings scopes, admin routes/status actions, aut
 | users.id | alumniprofiles.user_id -> employmenthistories.alumni_id; employerprofiles.user_id; notifications.userId; password_reset_tokens.user_id; message_send_requests.sender_id; alumniprofileupdaterequests.alumni_user_id; registration_email_verifications.consumed_by_user_id | Delete account-owned rows; never delete by email alone |
 | users.id | messages.sender_id, posts.user_id, comments.user_id, auditlogs.actor_id, employerconversations.employerId/adminId, employermessages.senderId, conversations.user1Id/user2Id, membershipapplications.alumni_user_id | Preserve content; reassign references to a distinct protected identity for this deletion |
 | users.id | conversationparticipants.user_id | Remove departing group membership; retain a protected identity in direct threads so remaining participants can still read history |
+| users.id | alumni_profile_reminders.user_id (optional 20261103 migration) | Private reminder clock only; reviewed ON DELETE CASCADE removes it with its owner. Notification dismissal preserves this clock; account deletion removes it. |
 | users.id | announcements.admin_id, document/response reviewers, profile-update requester, membership permission grantor | Preserve records and reassign actor references |
 | users.alumni_record_id -> alumnirecords.id | Official Registrar master list | Always preserve; deletion of a referencing user does not delete the master |
 | email_queue_jobs | `to` recipient; no account FK | Preserve history; cancel pending/failed deliveries to verified target email; block deletion while a delivery is processing |

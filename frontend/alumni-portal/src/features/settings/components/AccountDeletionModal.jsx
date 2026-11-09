@@ -14,6 +14,27 @@ const countLabels = {
     MessageSendRequest: 'Message request receipts', ConversationParticipant: 'Departing conversation memberships',
     MembershipAdministrator: 'Membership access grants'
 };
+const preservedLabels = {
+    'Message.sender_id': 'Shared alumni messages',
+    'EmployerMessage.senderId': 'Shared employer messages',
+    'Post.user_id': 'Forum posts',
+    'Comment.user_id': 'Forum comments',
+    'AuditLog.actor_id': 'Audit history',
+    'Conversation.user1Id': 'Conversation ownership references',
+    'Conversation.user2Id': 'Conversation ownership references',
+    'EmployerConversation.employerId': 'Employer conversation history',
+    'EmployerConversation.adminId': 'Admin conversation history',
+    'MembershipApplication.alumni_user_id': 'Membership forms',
+    'Announcement.admin_id': 'Announcements',
+    'ApplicationDocument.reviewed_by': 'Document reviewer records',
+    'ApplicationResponse.reviewed_by': 'Application reviewer records',
+    'AlumniProfileUpdateRequest.requested_by': 'Profile update request history',
+    'MembershipAdministrator.granted_by': 'Membership grant history',
+    RegistrarMasterRecords: 'Registrar master records',
+    InterviewNotifications: "Other users' interview notifications",
+    DocumentRevisionLinks: 'Shared document revision links',
+    EmailHistory: 'Email delivery history'
+};
 
 export default function AccountDeletionModal({ item, role, endpoint, onClose, onDeleted, onBusyChange }) {
     const [preview, setPreview] = useState(null);
@@ -71,7 +92,9 @@ export default function AccountDeletionModal({ item, role, endpoint, onClose, on
                 <table className="table table-sm"><caption>Records to remove</caption><tbody>
                     {Object.entries(preview.counts).map(([name, count]) => <tr key={name}><th scope="row">{countLabels[name] || name.replace(/^Resume/, 'Resume ').replace(/([a-z])([A-Z])/g, '$1 $2')}</th><td>{count}</td></tr>)}
                 </tbody></table>
-                <p>Preserved membership forms: {preview.preserved?.['MembershipApplication.alumni_user_id'] || 0}. Shared messages: {(preview.preserved?.['Message.sender_id'] || 0) + (preview.preserved?.['EmployerMessage.senderId'] || 0)}.</p>
+                <table className="table table-sm"><caption>Records retained</caption><tbody>
+                    {Object.entries(preview.preserved || {}).map(([name, count]) => <tr key={name}><th scope="row">{preservedLabels[name] || name.replace(/([a-z])([A-Z])/g, '$1 $2')}</th><td>{count}</td></tr>)}
+                </tbody></table>
                 {preview.blockers?.map(blocker => <p key={blocker} className="notice error" role="alert">{blocker}</p>)}
             </>}
             {error && <p className="notice error" role="alert">{error}</p>}

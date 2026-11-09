@@ -16,7 +16,7 @@ for(const role of ['employer','alumni']){
   for(const failure of ['AuditLog.create','User.destroy']){const f=fixture(),req=request(f,role),preview=await f.service.preview(req),before=JSON.stringify(['User','Application','AuditLog','AccountDeletionFile','MembershipApplication','Message'].map(name=>f.rows(name)));f.fail(failure);await assert.rejects(f.service.remove({...req,confirmation:'DELETE',confirmationToken:preview.confirmationToken}));assert.equal(JSON.stringify(['User','Application','AuditLog','AccountDeletionFile','MembershipApplication','Message'].map(name=>f.rows(name))),before);}
  });
  test(role+' preview rejects missing schema and unknown FK; disabled policy never opens a write transaction',async()=>{
-  const f=fixture();f.missing();await assert.rejects(f.service.preview(request(f,role)),error=>error.status===503);
+  const f=fixture();f.missing();await assert.rejects(f.service.preview(request(f,role)),error=>error.status===503&&error.message.includes('"account_deletion_files"'));
   const g=fixture();g.unknown();await assert.rejects(g.service.preview(request(g,role)),error=>error.status===409);
   const h=fixture();delete h.env.ACCOUNT_DELETION_POLICY;const preview=await h.service.preview(request(h,role));assert.equal(preview.canDelete,false);await assert.rejects(h.service.remove({...request(h,role),confirmation:'DELETE',confirmationToken:preview.confirmationToken}),error=>error.status===403);
  });

@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from "react";
 import { Modal } from "react-bootstrap";
-import { FiSearch, FiX } from "react-icons/fi";
+import { FiX } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import { API_BASE_URL, api } from "../../../services/api";
 import useRenderDebug from "../../../hooks/useRenderDebug";
@@ -9,8 +9,11 @@ import AdminShell from "../../../components/layout/AdminShell";
 import SectionHeader from "../../../components/ui/SectionHeader";
 import { ADMIN_SCOPE_META, clearSessionAndGoHome, getStoredUser, isAllowedAdminScope } from "../../../utils/adminUtils";
 import { filterAdminUsers } from "../utils/adminUserSearch";
+import { paginateAdminUsers } from "../utils/adminUserPagination";
+import UserManagementPagination from "../components/UserManagementPagination";
 import AccountDeletionModal from '../components/AccountDeletionModal';
 import "../../../styles/AdminEmployerPage.css";
+import "../styles/UserManagement.css";
 
 const SETTINGS_STORAGE_KEY = {
     alumni: "admin_alumni_settings_preferences",
@@ -81,6 +84,8 @@ export default function AdminSettingsPage({ role }) {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [userSearchQuery, setUserSearchQuery] = useState("");
+    const [userPage, setUserPage] = useState(1);
+    const userListRef = useRef(null);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [savingUserId, setSavingUserId] = useState(null);
     const [pendingUserAction, setPendingUserAction] = useState(null);
@@ -108,6 +113,12 @@ export default function AdminSettingsPage({ role }) {
     const scopeMeta = ADMIN_SCOPE_META[role];
     const normalizedUserSearch = userSearchQuery.trim();
     const visibleUsers = filterAdminUsers(users, userSearchQuery, role);
+    const userPagination = paginateAdminUsers(visibleUsers, userPage);
+    const changeUserPage = page => {
+        setUserPage(page);
+        if (userListRef.current) userListRef.current.scrollTop = 0;
+    };
+    const changeUserSearch = value => { setUserSearchQuery(value); changeUserPage(1); };
 
     useStrictSafeEffect(
         `AdminSettingsPage:users:${role}:${isAllowed}`,
@@ -480,17 +491,16 @@ export default function AdminSettingsPage({ role }) {
                 </div>
             </section>
 
-            <section className="content-grid">
-                <div className="settings-card queue-table-wrap">
+            <section className="content-grid admin-user-management-layout">
+                <div className="settings-card queue-table-wrap admin-user-management">
                     <SectionHeader title="User Management" meta={loadingUsers ? "Loading..." : `${users.length} Users`} />
                     <div className="admin-user-search">
                         <label className={`admin-user-search-field${userSearchQuery ? " has-query" : ""}`}>
                             <span className="visually-hidden">Search users by name or email</span>
-                            {!userSearchQuery && <FiSearch aria-hidden="true" />}
                             <input
                                 type="search"
                                 value={userSearchQuery}
-                                onChange={(event) => setUserSearchQuery(event.target.value)}
+                                onChange={(event) => changeUserSearch(event.target.value)}
                                 placeholder="Search users by name or email..."
                                 aria-label="Search users by name or email"
                             />
@@ -499,7 +509,7 @@ export default function AdminSettingsPage({ role }) {
                                     className="admin-user-search-clear"
                                     type="button"
                                     aria-label="Clear user search"
-                                    onClick={() => setUserSearchQuery("")}
+                                    onClick={() => changeUserSearch("")}
                                 >
                                     <FiX aria-hidden="true" />
                                 </button>
@@ -519,6 +529,7 @@ export default function AdminSettingsPage({ role }) {
                             <span>Status</span>
                             <span>Actions</span>
                         </div>
+                        <div ref={userListRef} className={`admin-user-management-rows${userPagination.pageCount > 1 ? " is-paginated" : ""}`}>
                         {users.length === 0 && !loadingUsers && (
                             <div className="queue-row">
                                 <span>No users found.</span>
@@ -537,7 +548,7 @@ export default function AdminSettingsPage({ role }) {
                                 <span></span>
                             </div>
                         )}
-                        {visibleUsers.map((item) => (
+                        {userPagination.users.map((item) => (
                             <div className="queue-row" key={item.id}>
                                 <span>{displayUserName(item)}</span>
                                 <span>{item.email}</span>
@@ -583,7 +594,9 @@ export default function AdminSettingsPage({ role }) {
                                 </div>
                             </div>
                         ))}
+                        </div>
                     </div>
+                    {!loadingUsers && <UserManagementPagination pagination={userPagination} onPageChange={changeUserPage} />}
                 </div>
 
                 <aside className="settings-card audit-panel">

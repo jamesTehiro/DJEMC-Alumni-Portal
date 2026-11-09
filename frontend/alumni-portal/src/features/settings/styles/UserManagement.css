@@ -1,0 +1,133 @@
+.admin-user-management-layout {
+    align-items: start;
+}
+
+.admin-user-management {
+    min-width: 0;
+}
+
+.admin-user-management .admin-user-search-field input {
+    padding-left: 14px;
+}
+
+.admin-user-management-rows {
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-user-management-rows.is-paginated {
+    height: 720px;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+}
+
+.admin-user-management-rows > .queue-row {
+    flex-shrink: 0;
+    min-height: 64px;
+}
+
+.admin-user-management-rows.is-paginated > .queue-row {
+    min-height: 72px;
+}
+
+.admin-user-management .queue-row > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.admin-user-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e0e7eb;
+    color: #64756b;
+    font-size: .82rem;
+}
+
+.admin-user-pagination nav {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.admin-user-pagination button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid #e0e7eb;
+    border-radius: 6px;
+    background: #fff;
+    color: #475569;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.admin-user-pagination button:hover:not(:disabled):not([aria-current="page"]) {
+    background: #eef6f1;
+    border-color: #8ab79d;
+    color: #00674b;
+}
+
+.admin-user-pagination button[aria-current="page"] {
+    background: #00674b;
+    border-color: #00674b;
+    color: #fff;
+}
+
+.admin-user-pagination button:focus-visible {
+    outline: 2px solid #1b8a72;
+    outline-offset: 2px;
+}
+
+.admin-user-pagination button:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+}
+
+.admin-user-page-gap {
+    padding: 0 3px;
+}
+
+@media (min-width: 701px) {
+    .admin-user-management .queue-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr) minmax(65px, .6fr) minmax(85px, .7fr) 112px;
+    }
+
+    .admin-user-management .queue-table:has(.is-paginated) > .header {
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+    }
+
+    /* Open lower rows upward; short last pages use the reserved space below. */
+    .admin-user-management-rows.is-paginated > .queue-row:nth-child(n+7) .action-menu[open] {
+        top: auto;
+        bottom: 0;
+    }
+}
+
+@media (max-width: 700px) {
+    .admin-user-management-rows.is-paginated {
+        height: min(640px, 65vh);
+    }
+
+    .admin-user-pagination {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .admin-user-pagination button {
+        min-width: 40px;
+        height: 40px;
+    }
+}

@@ -29,7 +29,7 @@ test('settings deletion modal confirms impact, rejects duplicate sends, preserve
                     if(window.previewHtml)return '<html>Wrong deployment</html>';
                     if(window.previewFails)throw new Error('Fixture preview failure');
                     return {account:{id:11,name:'Target account',email:'target@example.invalid',role},counts:{Job:role==='employer'?3:0,Application:4,ApplicationDocument:7,Resume:role==='alumni'?2:0,ResumeVersion:2},
-                        preserved:{'MembershipApplication.alumni_user_id':1,'Message.sender_id':3},confirmationToken:'fixture-preview-token',canDelete:!window.previewBlocked,blockers:window.previewBlocked?['Policy awaits approval']:[]};
+                        preserved:{'MembershipApplication.alumni_user_id':1,'Message.sender_id':3,'AuditLog.actor_id':4},confirmationToken:'fixture-preview-token',canDelete:!window.previewBlocked,blockers:window.previewBlocked?['Policy awaits approval']:[]};
                 }
                 if(url.includes('/admin/')&&url.endsWith('/users'))return window.rows;
                 if(url==='/profile')return {id:1,name:'Fixture admin',role:'admin',admin_scope:role};
@@ -99,7 +99,8 @@ test('settings deletion modal confirms impact, rejects duplicate sends, preserve
             assert.equal(await finalDisabled(), true);
             assert.match(await page.$eval('.modal-body', node => node.textContent), /Applications4/);
             assert.match(await page.$eval('.modal-body', node => node.textContent), /Application documents7/);
-            assert.match(await page.$eval('.modal-body', node => node.textContent), /Preserved membership forms/);
+            assert.match(await page.$eval('.modal-body', node => node.textContent), /Records retainedMembership forms1/);
+            assert.match(await page.$eval('.modal-body', node => node.textContent), /Audit history4/);
             assert.doesNotMatch(await page.$eval('.modal-body', node => node.textContent), /Associated job postings, applications|All membership forms, Registrar master records|Submitted applications, saved resumes/);
             await page.type('#account-delete-confirmation', 'delete'); assert.equal(await finalDisabled(), true);
             await page.$eval('#account-delete-confirmation', node => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(node, ''); node.dispatchEvent(new Event('input', { bubbles: true })); });
