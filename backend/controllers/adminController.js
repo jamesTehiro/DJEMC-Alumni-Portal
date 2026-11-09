@@ -4,6 +4,7 @@ const { enqueueEmails } = require("../utils/emailQueue");
 const jobController = require("./jobController");
 const { parseTargetGraduationYear, graduationYearWhere } = require("../utils/targetGraduationYear");
 const auditService = require("../services/auditService");
+const { alumniProfileEmploymentMetrics } = require("../utils/graduateEmploymentMetrics");
 
 const normalizeAccountStatus = (status) => String(status || "").toLowerCase();
 const allowedAccountStatuses = ["pending", "verified", "suspended", "rejected", "deactivated"];
@@ -71,6 +72,7 @@ exports.getAlumniUsers = async (req, res) => {
 
 exports.getAlumniTrackingSummary = async (_req, res) => {
     try {
+        res.setHeader("Cache-Control", "no-store");
         const masterRecords = await db.AlumniRecord.findAll({
             attributes: ["id"],
             include: [{
@@ -80,13 +82,13 @@ exports.getAlumniTrackingSummary = async (_req, res) => {
                 include: [{ model: db.AlumniProfile, required: false, attributes: ["employment_status"] }]
             }]
         });
-        const statuses = masterRecords
-            .map((record) => String(record.User?.AlumniProfile?.employment_status || "").trim().toLowerCase().replace(/[_\s]+/g, "-"));
+        const alumniProfiles = await db.AlumniProfile.findAll({
+            attributes: ["user_id", "employment_status"],
+            order: [["id", "ASC"]]
+        });
         return res.json({
             totalGraduates: masterRecords.length,
-            employed: statuses.filter((status) => status === "employed").length,
-            unemployed: statuses.filter((status) => status === "unemployed").length,
-            selfEmployed: statuses.filter((status) => status === "self-employed").length
+            ...alumniProfileEmploymentMetrics(alumniProfiles)
         });
     } catch (err) {
         return res.status(500).json({ msg: err.message });
@@ -700,6 +702,5 @@ exports.deleteEmployerJob = async (req, res) => {
         res.status(500).json({ msg: err.message });
     }
 };
-
 
 

@@ -312,9 +312,9 @@ export default function AdminUsersPage({ role }) {
 
                 <section className="alumni-tracking-summary" aria-label="Alumni employment summary">
                     <article><span>Total Graduates</span><strong>{trackingSummary.totalGraduates}</strong><small>Official master-list records</small></article>
-                    <article><span>Employed</span><strong>{trackingSummary.employed}</strong><small>Reported by linked alumni</small></article>
-                    <article><span>Unemployed</span><strong>{trackingSummary.unemployed}</strong><small>Reported by linked alumni</small></article>
-                    <article><span>Self-Employed</span><strong>{trackingSummary.selfEmployed}</strong><small>Reported by linked alumni</small></article>
+                    <article><span>Employed</span><strong>{trackingSummary.employed}</strong><small>Reported by alumni profiles</small></article>
+                    <article><span>Unemployed</span><strong>{trackingSummary.unemployed}</strong><small>Reported by alumni profiles</small></article>
+                    <article><span>Self-Employed</span><strong>{trackingSummary.selfEmployed}</strong><small>Reported by alumni profiles</small></article>
                 </section>
 
                 <section className="queue-panel alumni-tracking-panel">
@@ -619,4 +619,3 @@ export default function AdminUsersPage({ role }) {
         </AdminShell>
     );
 }
-

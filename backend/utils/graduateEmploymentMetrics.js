@@ -23,4 +23,18 @@ function graduateEmploymentMetrics(masterRecords) {
     }
     return counts;
 }
-module.exports = { graduateEmploymentMetrics, normalizeEmploymentStatus };
+
+function alumniProfileEmploymentMetrics(profiles) {
+    const counts = { employed: 0, unemployed: 0, selfEmployed: 0 };
+    const countedAlumni = new Set();
+    for (const profile of profiles) {
+        const alumniId = validId(profile.user_id);
+        if (!alumniId || countedAlumni.has(alumniId)) continue;
+        countedAlumni.add(alumniId);
+        const status = normalizeEmploymentStatus(profile.employment_status);
+        if (status) counts[categories[status]]++;
+    }
+    return counts;
+}
+
+module.exports = { alumniProfileEmploymentMetrics, graduateEmploymentMetrics, normalizeEmploymentStatus };

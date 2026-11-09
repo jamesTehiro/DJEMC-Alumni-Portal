@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const db = require('../models');
 const admin = require('../controllers/adminController');
 const profile = require('../controllers/profileController');
-const { graduateEmploymentMetrics, normalizeEmploymentStatus } = require('../utils/graduateEmploymentMetrics');
+const { alumniProfileEmploymentMetrics, graduateEmploymentMetrics, normalizeEmploymentStatus } = require('../utils/graduateEmploymentMetrics');
 const response = () => ({ statusCode: 200, headers: {}, setHeader(key, value) { this.headers[key] = value; }, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } });
 const linked = (id, status, userId = id + 100) => ({ id, User: { id: userId, AlumniProfile: { employment_status: status } } });
 test.after(() => db.sequelize.close());
@@ -23,6 +23,18 @@ test('an account and official graduate cannot be counted twice or in two categor
     assert.deepEqual(graduateEmploymentMetrics([linked(1, null, 10), linked(2, 'employed', 10)]), { employed: 0, unemployed: 0, selfEmployed: 0 });
 });
 
+test('alumni profile metrics normalize statuses and count each user only once', () => {
+    const profiles = [
+        { user_id: 10, employment_status: 'employed' },
+        { user_id: 10, employment_status: 'self-employed' },
+        { user_id: 11, employment_status: 'unemployed' },
+        { user_id: 12, employment_status: 'Self Employed' },
+        { user_id: 13, employment_status: 'Self-Employed' },
+        { user_id: null, employment_status: 'employed' }
+    ];
+    assert.deepEqual(alumniProfileEmploymentMetrics(profiles), { employed: 1, unemployed: 1, selfEmployed: 2 });
+});
+
 test('missing statuses never fall back to account fields, company, history or unlinked profiles', () => {
     const records = [
         { id: 1, employment_status: 'employed', User: { id: 10, employment_status: 'employed', AlumniProfile: { current_company: 'Company', EmploymentHistories: [{ employment_status: 'employed' }] } } },
@@ -32,12 +44,15 @@ test('missing statuses never fall back to account fields, company, history or un
     assert.deepEqual(graduateEmploymentMetrics(records), { employed: 0, unemployed: 0, selfEmployed: 0 });
 });
 
-test('the summary preserves the exact official master-list query and 31-record total', async t => {
+test('the summary uses all alumni profiles for employment metrics and preserves the official total', async t => {
     const records = Array.from({ length: 31 }, (_, index) => ({ id: index + 1, User: null }));
-    Object.assign(records[0], linked(1, 'Employed'));
-    Object.assign(records[1], linked(2, 'UNEMPLOYED'));
-    Object.assign(records[2], linked(3, ' Self – Employed '));
-    const before = structuredClone(records);
+    const profiles = [
+        { user_id: 10, employment_status: 'Employed' },
+        { user_id: 11, employment_status: 'UNEMPLOYED' },
+        { user_id: 12, employment_status: ' Self – Employed ' },
+        { user_id: 13, employment_status: 'Self Employed' },
+        { user_id: 13, employment_status: 'employed' }
+    ];
     t.mock.method(db.AlumniRecord, 'findAll', async options => {
         assert.deepEqual(options, {
             attributes: ['id'], include: [{ model: db.User, required: false, attributes: ['id'],
@@ -45,22 +60,26 @@ test('the summary preserves the exact official master-list query and 31-record t
         }, 'Total Graduates source, joins and filters must remain unchanged');
         return records;
     });
+    t.mock.method(db.AlumniProfile, 'findAll', async options => {
+        assert.deepEqual(options, { attributes: ['user_id', 'employment_status'], order: [['id', 'ASC']] });
+        return profiles;
+    });
     t.mock.method(db.User, 'findAll', async () => { throw Error('Do not replace the official master-list source'); });
     const result = response(); await admin.getAlumniTrackingSummary({}, result);
     assert.equal(result.statusCode, 200);
-    assert.deepEqual(result.body, { totalGraduates: 31, employed: 1, unemployed: 1, selfEmployed: 1 });
+    assert.deepEqual(result.body, { totalGraduates: 31, employed: 1, unemployed: 1, selfEmployed: 2 });
     assert.equal(result.headers['Cache-Control'], 'no-store');
-    assert.deepEqual(records, before);
     assert.equal(db.AlumniRecord.associations.User.foreignKey, 'alumni_record_id');
     assert.equal(db.User.associations.AlumniProfile.foreignKey, 'user_id');
     assert.equal(db.AlumniProfile.getTableName(), 'alumniprofiles');
 });
 
-test('saved Digital Resume profile updates move one linked graduate between categories while total remains 31', async t => {
+test('saved Digital Resume profile updates refresh employment metrics while total remains unchanged', async t => {
     const alumniProfile = { id: 20, user_id: 12, employment_status: null, async update(values) { Object.assign(this, values); } };
     const user = { id: 12, role: 'alumni', name: 'Fixture Alumni', email: 'fixture@gmail.com', AlumniProfile: alumniProfile, async update(values) { Object.assign(this, values); } };
     const records = Array.from({ length: 31 }, (_, index) => ({ id: index + 1, User: index === 0 ? user : null }));
     t.mock.method(db.AlumniRecord, 'findAll', async () => records);
+    t.mock.method(db.AlumniProfile, 'findAll', async () => [alumniProfile]);
     t.mock.method(db.User, 'findByPk', async () => user);
     t.mock.method(db.AlumniProfile, 'findOrCreate', async () => [alumniProfile]);
     t.mock.method(db.sequelize, 'transaction', async fn => fn({ LOCK: { UPDATE: 'UPDATE' } }));
