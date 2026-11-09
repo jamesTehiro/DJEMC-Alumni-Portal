@@ -37,6 +37,20 @@ test("attachment fetch reports missing files, expired sessions and denied access
     } finally { globalThis.fetch = originalFetch; }
 });
 
+test("authenticated permit preview surfaces the legacy re-upload instruction", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => Response.json({
+        code: "EMPLOYER_PERMIT_REUPLOAD_REQUIRED",
+        msg: "This older business permit file is no longer available on the server. Ask the employer to re-upload it."
+    }, { status: 404 });
+    try {
+        await assert.rejects(
+            fetchFile("/api/admin/employer/users/82/business-permits/1", true),
+            /re-upload/i
+        );
+    } finally { globalThis.fetch = originalFetch; }
+});
+
 test("protected file fetching never forwards credentials to another origin", async () => {
     const originalFetch = globalThis.fetch;
     let called = false;

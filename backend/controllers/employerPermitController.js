@@ -18,6 +18,13 @@ exports.getDocument = async (req, res, next) => {
             res.removeHeader("Content-Disposition"); res.removeHeader("Content-Type");
             return res.status(404).json({ msg: "The submitted business permit document could not be found. It may no longer be available." });
         };
+        const missingLegacyFile = () => {
+            res.removeHeader("Content-Disposition"); res.removeHeader("Content-Type");
+            return res.status(404).json({
+                code: "EMPLOYER_PERMIT_REUPLOAD_REQUIRED",
+                msg: "This older business permit file is no longer available on the server. It must be re-uploaded before it can be reviewed."
+            });
+        };
         if (!document) return missing();
         let reference = document.storage_ref;
         if (reference.startsWith("cld:") && !isStoredFileReference(reference)) reference = await recoverPermitStoredFileReference(reference);
@@ -58,7 +65,7 @@ exports.getDocument = async (req, res, next) => {
         const normalized = normalizeStoredPath(localValue);
         if (!/^\/(uploads\/(documents|business-permits)|private_uploads\/business_permits)\//.test(normalized || "")) return missing();
         const local = await resolveLocalStoredFile(localValue);
-        if (!local) return missing();
+        if (!local) return missingLegacyFile();
         res.setHeader("Content-Type", mime || "application/octet-stream");
         return res.sendFile(local);
     } catch (error) { next(error); }

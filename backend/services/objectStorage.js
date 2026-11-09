@@ -26,14 +26,14 @@ const sanitizeBaseName = (value = "", fallback = "file") =>
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "") || fallback;
 
-const buildPublicId = ({ folder, prefix, originalName }) => {
+const buildPublicId = ({ folder, prefix, originalName, resourceType }) => {
     const extension = path.extname(String(originalName || "")).toLowerCase();
     const safePrefix = sanitizeBaseName(prefix, "file");
     const safeFolder = String(folder || "")
         .replace(/^\/+|\/+$/g, "")
         .replace(/[^a-zA-Z0-9/_-]+/g, "");
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const fileName = `${safePrefix}-${uniqueSuffix}${extension}`;
+    const fileName = `${safePrefix}-${uniqueSuffix}${resourceType === "raw" ? extension : ""}`;
     return safeFolder ? `${safeFolder}/${fileName}` : fileName;
 };
 
@@ -141,10 +141,10 @@ const uploadBuffer = async ({ buffer, mimeType, originalName, folder, prefix, is
         throw err;
     }
 
-    const publicId = buildPublicId({ folder, prefix, originalName });
     const timestamp = Math.floor(Date.now() / 1000);
     const resourceType = String(mimeType || "").startsWith("image/") ? "image" : "raw";
     const type = deliveryType === "authenticated" ? "authenticated" : "upload";
+    const publicId = buildPublicId({ folder, prefix, originalName, resourceType });
 
     const signature = signCloudinaryParams({
         public_id: publicId,

@@ -229,10 +229,12 @@ export const fetchFile = async (path, auth = false) => {
     if (!response.ok) {
         const text = await response.text();
         let message = text;
+        let responseCode = null;
 
         try {
             const payload = JSON.parse(text);
             message = payload?.msg || payload?.message || text;
+            responseCode = payload?.code || null;
         } catch {
             // Preserve the response text if it is not JSON.
         }
@@ -244,7 +246,7 @@ export const fetchFile = async (path, auth = false) => {
         }[response.status];
 
         throw new Error(
-            statusMessage ||
+            (responseCode === "EMPLOYER_PERMIT_REUPLOAD_REQUIRED" && response.status === 404 ? message : statusMessage) ||
             message ||
             `Unable to fetch file (HTTP ${response.status}).`
         );

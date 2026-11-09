@@ -277,6 +277,39 @@ test("private permit delivery logs only the provider status and keeps secrets an
     }
 });
 
+test("missing legacy local permit returns a safe re-upload instruction", async () => {
+    const overrides = [];
+    const stub = (object, key, value) => { overrides.push([object, key, object[key]]); object[key] = value; };
+    const reference = `/uploads/business-permits/permit-missing-${process.pid}-${Date.now()}.png`;
+    stub(db.User, "findByPk", async () => ({ id: 82, role: "employer" }));
+    stub(db.EmployerProfile, "findOne", async () => ({
+        user_id: 82,
+        business_permit_path: reference,
+        business_permit_documents: JSON.stringify([{ storage_ref: reference, name: "Permit.png", mime_type: "image/png" }])
+    }));
+    try {
+        const headers = {};
+        const response = {
+            setHeader(name, value) { headers[name] = value; },
+            removeHeader(name) { delete headers[name]; },
+            status(code) { this.code = code; return this; },
+            json(body) { this.body = body; return this; }
+        };
+        await controller.getDocument({
+            params: { userId: "82", documentId: "1" },
+            query: {},
+            user: { id: 1, role: "admin", admin_scope: "employer" }
+        }, response, error => { throw error; });
+        assert.equal(response.code, 404);
+        assert.equal(response.body.code, "EMPLOYER_PERMIT_REUPLOAD_REQUIRED");
+        assert.match(response.body.msg, /re-upload/i);
+        assert.equal(JSON.stringify(response.body).includes(reference), false);
+        assert.deepEqual(headers, { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" });
+    } finally {
+        for (const [object, key, value] of overrides) object[key] = value;
+    }
+});
+
 test("document viewing never changes verification state and approval/rejection preserve all references", async () => {
     const overrides=[];
     const stub=(object,key,value)=>{overrides.push([object,key,object[key]]);object[key]=value;};

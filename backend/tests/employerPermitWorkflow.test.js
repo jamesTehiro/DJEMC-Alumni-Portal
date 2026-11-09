@@ -190,7 +190,9 @@ test("multipart permit registration, admin preview/replacement, validation and p
         profile.business_permit_documents=null;
         const missing=await fetch(`${base}/api/admin/employer/users/82/business-permits/original`,{headers:adminHeaders});
         assert.equal(missing.status,404);
-        assert.match((await missing.json()).msg,/could not be found/);
+        const missingPayload=await missing.json();
+        assert.equal(missingPayload.code,"EMPLOYER_PERMIT_REUPLOAD_REQUIRED");
+        assert.match(missingPayload.msg,/re-upload/i);
         profile.business_permit_path="/uploads/business-permits/../../server.js";
         const traversalPreview=await fetch(`${base}/api/admin/employer/users/82/business-permits/original`,{headers:adminHeaders});
         assert.equal(traversalPreview.status,404);
