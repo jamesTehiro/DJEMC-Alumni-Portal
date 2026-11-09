@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-process.env.OBJECT_STORAGE_PROVIDER = "cloudinary";
+process.env.OBJECT_STORAGE_PROVIDER = "local";
 process.env.CLOUDINARY_CLOUD_NAME = "permit-fixture";
 process.env.CLOUDINARY_API_KEY = "fixture-key";
 process.env.CLOUDINARY_API_SECRET = "fixture-secret";
@@ -25,6 +25,9 @@ test.after(() => db.sequelize.close());
 test("multipart permit registration, admin preview/replacement, validation and persistence failure", async () => {
     const saved = [];
     const override = (object, key, value) => { saved.push([object, key, object[key]]); object[key] = value; };
+    // OTP security is exercised by employerRegistrationOtp.test.js. This fixture
+    // focuses on real multipart storage, validation and the existing review flow.
+    override(require('../controllers/registrationOtpController').employerOtp, 'consume', async () => ({ verified_at: new Date(), update: async () => {} }));
     let user = null, profile = null, rejectSave = false;
     const createdPermitPaths = new Set();
     const makeProfile = () => ({ business_permit_path: null, update: async function(values) { if (!rejectSave) Object.assign(this, values); }, reload: async function() { return this; } });
@@ -65,7 +68,7 @@ test("multipart permit registration, admin preview/replacement, validation and p
     const adminHeaders = headers({ id: 1, role: "admin", admin_scope: "employer" });
     const form = (bytes, type, name, registration = true) => {
         const form = new FormData();
-        if (registration) for (const [key,value] of Object.entries({ name: "Fixture Employer", email: "permit@example.invalid", password: "test-password", role: "employer" })) form.append(key,value);
+        if (registration) for (const [key,value] of Object.entries({ name: "Fixture Employer", email: "permit.fixture@gmail.com", password: "test-password", role: "employer" })) form.append(key,value);
         form.append("business_permit", new Blob([bytes], { type }), name); return form;
     };
     const legacyName = `permit-test-${process.pid}-${Date.now()}.pdf`;

@@ -174,7 +174,7 @@ const createCloudStorageEngine = () => ({
                     publicUrl: uploaded.publicUrl || null,
                     mimetype: file.mimetype,
                     originalname: file.originalname,
-                    signatureVerified: ["attachment", "proof_document"].includes(file.fieldname)
+                    signatureVerified: ["attachment", "business_permit", "proof_document"].includes(file.fieldname)
                 });
             } catch (err) {
                 if (file.fieldname === "attachment") {
@@ -261,7 +261,7 @@ const localStorage = {
 };
 
 const storage = isObjectStorageEnabled() ? createCloudStorageEngine() : localStorage;
-const businessPermitStorage = multer.diskStorage({
+const localBusinessPermitStorage = multer.diskStorage({
     destination: (_req, _file, cb) => ensureDir(businessPermitRoot)
         .then(() => cb(null, businessPermitRoot))
         .catch(() => cb(Object.assign(new Error("Business permit storage is unavailable. The document was not saved."), { status: 503, publicMessage: "Business permit storage is unavailable. The document was not saved." }))),
@@ -274,16 +274,28 @@ const businessPermitStorage = multer.diskStorage({
         cb(null, `business-permit-${crypto.randomUUID()}${extension}`);
     }
 });
+const productionRuntime = process.env.NODE_ENV === "production" || String(process.env.RENDER).toLowerCase() === "true";
+const unavailableBusinessPermitStorage = {
+    _handleFile: (_req, _file, cb) => cb(Object.assign(
+        new Error("Business permit storage is not configured. The document was not saved."),
+        { status: 503, publicMessage: "Business permit storage is not configured. The document was not saved." }
+    )),
+    _removeFile: (_req, _file, cb) => cb(null)
+};
+const businessPermitStorage = isObjectStorageEnabled()
+    ? createCloudStorageEngine()
+    : productionRuntime ? unavailableBusinessPermitStorage : localBusinessPermitStorage;
 const permitAwareStorage = {
     _handleFile: (req, file, cb) => {
         const isPermit = file.fieldname === "business_permit";
         const engine = isPermit ? businessPermitStorage : storage;
         engine._handleFile(req, file, (error, info) => {
             if (error) {
-                if (isPermit) return cb(Object.assign(new Error("Business permit storage is unavailable. The document was not saved."), { status: 503, publicMessage: "Business permit storage is unavailable. The document was not saved." }));
+                if (isPermit && error.status === 415) return cb(error);
+                if (isPermit) return cb(Object.assign(new Error("Business permit storage is unavailable. The document was not saved."), { status: error.status || 503, publicMessage: "Business permit storage is unavailable. The document was not saved." }));
                 return cb(error);
             }
-            if (isPermit) {
+            if (isPermit && !info.storageRef) {
                 info.storageRef = `/uploads/business-permits/${info.filename}`;
                 info.permitDiskFile = true;
             }
@@ -414,6 +426,7 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
             }
         }
         for (const file of files) {
+            if (file.signatureVerified) continue;
             let buffer;
             try { buffer = await fs.promises.readFile(file.path); }
             catch { throw Object.assign(new Error("Business permit storage is unavailable. The document could not be verified."), { status: 503, publicMessage: "Business permit storage is unavailable. The document could not be verified." }); }
@@ -423,7 +436,11 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
         }
         res.once("finish", () => {
             if (res.statusCode >= 400) {
-                for (const file of files) if (file.permitDiskFile) fs.promises.unlink(file.path).catch(() => {});
+                for (const file of files) {
+                    permitAwareStorage._removeFile(req, file, error => {
+                        if (error) console.error("[business-permit-upload] Failed to remove an uncommitted file.", { failure: "cleanup" });
+                    });
+                }
             }
         });
         next();
