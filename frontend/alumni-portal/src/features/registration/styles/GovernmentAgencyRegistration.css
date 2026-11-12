@@ -1,0 +1,151 @@
+.government-agency-registration-callout {
+    display: grid;
+    gap: 0.65rem;
+    padding: 1rem;
+    border: 1px solid #c9d9cf;
+    border-radius: 0.75rem;
+    background: #f5f8f6;
+}
+
+.government-agency-registration-callout h3,
+.business-verification-heading h3 {
+    margin: 0;
+    color: #164b32;
+    font-size: 1.05rem;
+}
+
+.government-agency-registration-callout p,
+.business-verification-heading p {
+    margin: 0;
+}
+
+.government-agency-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.government-agency-ready {
+    margin: 0;
+    color: #164b32;
+    font-weight: 600;
+}
+
+.government-agency-modal .modal-body {
+    max-height: min(78vh, 900px);
+}
+
+.government-form-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #dfe7e2;
+}
+
+.government-form-section:last-child {
+    border-bottom: 0;
+}
+
+.government-form-section h3 {
+    margin: 0 0 0.85rem;
+    color: #164b32;
+    font-size: 1.05rem;
+    font-weight: 700;
+}
+
+.government-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 1rem;
+}
+
+.government-form-grid > label {
+    display: grid;
+    align-content: start;
+    gap: 0.35rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.government-form-grid > label.wide {
+    grid-column: 1 / -1;
+}
+
+.government-form-grid input,
+.government-form-grid select,
+.government-form-grid textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid #b8c5bd;
+    border-radius: 0.4rem;
+    background: #fff;
+    font-weight: 400;
+}
+
+.government-form-grid input[type="file"] {
+    padding: 0.4rem;
+}
+
+.government-signature-preview {
+    display: grid;
+    justify-items: start;
+    gap: 0.5rem;
+    min-height: 120px;
+    padding: 0.75rem;
+    border: 1px dashed #82948a;
+    border-radius: 0.5rem;
+    background: #fbfcfb;
+}
+
+.government-signature-preview img {
+    display: block;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    max-height: 90px;
+    object-fit: contain;
+}
+
+.government-signature-preview p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.government-declaration-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+}
+
+.government-pdf-preview {
+    min-height: 0;
+    padding: 0;
+    background: #e8ece9;
+}
+
+.government-pdf-preview iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 75vh;
+    border: 0;
+    background: #fff;
+}
+
+@media (max-width: 640px) {
+    .government-form-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .government-form-grid > label.wide {
+        grid-column: auto;
+    }
+
+    .government-agency-modal .modal-dialog {
+        margin: 0.35rem;
+    }
+
+    .government-agency-modal .modal-body {
+        max-height: 80vh;
+    }
+}

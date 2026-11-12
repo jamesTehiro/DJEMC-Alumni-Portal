@@ -24,6 +24,10 @@ const MAX_UPLOAD_MB = Number.isFinite(configuredMaxUploadMb) && configuredMaxUpl
 const limits = { fileSize: MAX_UPLOAD_MB * 1024 * 1024 };
 const configuredProfileUploadMb = Number(process.env.MAX_PROFILE_UPLOAD_MB || 5);
 const MAX_PROFILE_UPLOAD_MB = Number.isFinite(configuredProfileUploadMb) && configuredProfileUploadMb > 0 ? configuredProfileUploadMb : 5;
+const MAX_GOVERNMENT_AGENCY_IMAGE_BYTES = 512 * 1024;
+const MAX_GOVERNMENT_AGENCY_PDF_BYTES = 5 * 1024 * 1024;
+const governmentAgencyImageFields = new Set(["government_signature", "government_seal"]);
+const governmentAgencyPdfField = "government_authorization_pdf";
 
 const allowedExtensions = /\.(pdf|doc|docx|png|jpe?g|webp|gif)$/i;
 const allowedMimes = [
@@ -102,6 +106,22 @@ const verifyChatAttachment = (req, _res, next) => {
 };
 
 const fileFilter = (_req, file, cb) => {
+    if (file.fieldname === governmentAgencyPdfField) {
+        const extension = path.extname(file.originalname || "").toLowerCase();
+        return extension === ".pdf" && file.mimetype === "application/pdf"
+            ? cb(null, true)
+            : cb(Object.assign(new Error("The government authorization document must be a PDF."), { status: 415 }));
+    }
+    if (governmentAgencyImageFields.has(file.fieldname)) {
+        const extension = path.extname(file.originalname || "").toLowerCase();
+        const expected = new Map([[".png", "image/png"], [".jpg", "image/jpeg"], [".jpeg", "image/jpeg"]]);
+        if (!expected.has(extension) || expected.get(extension) !== file.mimetype) {
+            const error = new Error("Government agency signature and seal files must be PNG, JPG, or JPEG images.");
+            error.status = 415;
+            return cb(error);
+        }
+        return cb(null, true);
+    }
     if (file.fieldname === "proof_document") return chatFileFilter(_req, file, cb);
     if (file.fieldname === "business_permit") {
         // Busboy's legacy multipart filename decoding is Latin-1. Recover UTF-8
@@ -137,6 +157,8 @@ const getTargetForField = (fieldName = "") => {
     if (fieldName === "certificate") return { folder: "private_uploads/documents", isPublic: false, prefix: "certificate", deliveryType: "authenticated" };
     if (fieldName === "proof_document") return { folder: "private_uploads/alumni_proof", isPublic: false, prefix: "proof-document", deliveryType: "authenticated" };
     if (fieldName === "business_permit") return { folder: "private_uploads/business_permits", isPublic: false, prefix: "business-permit", deliveryType: "authenticated" };
+    if (fieldName === "government_signature") return { folder: "private_uploads/government_agencies", isPublic: false, prefix: "representative-signature", deliveryType: "authenticated" };
+    if (fieldName === "government_seal") return { folder: "private_uploads/government_agencies", isPublic: false, prefix: "agency-seal", deliveryType: "authenticated" };
     if (fieldName === "attachment") return { folder: "private_uploads/chat", isPublic: false, prefix: "attachment", deliveryType: "authenticated" };
     return { folder: "private_uploads/documents", isPublic: false, prefix: fieldName || "file", deliveryType: "authenticated" };
 };
@@ -150,6 +172,13 @@ const createCloudStorageEngine = () => ({
             try {
                 const buffer = Buffer.concat(chunks);
                 if (file.stream.truncated) return cb(null, {});
+                if (governmentAgencyImageFields.has(file.fieldname)) {
+                    if (buffer.length > MAX_GOVERNMENT_AGENCY_IMAGE_BYTES || !require("../services/governmentAgencyRegistration").isImage(buffer, file.mimetype)) {
+                        const err = new Error("Government agency signature and seal must be valid PNG or JPG images no larger than 512 KB.");
+                        err.status = buffer.length > MAX_GOVERNMENT_AGENCY_IMAGE_BYTES ? 413 : 415;
+                        return cb(err);
+                    }
+                }
                 if ((isApplicationField(file.fieldname) || ["attachment", "business_permit", "proof_document"].includes(file.fieldname)) && !hasAllowedChatSignature(buffer, file.mimetype)) {
                     const err = new Error("The file contents do not match a supported file type.");
                     err.status = 415;
@@ -174,7 +203,8 @@ const createCloudStorageEngine = () => ({
                     publicUrl: uploaded.publicUrl || null,
                     mimetype: file.mimetype,
                     originalname: file.originalname,
-                    signatureVerified: ["attachment", "business_permit", "proof_document"].includes(file.fieldname)
+                    ...(governmentAgencyImageFields.has(file.fieldname) ? { buffer } : {}),
+                    signatureVerified: ["attachment", "business_permit", "proof_document", ...governmentAgencyImageFields].includes(file.fieldname)
                 });
             } catch (err) {
                 if (file.fieldname === "attachment") {
@@ -223,6 +253,7 @@ const localDiskStorage = multer.diskStorage({
         let dest = path.join(root, "documents");
         if (file.fieldname === "resume") dest = path.join(root, "resumes");
         if (file.fieldname === "proof_document") dest = path.join(root, "documents");
+        if (governmentAgencyImageFields.has(file.fieldname)) dest = path.join(__dirname, "..", "private_uploads", "government_agencies");
         if (file.fieldname === "avatar_image" || file.fieldname === "logo_image") dest = path.join(root, "images");
         if (file.fieldname === "attachment" && req.originalUrl.includes("/admin-employer/")) {
             dest = privateAdminEmployerRoot;
@@ -287,6 +318,29 @@ const businessPermitStorage = isObjectStorageEnabled()
     : productionRuntime ? unavailableBusinessPermitStorage : localBusinessPermitStorage;
 const permitAwareStorage = {
     _handleFile: (req, file, cb) => {
+        if (governmentAgencyPdfField === file.fieldname) {
+            const chunks = [];
+            let size = 0;
+            file.stream.on("data", chunk => {
+                size += chunk.length;
+                if (size <= MAX_GOVERNMENT_AGENCY_PDF_BYTES) chunks.push(chunk);
+            });
+            file.stream.on("error", cb);
+            file.stream.on("end", () => {
+                if (size > MAX_GOVERNMENT_AGENCY_PDF_BYTES) {
+                    return cb(Object.assign(new Error("The government authorization PDF must be no larger than 5 MB."), { status: 413 }));
+                }
+                const buffer = Buffer.concat(chunks);
+                if (!buffer.subarray(0, 5).equals(Buffer.from("%PDF-"))) {
+                    return cb(Object.assign(new Error("The government authorization document is not a valid PDF."), { status: 415 }));
+                }
+                return cb(null, { size, buffer, filename: path.basename(file.originalname), mimetype: file.mimetype, originalname: file.originalname });
+            });
+            return;
+        }
+        if (governmentAgencyImageFields.has(file.fieldname) && productionRuntime && !isObjectStorageEnabled()) {
+            return cb(Object.assign(new Error("Private government agency document storage is not configured."), { status: 503 }));
+        }
         const isPermit = file.fieldname === "business_permit";
         const engine = isPermit ? businessPermitStorage : storage;
         engine._handleFile(req, file, (error, info) => {
@@ -299,10 +353,16 @@ const permitAwareStorage = {
                 info.storageRef = `/uploads/business-permits/${info.filename}`;
                 info.permitDiskFile = true;
             }
+            if (governmentAgencyImageFields.has(file.fieldname) && !info.storageRef && info.filename) {
+                info.storageRef = `/private_uploads/government_agencies/${info.filename}`;
+                info.governmentAgencyDiskFile = true;
+            }
             cb(null, info);
         });
     },
-    _removeFile: (req, file, cb) => (file.permitDiskFile ? businessPermitStorage : storage)._removeFile(req, file, cb)
+    _removeFile: (req, file, cb) => file.fieldname === governmentAgencyPdfField
+        ? cb(null)
+        : (file.permitDiskFile ? businessPermitStorage : storage)._removeFile(req, file, cb)
 };
 const upload = multer({ storage: permitAwareStorage, limits, fileFilter });
 const profileUpload = multer({ storage, limits: { fileSize: MAX_PROFILE_UPLOAD_MB * 1024 * 1024 }, fileFilter: profileFileFilter }).fields([
@@ -414,10 +474,12 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
     }
     const files = req.files?.business_permit || [];
     const proofs = req.files?.proof_document || [];
+    const governmentImages = [...(req.files?.government_signature || []), ...(req.files?.government_seal || [])];
     // A rejected registration must not leave a newly uploaded private proof
     // behind. This listener only touches files parsed by this request.
     res.once("finish", () => {
         if (res.statusCode >= 400) for (const file of proofs) storage._removeFile(req, file, () => {});
+        if (res.statusCode >= 400) for (const file of governmentImages) permitAwareStorage._removeFile(req, file, () => {});
     });
     try {
         for (const file of proofs) {
@@ -433,6 +495,20 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
             if (!hasAllowedChatSignature(buffer, file.mimetype)) {
                 const error = new Error("The business permit contents do not match the selected file type."); error.status = 415; throw error;
             }
+            let governmentImageBytes = 0;
+            for (const file of governmentImages) {
+                governmentImageBytes += file.size || 0;
+                if (file.signatureVerified) continue;
+                let buffer;
+                try { buffer = await fs.promises.readFile(file.path); }
+                catch { throw Object.assign(new Error("Government agency document storage is unavailable. The image could not be verified."), { status: 503 }); }
+                if (buffer.length > MAX_GOVERNMENT_AGENCY_IMAGE_BYTES || !require("../services/governmentAgencyRegistration").isImage(buffer, file.mimetype)) {
+                    throw Object.assign(new Error("Government agency signature and seal must be valid PNG or JPG images no larger than 512 KB."), { status: buffer.length > MAX_GOVERNMENT_AGENCY_IMAGE_BYTES ? 413 : 415 });
+                }
+            }
+            if (governmentImageBytes > 768 * 1024) {
+                throw Object.assign(new Error("The signature and agency seal images must total no more than 768 KB."), { status: 413 });
+            }
         }
         res.once("finish", () => {
             if (res.statusCode >= 400) {
@@ -447,18 +523,42 @@ const withBusinessPermitValidation = parser => (req, res, next) => parser(req, r
     } catch (error) {
         await Promise.allSettled(proofs.map(file => new Promise(resolve => storage._removeFile(req, file, resolve))));
         await Promise.allSettled(files.map(file => new Promise(resolve => permitAwareStorage._removeFile(req, file, resolve))));
+        await Promise.allSettled(governmentImages.map(file => new Promise(resolve => permitAwareStorage._removeFile(req, file, resolve))));
         next(error);
     }
 });
 
 exports.registrationUpload = withBusinessPermitValidation(upload.fields([
     { name: "business_permit", maxCount: 5 },
-    { name: "proof_document", maxCount: 6 }
+     { name: "proof_document", maxCount: 6 },
+     { name: "government_signature", maxCount: 1 },
+     { name: "government_seal", maxCount: 1 },
+     { name: governmentAgencyPdfField, maxCount: 1 }
+  ]));
+
+ exports.employerRegistrationUpload = withBusinessPermitValidation(upload.fields([
+     { name: "business_permit", maxCount: 5 }
  ]));
 
-exports.employerRegistrationUpload = withBusinessPermitValidation(upload.fields([
-    { name: "business_permit", maxCount: 5 }
- ]));
+ const governmentAgencyPreviewParser = multer({
+     storage: multer.memoryStorage(),
+     limits: { fileSize: MAX_GOVERNMENT_AGENCY_IMAGE_BYTES },
+     fileFilter
+ }).fields([
+     { name: "government_signature", maxCount: 1 },
+     { name: "government_seal", maxCount: 1 }
+ ]);
+ exports.governmentAgencyPreviewUpload = (req, res, next) => governmentAgencyPreviewParser(req, res, error => {
+     if (error) return next(error);
+     const images = [...(req.files?.government_signature || []), ...(req.files?.government_seal || [])];
+     if (images.some(file => !require("../services/governmentAgencyRegistration").isImage(file.buffer, file.mimetype))) {
+         return next(Object.assign(new Error("Government agency signature and seal must be valid PNG or JPG images."), { status: 415 }));
+     }
+     if (images.reduce((total, file) => total + file.size, 0) > 768 * 1024) {
+         return next(Object.assign(new Error("The signature and agency seal images must total no more than 768 KB."), { status: 413 }));
+     }
+     return next();
+ });
 
 exports.alumniRegistrationUpload = withBusinessPermitValidation(upload.fields([
     { name: "proof_document", maxCount: 6 }
