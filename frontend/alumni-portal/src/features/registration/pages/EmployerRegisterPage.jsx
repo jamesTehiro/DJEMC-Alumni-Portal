@@ -12,7 +12,9 @@ import RegistrationOtpModal from "../components/RegistrationOtpModal";
 import { isRegistrationGmail } from "../../../utils/registrationEmail";
 import BusinessPermitInput from "../../../components/forms/BusinessPermitInput";
 import { validateBusinessPermits } from "../../../utils/businessPermits";
+import GovernmentAgencyRegistrationForm from "../components/GovernmentAgencyRegistrationForm";
 import "../../../styles/AuthPage.css";
+import "../styles/GovernmentAgencyRegistration.css";
 const EMPLOYER_SESSION = "djemc-employer-registration-gmail-session";
 
 export default function EmployerRegisterPage() {
@@ -26,6 +28,8 @@ export default function EmployerRegisterPage() {
         consent: false
     });
     const [businessPermits, setBusinessPermits] = useState([]);
+    const [organizationType, setOrganizationType] = useState("private_business");
+    const [governmentAgencyBundle, setGovernmentAgencyBundle] = useState(null);
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const submitting = useRef(false);
@@ -50,7 +54,11 @@ export default function EmployerRegisterPage() {
         e.preventDefault();
         if (submitting.current || submitted || verification.busy) return;
         setError("");
-        const permitError = validateBusinessPermits(businessPermits);
+        const permitError = organizationType === "private_business" ? validateBusinessPermits(businessPermits) : null;
+        if (organizationType === "government_agency" && !governmentAgencyBundle) {
+            setError("Complete the Government Agency Registration and Authorization Form and generate its PDF before submitting.");
+            return;
+        }
         if (!validate(e.currentTarget, {
             ...form, employer: true,
             requiredIssue: !isRegistrationGmail(form.email) ? { field: "email", title: "Gmail Required", message: "Enter a valid @gmail.com address." }
@@ -69,11 +77,20 @@ export default function EmployerRegisterPage() {
             payload.append("email", form.email);
             payload.append("password", form.password);
             payload.append("role", "employer");
+            payload.append("organization_type", organizationType);
             payload.append("session_token", verification.session.token);
             payload.append("registration_authorization", verification.details.registration_authorization);
             payload.append("company_address", form.companyAddress);
             payload.append("website_url", form.websiteUrl);
-            businessPermits.forEach(file => payload.append("business_permit", file));
+            if (organizationType === "private_business") {
+                businessPermits.forEach(file => payload.append("business_permit", file));
+            } else {
+                payload.append("government_agency_details", JSON.stringify(governmentAgencyBundle.details));
+                payload.append("government_signature", governmentAgencyBundle.signature);
+                if (governmentAgencyBundle.seal) payload.append("government_seal", governmentAgencyBundle.seal);
+                payload.append("government_authorization_pdf", governmentAgencyBundle.pdf, "government-agency-registration-authorization.pdf");
+                payload.append("government_authorization_preview_token", governmentAgencyBundle.previewToken);
+            }
             await api.post("/auth/register", payload);
             setSubmitted(true);
             setSuccess(true);
@@ -127,66 +144,104 @@ export default function EmployerRegisterPage() {
                     </div>
                     {error && <p className="auth-error">{error}</p>}
                     {verification.error && !verification.open && <p className="auth-error" role="alert">{verification.error}</p>}
-                    {verification.verified && <p className="alert alert-success" role="status">Gmail verified. Submit your account for business permit review and employer approval.</p>}
-                    {verification.restored && !submitted && <p className="small text-muted">Your Gmail verification session was restored. Re-enter your registration details and reselect your business permits. Passwords and files are not stored in your browser.</p>}
+                    {verification.verified && <p className="alert alert-success" role="status">Gmail verified. Submit your account for administrative employer verification.</p>}
+                    {verification.restored && !submitted && <p className="small text-muted">Your Gmail verification session was restored. Re-enter your registration details and reselect required documents. Passwords and files are not stored in your browser.</p>}
                     <form ref={formRef} className="auth-form" onSubmit={handleSubmit} noValidate>
                         <fieldset className="registration-fields" disabled={loading || submitted || verification.busy || verification.open}>
-                        <label className="field">
-                            <span>Company Name{requiredMark}</span>
-                            <label className="line-input">
-                                <input name="name" value={form.name} onChange={handleChange} placeholder="DJEMC Organization" required />
-                                <FiUser className="input-icon" />
+                            <label className="field">
+                                <span>{organizationType === "government_agency" ? "Agency / Account Name" : "Company Name"}{requiredMark}</span>
+                                <label className="line-input">
+                                    <input name="name" value={form.name} onChange={handleChange} placeholder="DJEMC Organization" required />
+                                    <FiUser className="input-icon" />
+                                </label>
+                                <label className="field">
+                                    <span>Organization Type{requiredMark}</span>
+                                    <select
+                                        name="organizationType"
+                                        value={organizationType}
+                                        onChange={event => {
+                                            setOrganizationType(event.target.value);
+                                            setBusinessPermits([]);
+                                            setGovernmentAgencyBundle(null);
+                                            setError("");
+                                        }}
+                                        required
+                                    >
+                                        <option value="private_business">Private Business</option>
+                                        <option value="government_agency">Government Agency</option>
+                                    </select>
+                                    <small>Select your organization type to view the applicable registration and verification requirements.</small>
+                                </label>
                             </label>
-                        </label>
-                        <label className="field">
-                            <span>Gmail{requiredMark}</span>
-                            <label className="line-input">
-                                <input ref={emailRef} type="email" name="email" value={form.email} onChange={handleChange} placeholder="organization@gmail.com" required />
-                                <FiMail className="input-icon" />
+                            <label className="field">
+                                <span>Gmail{requiredMark}</span>
+                                <label className="line-input">
+                                    <input ref={emailRef} type="email" name="email" value={form.email} onChange={handleChange} placeholder="organization@gmail.com" required />
+                                    <FiMail className="input-icon" />
+                                </label>
                             </label>
-                        </label>
-                        <label className="field">
-                            <span>Company Address{requiredMark}</span>
-                            <label className="line-input">
-                                <input name="companyAddress" value={form.companyAddress} onChange={handleChange} placeholder="Municipality of San Jose" required />
-                                <FiUser className="input-icon" />
+                            <label className="field">
+                                <span>Company Address{requiredMark}</span>
+                                <label className="line-input">
+                                    <input name="companyAddress" value={form.companyAddress} onChange={handleChange} placeholder="Municipality of San Jose" required />
+                                    <FiUser className="input-icon" />
+                                </label>
                             </label>
-                        </label>
-                        <label className="field">
-                            <span>Company Website or Facebook Page</span>
-                            <label className="line-input">
-                                <input name="websiteUrl" value={form.websiteUrl} onChange={handleChange} placeholder="https://company-site.com or Facebook page" />
-                                <FiGlobe className="input-icon" />
+                            <label className="field">
+                                <span>Company Website or Facebook Page</span>
+                                <label className="line-input">
+                                    <input name="websiteUrl" value={form.websiteUrl} onChange={handleChange} placeholder="https://company-site.com or Facebook page" />
+                                    <FiGlobe className="input-icon" />
+                                </label>
                             </label>
-                        </label>
-                        <label className="field">
-                            <span>Password{requiredMark}</span>
-                            <PasswordField name="password" value={form.password} onChange={handleChange} placeholder="Create a strong password" required />
-                        </label>
-                        <label className="field" htmlFor="employer-confirm-password">
-                            <span>Confirm Password *</span>
-                            <PasswordField id="employer-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Confirm your password" autoComplete="new-password" aria-label="Confirm Password" required />
-                        </label>
-                        <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading || submitted || verification.busy || verification.open} />
-                        <label className="consent-row">
-                            <input
-                                type="checkbox"
-                                name="consent"
-                                disabled={!consentRead}
-                                checked={form.consent}
-                                onChange={(e) => setForm((prev) => ({ ...prev, consent: e.target.checked }))}
-                            />
-                            <span>
-                                I agree to the{" "}
-                                <span role="button" tabIndex={0} className="inline-link-btn highlight-link" onClick={openConsentModal} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openConsentModal(e)}>
-                                    Terms and Conditions
-                                </span>{" "}
-                                and understand how company information and uploaded documents will be used.
-                            </span>
-                        </label>
-                        <button className="primary-btn auth-submit" type="submit" disabled={loading || submitted || verification.busy}>
-                            {loading ? "Creating..." : verification.verified ? "Create Employer Account" : "Verify Gmail & Continue"}
-                        </button>
+                            <label className="field">
+                                <span>Password{requiredMark}</span>
+                                <PasswordField name="password" value={form.password} onChange={handleChange} placeholder="Create a strong password" required />
+                            </label>
+                            <label className="field" htmlFor="employer-confirm-password">
+                                <span>Confirm Password *</span>
+                                <PasswordField id="employer-confirm-password" name="confirmPassword" value={form.confirmPassword} onChange={handleChange} placeholder="Confirm your password" autoComplete="new-password" aria-label="Confirm Password" required />
+                            </label>
+                            {organizationType === "private_business" ? (
+                                <>
+                                    <div className="business-verification-heading">
+                                        <h3>Business Verification Document</h3>
+                                    </div>
+                                    <BusinessPermitInput files={businessPermits} onChange={setBusinessPermits} disabled={loading || submitted || verification.busy || verification.open} />
+                                </>
+                            ) : (
+                                <section className="government-agency-registration-callout">
+                                    <h3>Government Agency Registration</h3>
+                                    <p>Government agencies may register by completing the Government Agency Registration and Authorization Form. The completed form and authorized representative details will be submitted for administrative verification.</p>
+                                    <GovernmentAgencyRegistrationForm
+                                        key={organizationType}
+                                        onBundleChange={setGovernmentAgencyBundle}
+                                        onComplete={setGovernmentAgencyBundle}
+                                        onDone={() => formRef.current?.requestSubmit()}
+                                        onAccountDetails={details => setForm(previous => ({ ...previous, ...details }))}
+                                    />
+                                    {governmentAgencyBundle && <p className="government-agency-ready" role="status">Authorization form and PDF ready for submission.</p>}
+                                </section>
+                            )}
+                            <label className="consent-row">
+                                <input
+                                    type="checkbox"
+                                    name="consent"
+                                    disabled={!consentRead}
+                                    checked={form.consent}
+                                    onChange={(e) => setForm((prev) => ({ ...prev, consent: e.target.checked }))}
+                                />
+                                <span>
+                                    I agree to the{" "}
+                                    <span role="button" tabIndex={0} className="inline-link-btn highlight-link" onClick={openConsentModal} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && openConsentModal(e)}>
+                                        Terms and Conditions
+                                    </span>{" "}
+                                    and understand how company information and uploaded documents will be used.
+                                </span>
+                            </label>
+                            <button className="primary-btn auth-submit" type="submit" disabled={loading || submitted || verification.busy}>
+                                {loading ? "Creating..." : verification.verified ? "Create Employer Account" : "Verify Gmail & Continue"}
+                            </button>
                         </fieldset>
                     </form>
                     <p className="auth-footer">

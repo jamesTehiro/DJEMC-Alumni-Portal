@@ -31,7 +31,23 @@ test("employer admins retrieve only their private government documents and list 
     await fs.writeFile(fixturePath, bytes, { mode: 0o600 });
     const profile = {
         organization_type: "government_agency",
-        government_agency_details: JSON.stringify({ agency_name: "Test Agency" }),
+        government_agency_details: JSON.stringify({
+            agency_name: "Test Agency",
+            agency_classification: "Regional office",
+            department_ministry: "Administration",
+            regional_office: "North",
+            office_address: "1 Test Road",
+            agency_email: "agency@example.gov",
+            agency_contact_number: "555-0100",
+            representative_name: "Test Representative",
+            representative_designation: "Regional Director",
+            representative_department: "Administration",
+            representative_email: "representative@example.gov",
+            representative_contact_number: "555-0101",
+            signature_printed_name: "Test Representative",
+            signature_designation: "Regional Director",
+            date_signed: "2026-11-13"
+        }),
         government_agency_documents: JSON.stringify({
             signature: { storage_ref: "/private_uploads/government_agencies/signature.png", name: "signature.png", mime_type: "image/png", size: 20 },
             seal: null,
@@ -83,6 +99,10 @@ test("employer admins retrieve only their private government documents and list 
         assert.equal(listed.status, 200);
         const user = (await listed.json())[0];
         assert.equal(user.EmployerProfile.organization_type, "government_agency");
+        assert.equal(user.EmployerProfile.government_agency_details.agency_name, "Test Agency");
+        assert.equal(user.EmployerProfile.government_agency_details.representative_designation, "Regional Director");
+        assert.match(user.EmployerProfile.government_agency_document_urls.signature, /government-agency-documents\/signature$/);
+        assert.equal(user.EmployerProfile.government_agency_document_urls.seal, null);
         assert.match(user.EmployerProfile.government_agency_document_urls.authorization_pdf, /government-agency-documents\/authorization_pdf$/);
         assert.doesNotMatch(JSON.stringify(user), /private_uploads\/government_agencies|storage_ref|cld:/);
     } finally {

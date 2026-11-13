@@ -1,7 +1,7 @@
 // routes/authRoutes.js
 const router = require("express").Router();
 const authController = require("../controllers/authController");
-const { registrationUpload } = require("../middleware/uploadMiddleware");
+const { registrationUpload, governmentAgencyPreviewUpload } = require("../middleware/uploadMiddleware");
 const bootstrapGuard = require("../middleware/bootstrapGuard");
 const registrationOtp = require("../controllers/registrationOtpController");
 const adminRegistration = require("../controllers/adminRegistrationController");
@@ -14,6 +14,7 @@ router.post("/employer-registration-otp/send", registrationOtp.rateLimit("send")
 router.post("/employer-registration-otp/resend", registrationOtp.rateLimit("send"), registrationOtp.employerResend);
 router.post("/employer-registration-otp/verify", registrationOtp.rateLimit("verify"), registrationOtp.employerVerify);
 router.post("/employer-registration-otp/status", registrationOtp.rateLimit("status"), registrationOtp.employerStatus);
+router.post("/employer-government-agency/consent-preview", registrationOtp.rateLimit("submit", ["ip"]), governmentAgencyPreviewUpload, require("../controllers/governmentAgencyController").previewConsent);
 router.post("/register", registrationOtp.rateLimit("submit", ["ip"]), registrationUpload, registrationOtp.rateLimit("submit", ["email", "session"]), authController.register);
 router.post("/login", authController.login);
 router.post("/forgot-password", authController.forgotPassword);

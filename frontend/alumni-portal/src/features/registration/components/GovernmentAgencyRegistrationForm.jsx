@@ -27,7 +27,7 @@ const MAX_TOTAL_IMAGE_BYTES = 768 * 1024;
 
 const validImage = file => file && ["image/png", "image/jpeg"].includes(file.type) && file.size <= MAX_IMAGE_BYTES;
 
-export default function GovernmentAgencyRegistrationForm({ onBundleChange, onComplete, onAccountDetails }) {
+export default function GovernmentAgencyRegistrationForm({ onBundleChange, onComplete, onAccountDetails, onDone }) {
     const [showForm, setShowForm] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [details, setDetails] = useState(EMPTY_DETAILS);
@@ -239,7 +239,10 @@ export default function GovernmentAgencyRegistrationForm({ onBundleChange, onCom
                 <Modal.Footer>
                     <Button variant="outline-primary" disabled={!pdfUrl} onClick={() => printFrame.current?.contentWindow?.print()}>Print</Button>
                     {pdfUrl && <a className="btn btn-primary" href={pdfUrl} download="government-agency-registration-authorization.pdf">Download PDF</a>}
-                    <Button variant="success" onClick={() => setShowPreview(false)}>Done</Button>
+                    <Button type="button" variant="success" onClick={() => {
+                        setShowPreview(false);
+                        onDone?.();
+                    }}>Done</Button>
                 </Modal.Footer>
             </Modal>
         </div>
